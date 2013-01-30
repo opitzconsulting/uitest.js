@@ -1,0 +1,1 @@
+window.sampleEndScript = true;

@@ -1,0 +1,44 @@
+/**
+* Jasmine-Ui v<%= version %>
+* http://github.com/tigbro/jasmine-ui
+*
+* Copyright 2011, Tobias Bosch (OPITZ CONSULTING GmbH)
+* Licensed under the MIT license.
+*
+* Includes jasmine BDD (https://github.com/pivotal/jasmine).
+* Copyright Pivotal Labs
+*
+*/
+if (!window.jasmine) {
+<%= include lib/jasmine.js %>
+}
+<%= include parts/simpleRequire.js %>
+<%= include parts/config.js %>
+<%= include parts/urlParser.js %>
+<%= include parts/urlLoader.js %>
+<%= include parts/scriptAccessor.js %>
+<%= include parts/logger.js %>
+<%= include parts/globals.js %>
+<%= include parts/persistentData.js %>
+<%= include parts/htmlParserFactory.js %>
+<%= include parts/instrumentor.js %>
+<%= include parts/client/asyncSensor.js %>
+<%= include parts/client/simulateEvent.js %>
+<%= include parts/client/loadUi.js %>
+<%= include parts/client/beforeLoad.js %>
+<%= include parts/server/loadUi.js %>
+
+/* Jasmine adapter */
+<%= include parts/jasmine/original.js %>
+<%= include parts/jasmine/shared.js %>
+<%= include parts/jasmine/client/multiLoad.js %>
+<%= include parts/jasmine/client/waitsForAsync.js %>
+<%= include parts/jasmine/client/adapter.js %>
+<%= include parts/jasmine/server/adapter.js %>
+
+/* Main */
+(function () {
+    jasmineui.require.default();
+})();
+
+

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script>
+		var popup = window.open("nonExistentPage.html");
+		
+		// popup.addEventListener("load", next, false);
+		window.setTimeout(next, 1000);
+		
+		function next() {
+			popup.eval(""+rewrite);
+			popup.rewrite("<html><body>Tobias</body></html>");
+			console.log(popup.location.href);
+
+			function rewrite(string) { var newDoc = document.open("text/html"); newDoc.write(string);newDoc.close();}
+			
+		};
+
+	</script>
+
+</head>
+
+
+<body>
+
+</body>    
+
+</html>

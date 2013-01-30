@@ -1,0 +1,18 @@
+{
+    "name":"uitest",
+    "description":"uitest.js is able to load a webpage into a frame or popup, instrument that page and the javascript in that page (e.g. add additional scripts at the end of the document, ...) and execute actions on that page.",
+    "version":"0.9.0",
+    "private":true,
+    "author":"Tobias Bosch (@tigbro)",
+    "devDependencies":{
+        "express":"latest",
+        "testacular":"latest",
+        "phantomjs": "latest",
+        "ejs": "latest"
+    },
+    "engine":"node 0.8.x",
+    "scripts":{
+        "start":"node server",
+        "test":"export PHANTOMJS_BIN=node_modules/.bin/phantomjs; node_modules/.bin/testacular start testacular.unit.conf.js --single-run --browsers Chrome"
+    }
+}

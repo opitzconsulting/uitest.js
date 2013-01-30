@@ -1,0 +1,9 @@
+.DS_Store
+
+node_modules
+
+# Ignore IDEA files
+.idea
+*.iml
+*.ipr
+*.iws
