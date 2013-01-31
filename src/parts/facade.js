@@ -34,10 +34,8 @@ uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config'], function
 				readySensorInstances: readyModule.createSensors(config)
 			};
 			urlLoader(this._runInstance);
-			this.reloaded(callback);
-		} else {
-			return readyModule.ready(this._runInstance.readySensorInstances, callback);
 		}
+		return readyModule.ready(this._runInstance.readySensorInstances, callback);
 	}
 
 	function readyLatch() {

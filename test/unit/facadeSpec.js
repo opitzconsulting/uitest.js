@@ -67,13 +67,12 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 						expect(uit._runInstance.config.readySensors).toEqual([loadSensorModule.sensorName]);
 					});
 
-					it('should call self.reloaded', function() {
-						spyOn(uit, "reloaded");
+					it('should call readyModule.ready', function() {
 						var callback = jasmine.createSpy('callback');
 						uit.ready(callback);
 						expect(callback).not.toHaveBeenCalled();
-						var lastCallArgs = uit.reloaded.mostRecentCall.args;
-						lastCallArgs[0]();
+						var lastCallArgs = readyModule.ready.mostRecentCall.args;
+						lastCallArgs[1]();
 						expect(callback).toHaveBeenCalled();
 					});
 

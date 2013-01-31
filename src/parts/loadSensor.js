@@ -1,20 +1,30 @@
 uitest.define('loadSensor', ['ready'], function(ready) {
 	var LOAD_SENSOR_NAME = "load";
 
-	// TODO implement the load sensor!
-	// Idea: wait for installer.append() to be called
-	// and document.readyState
-	// Also check document.readyState in addition.
-
 	function loadSensorFactory(installer) {
 		var count = 0,
-			ready = true;
+			ready, doc, waitForDocComplete;
+		
+		init();
+		installer.append(function(document) {
+			doc = document;
+			waitForDocComplete = true;
+		});
 		return loadSensor;
 
+		function init() {
+			ready = false;
+			waitForDocComplete = false;
+		}
+
 		function loadSensor(reload) {
+			if (waitForDocComplete && doc.readyState==='complete') {
+				waitForDocComplete = false;
+				ready = true;
+			}
 			if(reload) {
 				count++;
-				ready = false;
+				init();
 			}
 			return {
 				count: count,
