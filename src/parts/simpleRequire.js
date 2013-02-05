@@ -90,9 +90,9 @@
             }
 
             instanceCache[name] = resolvedValue;
-            if (resolvedValue && resolvedValue.globals) {
-                var globals = factory('globals', instanceCache);
-                mergeObjects(resolvedValue.globals, globals);
+            if (resolvedValue && resolvedValue.global) {
+                var global = factory('global', instanceCache);
+                mergeObjects(resolvedValue.global, global);
 
             }
 

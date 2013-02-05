@@ -1,9 +1,13 @@
 uitest.require(["factory!facade"], function(facadeFactory) {
 	describe('facade', function() {
 
-		var facade, urlLoader, readyModule, loadSensorModule;
+		var facade, urlLoader, readyModule, loadSensorModule, instrumentorModule, frame;
 		beforeEach(function() {
-			urlLoader = jasmine.createSpy('urlLoader');
+			frame = {};
+			urlLoader = {
+				open: jasmine.createSpy('urlLoader').andReturn(frame),
+				close: jasmine.createSpy('close')
+			};
 			loadSensorModule = {
 				sensorFactory: jasmine.createSpy('loadSensorFactory'),
 				waitForReload: jasmine.createSpy('waitForReload'),
@@ -14,20 +18,27 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 				reloaded: jasmine.createSpy('reloaded'),
 				createSensors: jasmine.createSpy('createSensors')
 			};
+			instrumentorModule = {
+				init: jasmine.createSpy('createWithConfig')
+			};
 			facade = facadeFactory({
 				urlLoader: urlLoader,
 				ready: readyModule,
-				loadSensor: loadSensorModule
+				loadSensor: loadSensorModule,
+				instrumentor: instrumentorModule
 			});
 		});
 
-		// TODO assert that the current mode is run mode
-		// on every inject, ... later.
-		// TODO test that the default sensors are set...
-		
 		describe('create', function() {
 			it('should create a new object on every call', function() {
 				expect(facade.create()).not.toBe(facade.create());
+			});
+		});
+
+		describe('cleanup', function() {
+			it('should call urlLoader.cleanup()', function() {
+				facade.cleanup();
+				expect(urlLoader.close).toHaveBeenCalled();
 			});
 		});
 
@@ -39,6 +50,14 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 			it('should delegate config methods to a config instance', function() {
 				uit.url("someUrl");
 				expect(uit._config._data.url).toBe("someUrl");
+			});
+			it('should replace config results by uitest instance', function() {
+				expect(uit.url("someUrl")).toBe(uit);
+			});
+			it('sould replace uitest instances in arguments by the config', function() {
+				var child = facade.create();
+				child.parent(uit);
+				expect(child._config._parent).toBe(uit._config);
 			});
 
 		});
@@ -67,15 +86,6 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 						expect(uit._runInstance.config.readySensors).toEqual([loadSensorModule.sensorName]);
 					});
 
-					it('should call readyModule.ready', function() {
-						var callback = jasmine.createSpy('callback');
-						uit.ready(callback);
-						expect(callback).not.toHaveBeenCalled();
-						var lastCallArgs = readyModule.ready.mostRecentCall.args;
-						lastCallArgs[1]();
-						expect(callback).toHaveBeenCalled();
-					});
-
 					it('should call readyModel.createSensors', function() {
 						var callback = jasmine.createSpy('callback');
 						uit.ready(callback);
@@ -85,20 +95,42 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 					it('should call the urlLoader module', function() {
 						var callback = jasmine.createSpy('callback');
 						uit.ready(callback);
-						expect(urlLoader).toHaveBeenCalledWith(uit._runInstance);
+						expect(urlLoader.open).toHaveBeenCalledWith(uit._runInstance.config);
 					});
+
+					it('should init the instrumentor', function() {
+						uit.ready();
+						expect(instrumentorModule.init).toHaveBeenCalledWith(uit._runInstance.config);
+					});
+
+					it('should call readyModule.ready with dependency injection', function() {
+						var callbackArgs;
+						var callback = function(someGlobal) {
+							callbackArgs = arguments;
+						};
+						uit.ready(callback);
+						expect(callbackArgs).toBeUndefined();
+						frame.someGlobal = "someGlobal";
+						var lastCallArgs = readyModule.ready.mostRecentCall.args;
+						lastCallArgs[1]();
+						expect(callbackArgs).toEqual([frame.someGlobal]);
+					});
+
 				});
 
 				describe('further calls', function() {
-					it('should delegate to the readyModule.ready', function() {
-						var callback = jasmine.createSpy('callback');
+					it('should delegate to the readyModule.ready with dependency injection', function() {
+						var callbackArgs;
+						var callback = function(someGlobal) {
+							callbackArgs = arguments;
+						};
 						uit.ready(callback);
 						readyModule.ready.reset();
-						urlLoader.reset();
 						uit.ready(callback);
-						expect(callback).not.toHaveBeenCalled();
+						expect(callbackArgs).toBeUndefined();
+						frame.someGlobal = "someGlobal";
 						readyModule.ready.mostRecentCall.args[1]();
-						expect(callback).toHaveBeenCalled();
+						expect(callbackArgs).toEqual([frame.someGlobal]);
 					});
 				});
 			});
@@ -134,6 +166,34 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 					uit.reloaded(callback);
 					expect(loadSensorModule.waitForReload).toHaveBeenCalledWith(uit._runInstance.readySensorInstances);
 					expect(uit.ready).toHaveBeenCalledWith(callback);
+				});
+			});
+
+			describe('inject', function() {
+				var uit;
+				beforeEach(function() {
+					uit = facade.create();
+				});
+				it('should throw an error if not started yet', function() {
+					try {
+						uit.inject();
+						throw new Error("expected an error");
+					} catch (e) {
+						expect(e.message).toBe("The test page has not yet loaded. Please call ready first");
+					}
+				});
+				it('should use the current frame for dependency injection', function() {
+					uit._runInstance = {
+						frame: {
+							someGlobal: 'someValue'
+						}
+					};
+					var callbackArgs;
+					var callback = function(someGlobal) {
+						callbackArgs = arguments;
+					};
+					uit.inject(callback);
+					expect(callbackArgs).toEqual(['someValue']);
 				});
 			});
 

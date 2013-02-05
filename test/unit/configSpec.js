@@ -11,9 +11,9 @@ uitest.require(["factory!config"], function (configFactory) {
 			configInstance = config.create();
 		});
 
-		it('should save and validate the url property', function() {
+		it('should save the url property', function() {
 			var someUrl = 'someUrl';
-			configInstance.url(someUrl);
+			expect(configInstance.url(someUrl).url()).toBe(someUrl);
 			expect(configInstance.buildConfig().url).toBe(someUrl);
 		});
 
@@ -24,7 +24,7 @@ uitest.require(["factory!config"], function (configFactory) {
 			} catch (e) {
 				expect(e.message).toBe("unknown mode: someMode");
 			}
-			configInstance.loadMode("iframe");
+			expect(configInstance.loadMode("iframe").loadMode()).toBe("iframe");
 			expect(configInstance.buildConfig().loadMode).toBe("iframe");
 			configInstance.loadMode("popup");
 			expect(configInstance.buildConfig().loadMode).toBe("popup");
@@ -32,25 +32,25 @@ uitest.require(["factory!config"], function (configFactory) {
 
 		it('should save the readySensors property', function() {
 			var sensors = ['sensor1', 'sensor2'];
-			configInstance.readySensors(sensors);
+			expect(configInstance.readySensors(sensors).readySensors()).toBe(sensors);
 			expect(configInstance.buildConfig().readySensors).toEqual(sensors);
 		});
 
 		it('should add prepend calls', function() {
 			var someFn = function() { };
-			configInstance.prepend(someFn);
+			expect(configInstance.prepend(someFn)).toBe(configInstance);
 			expect(configInstance.buildConfig().prepends).toEqual([someFn]);
 		});
 
 		it('should add append calls', function() {
 			var someFn = function() { };
-			configInstance.append(someFn);
+			expect(configInstance.append(someFn)).toBe(configInstance);
 			expect(configInstance.buildConfig().appends).toEqual([someFn]);
 		});
 
 		it('should add intercept calls', function() {
 			var someFn = function() { };
-			configInstance.intercept(someFn);
+			expect(configInstance.intercept(someFn)).toBe(configInstance);
 			expect(configInstance.buildConfig().intercepts).toEqual([someFn]);
 		});
 

@@ -109,25 +109,25 @@ describe('simpleRequire', function () {
             expect(actualValue).toBe(someValue);
         });
 
-        it('should merge objects under the "global" key into the globals module', function () {
-            var globals = {};
-            uitest.define('globals', function () {
-                return globals;
+        it('should merge objects under the "global" key into the global module', function () {
+            var global = {};
+            uitest.define('global', function () {
+                return global;
             });
             uitest.define('a', function () {
-                return {globals:{a:'a0'}};
+                return {global:{a:'a0'}};
             });
             uitest.define('b', function () {
-                return {globals:{b:'b0', c:{c0:'c0'}}};
+                return {global:{b:'b0', c:{c0:'c0'}}};
             });
             uitest.define('c', function () {
-                return {globals:{c:{c1:'c1'}}};
+                return {global:{c:{c1:'c1'}}};
             });
             uitest.require(['a', 'b', 'c']);
-            expect(globals.a).toBe('a0');
-            expect(globals.b).toBe('b0');
-            expect(globals.c.c0).toBe('c0');
-            expect(globals.c.c1).toBe('c1');
+            expect(global.a).toBe('a0');
+            expect(global.b).toBe('b0');
+            expect(global.c.c0).toBe('c0');
+            expect(global.c.c1).toBe('c1');
         });
     });
     describe('require.all', function () {

@@ -31,7 +31,8 @@ uitest.define('config', [], function() {
 			if(arguments.length === 0) {
 				return getter.call(this);
 			} else {
-				return setter.apply(this, arguments);
+				setter.apply(this, arguments);
+				return this;
 			}
 		}
 	}

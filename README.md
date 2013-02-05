@@ -3,7 +3,32 @@ uitest.js
 
 TODO
 ----
+Next:
+- simulate oder analoge Methode...
+- sensors: xhr, timeout, interval, ...
+
+Set default sensors, but allow it to be overridden!
+(e.g. set "xhr", ...).
+-> Einfach in config.readySensors setzen!
+
+Use injector in facade to wrap callbacks!
+- ready: OK
+
+Idee:
+- Auch wenn kein jQuery da ist, trotzdem das Symbol "$" injecten lassen, 
+  dass dann via document.querySelector arbeitet!
+  Problem: jQuery gibt ja immer ein Array zurück...
+  --> Das genauso machen! Also immer document.querySelectorAll ausführen!  
+
+runs(function($) {
+  var els = $(".someClass");
+});
+
+
 Add special syntactic sugar for Jasmine!
+--> uitest.currentDelegate()
+==> Sollte immer gleich heißen, egal ob für Jasmine, Mocha, QUnit!
+
 
 Jasmine-Support:
 - readyLatch nur in Jasmine-Support einbauen, nicht allgemein!
@@ -12,9 +37,6 @@ Jasmine-Support:
   -> Kann inject verwenden!
 
 ==> Ziel: API sollte minimal und so einfach wie möglich sein!
-
-reload:
-- beim ersten Mal bei Popups: NICHT open("url") verwenden, sondern nur open(""). Dann kann ich immer danach auf ein "reload" warten, wie wenn das Popup schon offen ist!!
 
 Description
 -------------
@@ -51,7 +73,7 @@ Usage
 
 1. include uitest.js as library into your test-code.
 2. In the pages that should be tested, include the following line as first line in the header:
-   `<script type="text/javascript">(opener||parent).uitest && (opener||parent).uitest.client(window);</script>`
+   `<script type="text/javascript">(opener||parent).uitest && (opener||parent).uitest.instrument(window);</script>`
 2. create a uitest instance calling `uitest()`.
 3. configure the instance, e.g. setting setting `<uitest>.url('someUrl')`.
 4. run the test page, e.g. by calling `<uitest>.ready`.
@@ -125,9 +147,9 @@ Adds the given script or an inline script that calls the given callback at the e
 * `intercept({scriptUrl: 'someScriptUrl', fnName: 'someFnName', callback: callback})`
 Intercepts all calls to functions with the given name in scripts with the given scriptUrl. The function
 does not need to be a global function, but may also be a nested function definition.
-The callback is called using dependency injection, see below. The argument with the name `delegate` will
-contain the following data: `{fn: ..., self: ..., args: ...}`, allowing 
-access to the original function, the original `this` and `arguments` properties. 
+The callback is called using dependency injection, using the argument names
+of the original function and all global variables. The argument with the special name `$delegate` will
+contain the following data: `{fn: ..., name: 'someFnName, self: ..., args: ...}`, allowing access to the original function, the original `this` and `arguments` properties. The original function can be called by calling the given `fn` function.
 
 * `readySensors(['xhr', '...'])`
 Sets the ready sensors to be used. For every sensor name used here a sensorFactory needs to be registered first. Details see below.
@@ -138,8 +160,7 @@ On the first call to the `ready` function on the uitest instance, the frame / po
 and all configuration is applied. Now the uitest is in running mode, and the following methods
 may be called. 
 
-Please note that the iframe / popup is shared between all uitest instances that have a common
-parent. Especially in 
+Please note that the iframe / popup is shared between all uitest instances.Especially in 
 popup mode this prevents too many open windows. 
 
 * `ready(callback)`: Waits until all sensors say the test page is ready. On the first call, this will also
@@ -163,9 +184,8 @@ popup mode this prevents too many open windows.
 
 #### Cleaning up
 After all tests have been run, you might want to remove the iframe or close the popup. 
-This may be called on any child uitest, as the iframe/popup is shared within a hierarchy (see above).
 
-* `close()`: this will remove the iframe / close the popup if it exists. Otherwise this does nothing.
+* `uitest.cleanup()`: this will remove the iframe / close the popup if it exists. Otherwise this does nothing.
 
 
 Dependency Injection
