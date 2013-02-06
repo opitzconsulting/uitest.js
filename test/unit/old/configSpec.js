@@ -30,7 +30,7 @@ jasmineui.require(["factory!config"], function (configFactory) {
             createConfig();
             expect(config).toEqual({
                 logEnabled:false,
-                asyncSensors:['load', 'timeout', 'interval', 'xhr', '$animationComplete', '$transitionComplete'],
+                asyncSensors:['load', 'timeout', 'interval', 'xhr', '$animation'],
                 waitsForAsyncTimeout:5000,
                 loadMode:'inplace',
                 closeTestWindow:true,

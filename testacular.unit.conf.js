@@ -13,9 +13,12 @@ basePath = '.';
 files = [
     JASMINE,
     JASMINE_ADAPTER,
+    'test/lib/testutils.js',
     'src/parts/simpleRequire.js',
     'src/parts/*.js',
-    'test/unit/*.js'
+    'src/parts/readySensors/*.js',
+    'test/unit/*.js',
+    'test/unit/readySensors/*.js'
 ];
 
 // list of files to exclude

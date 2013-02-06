@@ -1,31 +1,12 @@
-uitest.require(["factory!instrumentor"], function(instrumentorFactory) {
+uitest.require(["factory!instrumentor", "factory!documentUtils"], function(instrumentorFactory, documentUtilsFactory) {
     describe('instrumentor', function() {
-        var instrumentor, frame;
+        var instrumentor, frame, documentUtils;
         beforeEach(function() {
-            instrumentor = instrumentorFactory();
+            documentUtils = documentUtilsFactory();
+            instrumentor = instrumentorFactory({
+                documentUtils: documentUtils
+            });
         });
-
-        afterEach(function() {
-            if(frame) {
-                frame.element.parentElement.removeChild(frame.element);
-                frame = null;
-            }
-        });
-
-        function createFrame(someHtml) {
-            var element = document.createElement('iframe');
-            element.name = 'deactivateAndCaptureHtml';
-            document.body.appendChild(element);
-            var win = window.frames['deactivateAndCaptureHtml'];
-            frame = {
-                win: win,
-                element: element
-            };
-            win.document.open();
-            win.document.write(someHtml);
-            win.document.close();
-            return frame;
-        }
 
         describe('init and instrument', function() {
             var win = {
@@ -37,7 +18,7 @@ uitest.require(["factory!instrumentor"], function(instrumentorFactory) {
             beforeEach(function() {
                 spyOn(instrumentor, 'deactivateAndCaptureHtml');
                 spyOn(instrumentor, 'modifyHtmlWithConfig');
-                spyOn(instrumentor, 'rewriteDocument');
+                spyOn(documentUtils, 'rewriteDocument');
             });
             it('should deactivateAndCaptureHtml then modifyHtmlWithConfig, then rewriteHtml', function() {
                 var someHtml = 'someHtml';
@@ -53,7 +34,7 @@ uitest.require(["factory!instrumentor"], function(instrumentorFactory) {
                 expect(instrumentor.deactivateAndCaptureHtml).toHaveBeenCalled();
                 expect(instrumentor.deactivateAndCaptureHtml.mostRecentCall.args[0]).toBe(win);
                 expect(instrumentor.modifyHtmlWithConfig).toHaveBeenCalledWith(someHtml);
-                expect(instrumentor.rewriteDocument).toHaveBeenCalledWith(win, someModifiedHtml);
+                expect(documentUtils.rewriteDocument).toHaveBeenCalledWith(win, someModifiedHtml);
             });
         });
 
@@ -63,11 +44,11 @@ uitest.require(["factory!instrumentor"], function(instrumentorFactory) {
             function init(prefix, suffix) {
                 runs(function() {
                     window.tmp = function() {
-                        instrumentor.deactivateAndCaptureHtml(frame.win, function(_html) {
+                        instrumentor.deactivateAndCaptureHtml(testutils.frame.win, function(_html) {
                             html = _html;
                         });
                     };
-                    createFrame(prefix + '<script>parent.tmp()</script>' + suffix);
+                    testutils.createFrame(prefix + '<script>parent.tmp()</script>' + suffix);
                 });
                 waitsFor(function() {
                     return html;
@@ -89,14 +70,14 @@ uitest.require(["factory!instrumentor"], function(instrumentorFactory) {
                 init(prefix, suffix);
                 runs(function() {
                     expect(html).toBe(prefix + suffix);
-                    expect(frame.win.test).toBeUndefined();
+                    expect(testutils.frame.win.test).toBeUndefined();
                 });
             });
         });
 
         describe('serializeDocType', function() {
             function doctype(html) {
-                return instrumentor.serializeDocType(createFrame(html).win.document);
+                return instrumentor.serializeDocType(testutils.createFrame(html).win.document);
             }
             it('should return empty string if no doctype is given', function() {
                 expect(doctype('<html></html>')).toBe('');
@@ -108,7 +89,7 @@ uitest.require(["factory!instrumentor"], function(instrumentorFactory) {
 
         describe('rewriteDocument', function() {
             function rewrite(html) {
-                var frame = createFrame('<html></html>').win;
+                var frame = testutils.createFrame('<html></html>').win;
                 instrumentor.rewriteDocument(frame, html);
                 return frame.document;
             }
@@ -302,41 +283,6 @@ uitest.require(["factory!instrumentor"], function(instrumentorFactory) {
                 describe('with requirejs', function() {
                     // TODO
                 });
-            });
-        });
-
-
-        describe('replaceScripts', function() {
-            var callback;
-            beforeEach(function() {
-                callback = jasmine.createSpy('callback');
-            });
-            it('should replace inline scripts', function() {
-                var someReplacement = 'someReplacement';
-                callback.andReturn(someReplacement);
-                var result = instrumentor.replaceScripts('<script>a</script>', callback);
-                expect(callback.callCount).toBe(1);
-                expect(callback).toHaveBeenCalledWith(undefined, 'a');
-            });
-            it('should replace scripts if the result is not undefined', function() {
-                var someReplacement = 'someReplacement';
-                callback.andReturn(someReplacement);
-                expect(instrumentor.replaceScripts('<script>a</script>', callback)).toBe(someReplacement);
-            });
-            it('should not replace scripts if the result is undefined', function() {
-                var input = '<script>a</script>';
-                expect(instrumentor.replaceScripts(input, callback)).toBe(input);
-            });
-            it('should replace multiple inline scripts', function() {
-                instrumentor.replaceScripts('<script>a</script><script>b</script>', callback);
-                expect(callback.callCount).toBe(2);
-                expect(callback.argsForCall[0]).toEqual([undefined, 'a']);
-                expect(callback.argsForCall[1]).toEqual([undefined, 'b']);
-            });
-            it('should replace multi line inline scripts', function() {
-                var content = 'a\r\nb';
-                instrumentor.replaceScripts('<script>' + content + '</script>', callback);
-                expect(callback).toHaveBeenCalledWith(undefined, content);
             });
         });
     });

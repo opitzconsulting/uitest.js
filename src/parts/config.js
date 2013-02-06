@@ -61,7 +61,10 @@ uitest.define('config', [], function() {
 		}, function(newValue) {
 			checkNotSealed(this);
 			if (checkFn) checkFn(newValue);
-			if (!this._data[name]) this._data[name] = [];
+			if (!this._data[name]) {
+				this._data[name] = [];
+				this._data[name].dataAdder = true;
+			}
 			this._data[name].push(newValue);
 		});
 	}
@@ -79,7 +82,9 @@ uitest.define('config', [], function() {
 	}
 
 	function buildConfig(target) {
-		target = target || {};
+		target = target || {
+			readySensors: ['timeout', 'interval', 'xhr', '$animation']
+		};
 		if (this.parent()) {
 			this.parent().buildConfig(target);
 		}
@@ -87,7 +92,7 @@ uitest.define('config', [], function() {
             data = this._data;
 		for(prop in data) {
 			value = data[prop];
-			if(isArray(value)) {
+			if(isArray(value) && value.dataAdder) {
 				value = (target[prop] || []).concat(value);
 			}
 			target[prop] = value;

@@ -11,6 +11,11 @@ uitest.require(["factory!config"], function (configFactory) {
 			configInstance = config.create();
 		});
 
+		it('should use default sensors', function() {
+			expect(configInstance.readySensors()).toBeUndefined();
+			expect(configInstance.buildConfig().readySensors).toEqual(['timeout', 'interval', 'xhr', '$animation']);
+		});
+
 		it('should save the url property', function() {
 			var someUrl = 'someUrl';
 			expect(configInstance.url(someUrl).url()).toBe(someUrl);
@@ -90,11 +95,21 @@ uitest.require(["factory!config"], function (configFactory) {
 			child._data.someProp = someValue;
 			expect(child.buildConfig().someProp).toBe(someValue);
 		});
-		it('should merge array properties', function() {
-			configInstance._data.someProp = [1];
-			child._data.someProp = [2];
+		it('should merge array properties of data adder properties', function() {
+			function dataAdderArr() {
+				var res = Array.prototype.slice.call(arguments);
+				res.dataAdder = true;
+				return res;
+			}
+
+			configInstance._data.someProp = dataAdderArr(1);
+			child._data.someProp = dataAdderArr(2);
 			expect(child.buildConfig().someProp).toEqual([1,2]);
 		});
-
+		it('should not merge array properties of non data adder properties', function() {
+			configInstance._data.someProp = [1];
+			child._data.someProp = [2];
+			expect(child.buildConfig().someProp).toEqual([2]);
+		});
 	});
 });

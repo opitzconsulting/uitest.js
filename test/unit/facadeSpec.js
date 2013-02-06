@@ -67,6 +67,7 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 				var uit;
 				beforeEach(function() {
 					uit = facade.create();
+					uit.readySensors([]);
 				});
 
 				describe('first call', function() {

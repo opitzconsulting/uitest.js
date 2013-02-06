@@ -1,13 +1,8 @@
-uitest.define('instrumentor', ['injector'], function(injector) {
+uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, docUtils) {
 
     var exports,
         NO_SCRIPT_TAG = "noscript",
         currentConfig,
-        // Groups:
-        // 1. text of all element attributes
-        // 2. content of src attribute
-        // 3. text content of script element.
-        SCRIPT_RE = /<script([^>]*src=\s*"([^"]+))?[^>]*>([\s\S]*?)<\/script>/g,
         REQUIRE_JS_RE = /require[^a-z]/,
         // group 1: name of function
         NAMED_FUNCTION_RE = /function\s*(\w+)[^{]*{/g;
@@ -20,49 +15,19 @@ uitest.define('instrumentor', ['injector'], function(injector) {
     function instrument(win) {
         exports.deactivateAndCaptureHtml(win, function(html) {
             html = exports.modifyHtmlWithConfig(html);
-            exports.rewriteDocument(win, html);
+            docUtils.rewriteDocument(win, html);
         });
     }
 
     function deactivateAndCaptureHtml(win, callback) {
         // This will wrap the rest of the document into a noscript tag.
         // By this, that content will not be executed!
-        var htmlPrefix = serializeHtmlBeforeCurrentScript(win.document);
+        var htmlPrefix = docUtils.serializeHtmlBeforeLastScript(win.document);
         win.document.write('</head><body><' + NO_SCRIPT_TAG + '>');
         win.document.addEventListener('DOMContentLoaded', function() {
             var noscriptEl = win.document.getElementsByTagName(NO_SCRIPT_TAG)[0];
             callback(htmlPrefix + noscriptEl.textContent);
         }, false);
-
-    }
-
-    function serializeDocType(doc) {
-        var node = doc.doctype;
-        if(!node) {
-            return '';
-        }
-        return "<!DOCTYPE " + node.name + (node.publicId ? ' PUBLIC "' + node.publicId + '"' : '') + (!node.publicId && node.systemId ? ' SYSTEM' : '') + (node.systemId ? ' "' + node.systemId + '"' : '') + '>';
-    }
-
-    function serializeHtmlTag(doc) {
-        var el = doc.documentElement,
-            i, attr;
-        var parts = ['<html'];
-        for(i = 0; i < el.attributes.length; i++) {
-            attr = el.attributes[i];
-            if(attr.value !== undefined) {
-                parts.push(attr.name + '="' + attr.value + '"');
-            } else {
-                parts.push(attr.name);
-            }
-        }
-        return parts.join(" ") + ">";
-    }
-
-    function serializeHtmlBeforeCurrentScript(doc) {
-        var innerHtml = doc.documentElement.innerHTML;
-        var lastScript = innerHtml.lastIndexOf('<script>');
-        return serializeDocType(doc) + serializeHtmlTag(doc) + innerHtml.substring(0, lastScript);
     }
 
     function createRemoteCallExpression(callback) {
@@ -70,14 +35,6 @@ uitest.define('instrumentor', ['injector'], function(injector) {
             callbackId = instrument.callbacks.length;
         instrument.callbacks.push(callback);
         return "(opener||parent).uitest.instrument.callbacks["+callbackId+"]("+argExpressions.join(",")+");";
-    }
-
-    function contentScriptHtml(content) {
-        return '<script type="text/javascript">'+content+'</script>';
-    }
-
-    function urlScriptHtml(url) {
-        return '<script type="text/javascript" src="'+url+'"></script>';
     }
 
     function modifyHtmlWithConfig(html) {
@@ -113,9 +70,9 @@ uitest.define('instrumentor', ['injector'], function(injector) {
 
         function createScriptTagForPrependOrAppend(html, prependOrAppend) {
             if (isString(prependOrAppend)) {
-                html.push(urlScriptHtml(prependOrAppend));
+                html.push(docUtils.urlScriptHtml(prependOrAppend));
             } else {
-                html.push(contentScriptHtml(createRemoteCallExpression(injectedCallback(prependOrAppend), 'window')));
+                html.push(docUtils.contentScriptHtml(createRemoteCallExpression(injectedCallback(prependOrAppend), 'window')));
             }
         }
 
@@ -127,19 +84,19 @@ uitest.define('instrumentor', ['injector'], function(injector) {
 
         function handleScripts(html, config) {
             var requirejs = false;
-            html = replaceScripts(html, function(scriptUrl) {
+            html = docUtils.replaceScripts(html, function(scriptUrl) {
                 if (!scriptUrl) return;
                 
                 if (scriptUrl.match(REQUIRE_JS_RE)) {
                     requirejs = true;
-                    return contentScriptHtml(createRemoteCallExpression(function(win) {
+                    return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
                         handleRequireJsScript(win, scriptUrl);
                     }, "window"));
                 }
 
                 var matchingIntercepts = findMatchingIntercepts(scriptUrl, config.intercepts);
                 if (!matchingIntercepts.empty) {
-                    return contentScriptHtml(createRemoteCallExpression(function(win) {
+                    return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
                         handleInterceptScript(win, matchingIntercepts, scriptUrl);
                     }, "window"));
                 }
@@ -179,7 +136,7 @@ uitest.define('instrumentor', ['injector'], function(injector) {
         function handleInterceptScript(win, matchingInterceptsByName, scriptUrl) {
             // Need to do the xhr in sync here so the script execution order in the document
             // stays the same!
-            loadScript(win, scriptUrl, resultCallback, false);
+            docUtils.loadScript(win, scriptUrl, resultCallback, false);
 
             function resultCallback(error, data) {
                 if (error) {
@@ -210,46 +167,10 @@ uitest.define('instrumentor', ['injector'], function(injector) {
                     }
                 });
 
-                evalScript(win, data);
+                docUtils.evalScript(win, data);
             }
         }
 
-    }
-
-    function loadScript(win, url, resultCallback, async) {
-        var xhr = new win.XMLHttpRequest();
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    resultCallback(null, xhr.responseText + "//@ sourceURL=" + url);
-                } else {
-                    resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
-                }
-            }
-        };
-        xhr.open("GET", url, async);
-        xhr.send();
-    }
-
-    function evalScript(win, scriptContent) {
-        win["eval"].call(win, scriptContent);
-    }
-
-    function replaceScripts(html, callback) {
-        return html.replace(SCRIPT_RE, function (match, allElements, srcAttribute, textContent) {
-            var result = callback(srcAttribute, textContent);
-            if (result===undefined) {
-                return match;
-            }
-            return result;
-        });
-    }
-
-    function rewriteDocument(win, html) {
-        var doc = win.document;
-        doc.open();
-        doc.write(html);
-        doc.close();
     }
 
     function isString(obj) {
@@ -260,11 +181,11 @@ uitest.define('instrumentor', ['injector'], function(injector) {
         init: init,
         instrument: instrument,
         deactivateAndCaptureHtml: deactivateAndCaptureHtml,
-        serializeDocType: serializeDocType,
-        serializeHtmlTag: serializeHtmlTag,
+        serializeDocType: docUtils.serializeDocType,
+        serializeHtmlTag: docUtils.serializeHtmlTag,
         modifyHtmlWithConfig: modifyHtmlWithConfig,
-        rewriteDocument: rewriteDocument,
-        replaceScripts: replaceScripts,
+        rewriteDocument: docUtils.rewriteDocument,
+        replaceScripts: docUtils.replaceScripts,
         global: {
             uitest: {
                 instrumet: instrument
