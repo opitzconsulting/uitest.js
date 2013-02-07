@@ -62,6 +62,15 @@ uitest.define('documentUtils', [], function() {
         win["eval"].call(win, scriptContent);
     }
 
+    function loadAndEvalScriptSync(win, url) {
+        loadScript(win, url, function(error, data) {
+            if (error) {
+                throw error;
+            }
+            evalScript(win, data);
+        });
+    }
+
     function replaceScripts(html, callback) {
         return html.replace(SCRIPT_RE, function (match, allElements, srcAttribute, textContent) {
             var result = callback(srcAttribute, textContent);
@@ -88,6 +97,7 @@ uitest.define('documentUtils', [], function() {
         urlScriptHtml: urlScriptHtml,
         loadScript: loadScript,
         evalScript: evalScript,
+        loadAndEvalScriptSync: loadAndEvalScriptSync,
         replaceScripts: replaceScripts,
         rewriteDocument: rewriteDocument
     };

@@ -1,7 +1,8 @@
 TODO
 ----
 features:
-- requirejs support
+- requirejs support:
+  * basic support ok, ui tests are ok, unit tests are missing.
 - syntactic sugar for other testfkws:
   * Mocha
   * QUnit
@@ -20,16 +21,15 @@ features:
   - Firefox: Ausführung der Ui-Tests in den Popups is langsam, wenn das
     Popup nicht den Fokus hat!  
 
-* Fehler im iframe/popup als Fehler weiterreichen
-  - wie? Evtl. beim nächsten Aufruf von inject, ...  
+* Better error handling:
+  - loading appends / prepends in requirejs
+  - error event listener for general errors in iframes/popups
 
 tests and cleanup:
 - test on different browsers!!
   * Safari, Chrome, FF: OK!
   * IE?
 - Check against rylc!
-- Delete old sources and tests.
-  ==> for requirejs!
 - Samples
   * include xhr mock
   * include angular-mocks in angular

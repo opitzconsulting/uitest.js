@@ -90,7 +90,7 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
                 if (scriptUrl.match(REQUIRE_JS_RE)) {
                     requirejs = true;
                     return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
-                        handleRequireJsScript(win, scriptUrl);
+                        handleRequireJsScript(win, scriptUrl, config);
                     }, "window"));
                 }
 
@@ -108,17 +108,42 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
             };
         }
 
-        function handleRequireJsScript(win, scriptUrl) {
+        function handleRequireJsScript(win, scriptUrl, config) {
+            docUtils.loadAndEvalScriptSync(win, scriptUrl);
             var originalRequire = win.require;
             win.require = function (deps, originalCallback) {
                 originalRequire(deps, function () {
-                    // TODO execute the currentConfig.appends...
-
+                    var i;
+                    for (i=0; i<config.appends.length; i++) {
+                        execAppend(config.appends[i]);
+                    }
                     return originalCallback.apply(this, arguments);
                 });
             };
-            // TODO setup loading of scripts and applying the intercept scripts!
 
+            function execAppend(append) {
+                if (isString(append)) {
+                    docUtils.loadAndEvalScriptSync(win, append);
+                } else {
+                    injector.inject(append, win, [win]);
+                }
+            }
+
+            var _load = originalRequire.load;
+            originalRequire.load = function (context, moduleName, url) {
+                var matchingIntercepts = findMatchingIntercepts(url, config.intercepts);
+                if (matchingIntercepts.empty) {
+                    return _load.apply(this, arguments);
+                }
+                try {
+                    handleInterceptScript(win, matchingIntercepts, url);
+                    context.completeLoad(moduleName);
+                } catch (error) {
+                    //Set error on module, so it skips timeout checks.
+                    context.registry[moduleName].error = true;
+                    throw error;
+                }
+            };
         }
 
         function findMatchingIntercepts(url, intercepts) {
