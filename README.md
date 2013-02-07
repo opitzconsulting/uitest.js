@@ -81,17 +81,19 @@ API
 -----------
 
 #### Factories
-`uitest.create()`
-Creates a new uitest instance.
-
-`uitest.create(parent)`
-Creates a new uitest which inherits the configuration
-of the given parent uitest. Note that the link is live, i.e. changing the parent
-after creating the child also affects the child.
+* `uitest.create()`: Creates a new uitest instance.
+* `uitest.current`: A singleton that delegates all functions to the 
+  "current" uitest instance. This is different for every testframework,
+  see below for details.
 
 #### Configuration
 At first, every uitest instance is in configuration mode. In this mode, the following
 methods are available
+
+* `parent(uitest)`: connects this uitest instance with the given parent uitest
+  instance, so that all properties are inherited / merged during runtime.
+  Note that the link is live, i.e. changing the parent
+  after calling this also affects the child.
 
 * `mode("frame"|"popup")`:
 Sets whether the test page should be loaded inside an iframe or a popup.
@@ -140,18 +142,16 @@ After all tests have been run, you might want to remove the iframe or close the 
 * `uitest.cleanup()`: this will remove the iframe / close the popup if it exists. Otherwise this does nothing.
 
 
-Dependency Injection
----------------------
+#### Dependency Injection
 
 Many methods in the API take a callback whose arguments can use dependency injection. For this,
-the names of the arguments of the callback is inspected. The values for the callback arguments 
+the names of the arguments of the callback are inspected. The values for the callback arguments 
 then are the globals of the test frame with the same name as the arguments.
 
 E.g. a callback that would have access to the jQuery object of the test frame: `function($) { ... }`.
 
 
-Ready sensors
---------------
+#### Ready sensors
 
 For every ready sensor a sensor factory needs to be registered first. 
 The following sensors are built-in and already registered:
@@ -181,19 +181,31 @@ given methods `prepend` or `append` (see above).
           ready.addSensorFactory('someSensorName', someSensorFactory);
         });
 
+Syntactic sugar for Jasmine-BDD
+-------------------------------
+To make it easier to use uitest together with jasmine, a separate uitest instance
+is created for every suite and every spec. The uitest instance for a spec/suite
+inherits from the uitest instance of the parent suite using the `parent` instance.
 
-Simulation of Browser-Events
+The following additional functions exist for Jasmine-BDD:
+
+- `uitest.current`: This returns a singleton uitest instance,
+  whose functions delegate to the current uitest instance of the spec/suite.  
+- `uitest.runs(callback[,timeout])`: First, this executes a `waitsFor` call using `uitest.current.ready`.
+Then it executes the the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
+
+
+Supporting libraries
 ----------------------------
 
-TODO
+Triggering events:
 
-See also the notes from QUnit about this topic:
+- See the notes from QUnit on this topic:
 [http://qunitjs.com/cookbook/#testing_user_actions](http://qunitjs.com/cookbook/#testing_user_actions)
+- use `jQuery.trigger` if you are using jQuery in your application.
 
-#### Use `jQuery.trigger`
-This does _not_ fire the underlying browser event, but only triggers
-event handlers registered by jquery. I.e. this can not be used for
-event listeners attached without jquery! Also, this does not do the default navigation of anchor links!
+Mocking the backend:
 
+- Use [https://github.com/philikon/MockHttpRequest/blob/master/lib/mock.js](https://github.com/philikon/MockHttpRequest/blob/master/lib/mock.js) with the `prepend` function. 
 
 

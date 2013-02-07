@@ -1,11 +1,11 @@
 uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector', 'instrumentor', 'global'], function(urlLoader, readyModule, loadSensor, config, injector, instrumentor, global) {
-    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'readySensors', 'append', 'prepend', 'intercept'];
+    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'readySensors', 'append', 'prepend', 'intercept'],
+        _currentIdAccessor = function() { return ''; }, current;
 
     function create() {
         var res = {
             ready: ready,
             realoded: reloaded,
-            readyLatch: readyLatch,
             reloaded: reloaded,
             inject: inject
         },
@@ -20,6 +20,63 @@ uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector
         function configAccessor(uit) {
             return uit && uit._config;
         }
+    }
+
+    function createDispatcherFacade(dispatcher) {
+        // create a dummy uitest instance,
+        // so we know which functions we can delegate...
+        var res = {};
+        var dummy = create(),
+            prop;
+        for (prop in dummy) {
+            if (typeof dummy[prop] === 'function') {
+                res[prop] = delegate(dummy[prop], dispatcherWrapper);
+            }
+        }
+
+        return res;
+
+        function dispatcherWrapper(caller) {
+            if (caller===res) {
+                return dispatcher();
+            }
+        }
+    }
+
+    function createCurrentFacade() {
+        var uitCache = {};
+        return createDispatcherFacade(currentDispatcher);
+
+        function currentDispatcher() {
+            var currentId = currentIdAccessor()(),
+                uit = uitCache[currentId],
+                parentUit = findParentUit(currentId);
+            if (!uit) {
+                uit = create();
+                if (parentUit) {
+                    uit.parent(parentUit);
+                }
+                uitCache[currentId] = uit;
+            }
+            return uit;
+        }
+
+        function findParentUit(childId) {
+            var id;
+            for (id in uitCache) {
+                if (id!==childId && childId.indexOf(id)===0) {
+                    return uitCache[id];
+                }
+            }
+            return null;
+        }
+    }
+
+    function currentIdAccessor(value) {
+        if (typeof value === 'function') {
+            _currentIdAccessor = value;
+        }
+        return _currentIdAccessor;
     }
 
     function cleanup() {
@@ -69,21 +126,6 @@ uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector
         }
     }
 
-    function readyLatch() {
-        var result, self = this;
-        return latch;
-
-        function latch() {
-            if(result === undefined) {
-                result = 0;
-                self.ready(function() {
-                    result = 1;
-                });
-            }
-            return result;
-        }
-    }
-
     function reloaded(callback) {
         loadSensor.waitForReload(this._runInstance.readySensorInstances);
         this.ready(callback);
@@ -97,14 +139,18 @@ uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector
         return injector.inject(callback, frame, [frame]);
     }
 
+    current = createCurrentFacade();
 
     return {
         create: create,
         cleanup: cleanup,
+        current: current,
+        currentIdAccessor: currentIdAccessor,
         global: {
             uitest: {
                 create: create,
-                cleanup: cleanup
+                cleanup: cleanup,
+                current: current
             }
         }
     };

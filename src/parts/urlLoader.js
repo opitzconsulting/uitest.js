@@ -20,14 +20,15 @@ uitest.define('urlLoader', ['urlParser', 'global'], function(urlParser, global) 
                 frameElement = global.document.createElement("iframe");
                 frameElement.name = WINDOW_ID;
                 frameElement.setAttribute("src", "");
+                frameElement.setAttribute("width", "100%");
+                frameElement.setAttribute("height", "100%");
                 var winSize = {
-                    widht: window.innerWidth,
+                    width: window.innerWidth,
                     height: window.innerHeight
                 };
-                frameElement.setAttribute("style", "position: absolute; bottom: -"+winSize.height+"px; width: " + winSize.width + "px; height: " + winSize.height + "px");
+                frameElement.setAttribute("style", "position: absolute; z-index: 10; bottom: 0; left: 0; pointer-events:none;");
                 var body = global.document.body;
                 body.appendChild(frameElement);
-                body.style.marginBottom = winSize.height+"px";
                 remoteWindow = global.frames[WINDOW_ID];
             }
         }

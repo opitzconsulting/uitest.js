@@ -17,8 +17,10 @@ files = [
     'src/parts/simpleRequire.js',
     'src/parts/*.js',
     'src/parts/readySensors/*.js',
+    'src/parts/testfwks/*.js',
     'test/unit/*.js',
-    'test/unit/readySensors/*.js'
+    'test/unit/readySensors/*.js',
+    'test/unit/testfkws/*.js'
 ];
 
 // list of files to exclude

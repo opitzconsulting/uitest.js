@@ -1,8 +1,9 @@
 uitest.require(["factory!facade"], function(facadeFactory) {
 	describe('facade', function() {
 
-		var facade, urlLoader, readyModule, loadSensorModule, instrumentorModule, frame;
+		var facade, urlLoader, readyModule, loadSensorModule, instrumentorModule, frame, global;
 		beforeEach(function() {
+			global = {};
 			frame = {};
 			urlLoader = {
 				open: jasmine.createSpy('urlLoader').andReturn(frame),
@@ -22,6 +23,7 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 				init: jasmine.createSpy('createWithConfig')
 			};
 			facade = facadeFactory({
+				global: global,
 				urlLoader: urlLoader,
 				ready: readyModule,
 				loadSensor: loadSensorModule,
@@ -33,6 +35,9 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 			it('should create a new object on every call', function() {
 				expect(facade.create()).not.toBe(facade.create());
 			});
+            it('should register a global', function() {
+                expect(global.uitest.create).toBe(facade.create);
+            });
 		});
 
 		describe('cleanup', function() {
@@ -40,6 +45,55 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 				facade.cleanup();
 				expect(urlLoader.close).toHaveBeenCalled();
 			});
+            it('should register a global', function() {
+                expect(global.uitest.cleanup).toBe(facade.cleanup);
+            });
+		});
+
+		describe('current', function() {
+			it('should be defined', function() {
+				expect(facade.current).toBeDefined();
+			});
+			it('should delegate to a new instance if no currentIdAccessor is set', function() {
+				expect(facade.current.url('someUrl').url()).toBe('someUrl');
+			});
+			it('should replace uitest instance results by the facade', function() {
+				var uit = facade.current.url('someUrl');
+				expect(uit).toBe(facade.current);
+			});
+			it('should delegate to separate instance depending on the result of currentIdAccessor', function() {
+				var currentIdAccessor = jasmine.createSpy('currentIdAccessor'),
+					uit = facade.current;
+				facade.currentIdAccessor(currentIdAccessor);
+				
+				currentIdAccessor.andReturn('1');
+				expect(uit.url('someUrl1').url()).toBe('someUrl1');
+				expect(uit.parent()).toBeFalsy();
+
+				currentIdAccessor.andReturn('2');
+				expect(uit.url('someUrl2').url()).toBe('someUrl2');
+				expect(uit.parent()).toBeFalsy();
+
+				currentIdAccessor.andReturn('1');
+				expect(uit.url()).toBe('someUrl1');
+
+				currentIdAccessor.andReturn('2');
+				expect(uit.url()).toBe('someUrl2');
+			});
+			it('should set the parent in the uitest instance using id substring', function() {
+				var currentIdAccessor = jasmine.createSpy('currentIdAccessor'),
+					uit = facade.current;
+				facade.currentIdAccessor(currentIdAccessor);
+
+				currentIdAccessor.andReturn('1');
+				uit.url('parentUrl');
+
+				currentIdAccessor.andReturn('1.1');
+				expect(uit.parent().url()).toBe('parentUrl');
+			});
+            it('should register a global', function() {
+                expect(global.uitest.current).toBe(facade.current);
+            });
 		});
 
 		describe('config delegation', function() {
@@ -53,6 +107,7 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 			});
 			it('should replace config results by uitest instance', function() {
 				expect(uit.url("someUrl")).toBe(uit);
+				expect(uit.url("someUrl").url()).toBe("someUrl");
 			});
 			it('sould replace uitest instances in arguments by the config', function() {
 				var child = facade.create();
@@ -133,26 +188,6 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 						readyModule.ready.mostRecentCall.args[1]();
 						expect(callbackArgs).toEqual([frame.someGlobal]);
 					});
-				});
-			});
-
-			describe('readyLatch', function() {
-				var uit;
-				beforeEach(function() {
-					uit = facade.create();
-					spyOn(uit, "ready");
-				});
-				it('should call this.ready once when the latch is called first', function() {
-					var latch = uit.readyLatch();
-					expect(uit.ready).not.toHaveBeenCalled();
-					expect(latch()).toBe(0);
-					expect(uit.ready).toHaveBeenCalled();
-				});
-				it('should return 1 when the call to this.ready resolved', function() {
-					var latch = uit.readyLatch();
-					latch();
-					uit.ready.mostRecentCall.args[0]();
-					expect(latch()).toBe(1);
 				});
 			});
 
