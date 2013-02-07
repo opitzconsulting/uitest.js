@@ -1,11 +1,10 @@
 TODO
 ----
-cleanup scheint nicht zu funktionieren:
-- entweder laufen alle tests als popup oder im iframe...
---> liegt an urlLoader.js!
-
 features:
 - requirejs support
+- syntactic sugar for other testfkws:
+  * Mocha
+  * QUnit
 
 * logger.log: Sollte man konfigurieren können
   (per default kein logging)  
@@ -14,22 +13,28 @@ features:
   - Problem: es gibt nur 1 logger, aber mehrere configs
     ==> Beim loggen die config mitgeben!
 
+* Performance:
+  - Chrome: Ausführung der UI-Tests via testacular ist langsam, wenn das
+    Fenster nicht den Fokus hat!
+    -> evtl. eine andere setTimeout-Funktion verwenden?
+  - Firefox: Ausführung der Ui-Tests in den Popups is langsam, wenn das
+    Popup nicht den Fokus hat!  
+
 * Fehler im iframe/popup als Fehler weiterreichen
   - wie? Evtl. beim nächsten Aufruf von inject, ...  
-* Chrome: Ausführung der UI-Tests via testacular ist langsam, wenn das
-  Fenster nicht den Fokus hat
-  -> evtl. eine andere setTimeout-Funktion verwenden?
 
 tests and cleanup:
 - test on different browsers!!
-
-- Delete old sources and tests.
+  * Safari, Chrome, FF: OK!
+  * IE?
 - Check against rylc!
-- Update build system to grunt.js, without ejs templates!
+- Delete old sources and tests.
+  ==> for requirejs!
 - Samples
   * include xhr mock
   * include angular-mocks in angular
   * include simulate
+- Update build system to grunt.js, without ejs templates!
 - Migration Guide form jasmine-ui
 - Decision why to drop jasmine-ui:
   * too complicated

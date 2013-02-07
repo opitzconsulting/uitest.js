@@ -3,7 +3,8 @@ uitest.define('urlLoader', ['urlParser', 'global'], function(urlParser, global) 
     var REFRESH_URL_ATTRIBUTE = 'uitr',
         WINDOW_ID = 'uitestwindow',
         frameElement,
-        remoteWindow,
+        frameWindow,
+        popupWindow,
         openCounter = 0;
 
     function navigateWithReloadTo(win, url) {
@@ -13,13 +14,16 @@ uitest.define('urlLoader', ['urlParser', 'global'], function(urlParser, global) 
     }
 
     function open(config) {
-        if (!remoteWindow) {
-            if (config.loadMode === 'popup') {
-                remoteWindow = global.open('', WINDOW_ID);
-            } else if (config.loadMode === 'iframe') {
+        var remoteWindow;
+        if (config.loadMode === 'popup') {
+            if (!popupWindow) {
+                popupWindow = global.open('', WINDOW_ID);
+            }
+            remoteWindow = popupWindow;
+        } else if (config.loadMode === 'iframe') {
+            if (!frameWindow) {
                 frameElement = global.document.createElement("iframe");
                 frameElement.name = WINDOW_ID;
-                frameElement.setAttribute("src", "");
                 frameElement.setAttribute("width", "100%");
                 frameElement.setAttribute("height", "100%");
                 var winSize = {
@@ -29,22 +33,23 @@ uitest.define('urlLoader', ['urlParser', 'global'], function(urlParser, global) 
                 frameElement.setAttribute("style", "position: absolute; z-index: 10; bottom: 0; left: 0; pointer-events:none;");
                 var body = global.document.body;
                 body.appendChild(frameElement);
-                remoteWindow = global.frames[WINDOW_ID];
+                frameWindow = frameElement.contentWindow || frameElement.contentDocument;
             }
+            remoteWindow = frameWindow;
         }
         navigateWithReloadTo(remoteWindow, config.url);
         return remoteWindow;
     }
 
     function close() {
-        if (remoteWindow) {
-            if (frameElement) {
-                frameElement.parentElement.removeChild(frameElement);
-                frameElement = null;
-            } else {
-                remoteWindow.close();
-            }
-            remoteWindow = null;
+        if (frameElement) {
+            frameElement.parentElement.removeChild(frameElement);
+            frameElement = null;
+            frameWindow = null;
+        }
+        if (popupWindow) {
+            popupWindow.close();
+            popupWindow = null;
         }
     }
 

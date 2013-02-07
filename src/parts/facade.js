@@ -62,13 +62,15 @@ uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector
         }
 
         function findParentUit(childId) {
-            var id;
+            var id, parentId;
             for (id in uitCache) {
                 if (id!==childId && childId.indexOf(id)===0) {
-                    return uitCache[id];
+                    if (!parentId || id.length>parentId) {
+                        parentId = id;
+                    }
                 }
             }
-            return null;
+            return uitCache[parentId];
         }
     }
 

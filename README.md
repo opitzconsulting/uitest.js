@@ -185,7 +185,7 @@ Syntactic sugar for Jasmine-BDD
 -------------------------------
 To make it easier to use uitest together with jasmine, a separate uitest instance
 is created for every suite and every spec. The uitest instance for a spec/suite
-inherits from the uitest instance of the parent suite using the `parent` instance.
+inherits from the uitest instance of the parent suite using the `parent` instance. 
 
 The following additional functions exist for Jasmine-BDD:
 

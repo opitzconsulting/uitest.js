@@ -13,15 +13,13 @@ uitest.require(["factory!urlLoader"], function(urlLoaderFactory) {
 			};
 			iframeElement = {
 				setAttribute: jasmine.createSpy('setAttribute'),
-				parentElement: body
+				parentElement: body,
+				contentWindow: uitestwindow
 			};
 			global = {
 				document: {
 					body: body,
 					createElement: jasmine.createSpy('createElement').andReturn(iframeElement)
-				},
-				frames: {
-					uitestwindow: uitestwindow
 				},
 				open: jasmine.createSpy('open').andReturn(uitestwindow)
 			};
@@ -68,6 +66,14 @@ uitest.require(["factory!urlLoader"], function(urlLoaderFactory) {
 					expect(win).toBe(uitestwindow);
 					expect(win.location.href).toBe("someUrl?uitr=1");
 				});
+				it('should create an iframe even if a popup was opened before', function() {
+					urlLoader.open({
+						loadMode: "popup",
+						url: "somePopupUrl"
+					});
+					var win = urlLoader.open(config);
+					expect(body.appendChild).toHaveBeenCalledWith(iframeElement);
+				});
 			});
 
 			describe('popup', function() {
@@ -91,6 +97,14 @@ uitest.require(["factory!urlLoader"], function(urlLoaderFactory) {
 					expect(global.open).not.toHaveBeenCalled();
 					expect(win).toBe(uitestwindow);
 					expect(win.location.href).toBe("someUrl?uitr=1");
+				});
+				it('should create a popup even if an iframe was opened before', function() {
+					urlLoader.open({
+						loadMode: "iframe",
+						url: "someIframeUrl"
+					});
+					urlLoader.open(config);
+					expect(global.open).toHaveBeenCalled();
 				});
 			});
 		});

@@ -91,6 +91,21 @@ uitest.require(["factory!facade"], function(facadeFactory) {
 				currentIdAccessor.andReturn('1.1');
 				expect(uit.parent().url()).toBe('parentUrl');
 			});
+			it('should use the longest parent id possible', function() {
+				var currentIdAccessor = jasmine.createSpy('currentIdAccessor'),
+					uit = facade.current;
+				facade.currentIdAccessor(currentIdAccessor);
+
+				currentIdAccessor.andReturn('1');
+				uit.url('parent1Url');
+
+				currentIdAccessor.andReturn('1.1');
+				uit.url('parent2Url');
+
+				currentIdAccessor.andReturn('1.1.1');
+				expect(uit.parent().url()).toBe('parent2Url');
+
+			});
             it('should register a global', function() {
                 expect(global.uitest.current).toBe(facade.current);
             });
