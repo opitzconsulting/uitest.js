@@ -1,7 +1,7 @@
 describe('basic', function() {
 
     createTestSuite("iframe");
-    createTestSuite("popup");
+    //createTestSuite("popup");
 
     function createTestSuite(loadMode) {
         describe('loadMode ' + loadMode, function() {
@@ -14,7 +14,7 @@ describe('basic', function() {
                 });
             });
             afterEach(function() {
-                uitest.cleanup();
+                // uitest.cleanup();
             });
 
             function waitsForReady() {

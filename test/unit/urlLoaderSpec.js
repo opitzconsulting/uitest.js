@@ -8,7 +8,8 @@ uitest.require(["factory!urlLoader"], function(urlLoaderFactory) {
 			};
 			body = {
 				appendChild: jasmine.createSpy('appendChild'),
-				removeChild: jasmine.createSpy('removeChild')
+				removeChild: jasmine.createSpy('removeChild'),
+				style: {}
 			};
 			iframeElement = {
 				setAttribute: jasmine.createSpy('setAttribute'),

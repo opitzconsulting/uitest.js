@@ -1,22 +1,25 @@
 TODO
 ----
-Next:
+implement:
 - jasmine syntactic sugar
   - integration tests with special jasmine syntax
-- better iframe css -> 
-  body: { margin-bottom: screen-height }
-- test on different browsers!!
-- If all runs: requirejs support!
-- Delete old sources and tests.
-- Update build system to grunt.js, without ejs templates!
-- Check Readme.md...
-
+- requirejs support
 * logger.log: Sollte man konfigurieren können
   (per default kein logging)  
   - Und: noch mehr loggen?
-  
 * Fehler im iframe/popup als Fehler weiterreichen
   - wie? Evtl. beim nächsten Aufruf von inject, ...  
+
+tests and cleanup:
+- test on different browsers!!
+- Delete old sources and tests.
+- Update build system to grunt.js, without ejs templates!
+- Check against rylc!
+- Samples
+  * include xhr mock
+  * include angular-mocks in angular
+  * include simulate
+
 
 Jasmine-Support:
 - uitest.current:
