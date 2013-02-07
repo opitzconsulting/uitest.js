@@ -24,7 +24,6 @@ Features
     - intercept calls to any named function on the page, no matter if the function is global or not
 * Wait for the end of asynchronous work, e.g. xhr, setTimeout, setInterval, page loading, ...
   This can be easily extended.
-* Trigger native events 
 * Compatible with any test frameworks, can also run standalone.
 * Does not need any additional test server, only a browser to execute the tests
 * Supports applications that use requirejs 2.x.
@@ -56,14 +55,13 @@ Install the dependencies: `npm install`.
 
 Run the tests:
 
-* Run `node server.js` from a command line
-* Use the jasmine html runner to run the tests in your browser:
-    1. Unit-Tests: http://localhost:9000/test/UnitSpecRunner.html
-    2. Ui-Tests: http://localhost:9000/test/UipecRunner.html
-* Use `testacular` for continuous integration
-    1. `npm_modules/.bin/testacular start`
+* Unit-tests:
+    1. run testacular: ./node_modules/.bin/testacular start testacular.ui.conf.js
     2. open `http://localhost:9876` with a browser to test in
-    3. `npm_modules/.bin/testacular run`
+* Ui-Tests:
+    1. Run `node server.js` from a command line
+    2. Run testacular: ./node_modules/.bin/testacular start testacular.ui.conf.
+    3. open `http://localhost:9876` with a browser to test in
 
 Create a new version:
 
@@ -130,20 +128,11 @@ popup mode this prevents too many open windows.
   load the test page into the iframe/popup.
   The callback is called using dependency injection, see below.
 
-* `readyLatch(callback)`: Just like `ready` but creates a new function on every call which returns
-  0 as long as the frame is not ready, and 1 when the frame is ready. If the frame gets busy again,
-  the function still returns 1.
-  This is useful for integrating with Jasmine BDD's `waitsFor`.
-
 * `reloaded(callback)`: Waits until the testpage has been reloaded and is ready again.
   This is useful for testing pages that do a form submit or link to other pages.
   The callback is called using dependency injection, see below.
 
 * `inject(callback)`: Calls the given callback using dependency injection.
-* `injectBind(callback)`: Creates a new function which will call the given callback using dependency injection.
-
-* `simulate(element, eventName, eventOptions)`: Executes the given native event on the given element.
-  See below for details.
 
 #### Cleaning up
 After all tests have been run, you might want to remove the iframe or close the popup. 
@@ -181,10 +170,10 @@ given methods `prepend` or `append` (see above).
 
 2. The sensor factory needs to return the sensor instance for that frame. A sensor instance is a function that returns the following data:
 
-    {
-      count: 0, // The number of times the sensor was not ready
-      ready: true // If the sensor is currently ready
-    }
+        {
+          count: 0, // The number of times the sensor was not ready
+          ready: true // If the sensor is currently ready
+        }
 
 3. Register the sensor factory with the ready module:
 
