@@ -141,10 +141,10 @@ describe('simpleRequire', function () {
                 return moduleB;
             });
             var allModules;
-            uitest.require.all(function (name) {
-                return name === 'a';
-            }, function (modules) {
+            uitest.require.all(function (modules) {
                 allModules = modules;
+            }, function (name) {
+                return name === 'a';
             });
             var moduleCount = 0;
             for (var x in allModules) {

@@ -11,9 +11,14 @@ uitest.require(["factory!config"], function (configFactory) {
 			configInstance = config.create();
 		});
 
-		it('should use default sensors', function() {
-			expect(configInstance.readySensors()).toBeUndefined();
-			expect(configInstance.buildConfig().readySensors).toEqual(['timeout', 'interval', 'xhr', '$animation']);
+		it('should use defaults', function() {
+			expect(configInstance.buildConfig()).toEqual({
+				readySensors: ['timeout', 'interval', 'xhr', '$animation'],
+				prepends: [],
+				appends: [],
+				intercepts: [],
+				loadMode: 'iframe'
+			});
 		});
 
 		it('should save the url property', function() {

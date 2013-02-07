@@ -250,7 +250,7 @@ uitest.require(["factory!instrumentor", "factory!documentUtils"], function(instr
                     it('should instrument named functions in the original script', function() {
                         var instrumentCallback = jasmine.createSpy('callback');
                         simulateLoad(instrumentCallback);
-                        expect(win["eval"]).toHaveBeenCalledWith('function someName(){if (!someName.delegate)return (opener||parent).uitest.instrument.callbacks[1](someName,this,arguments);//@ sourceURL=interceptUrl');
+                        expect(win["eval"]).toHaveBeenCalledWith('function someName(){if (!someName.delegate)return (opener||parent).uitest.instrument.callbacks[1](window,someName,this,arguments);//@ sourceURL=interceptUrl');
                     });
                     it('should call the intercept callback using dependency injection', function() {
                         var instrumentCbArgs, instrumentCbSelf;

@@ -13,10 +13,9 @@ proxies = {'/': 'http://localhost:9000/'};
 
 // list of files / patterns to load in the browser
 files = [
-  // JASMINE,
-  './test/lib/jasmineui-testacular.cfg.js',
-  'http://localhost:9876/jasmine-ui.js',
+  JASMINE,
   JASMINE_ADAPTER,
+  'http://localhost:9876/uitest.js',
   'test/ui/*.js'
 ];
 

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script type="text/javascript">(opener||parent).uitest && (opener||parent).uitest.instrument(window);</script>
+    <script>window.execState = "start";</script>
+
+</head>
+
+<body>
+    <span id="greeting"></span>
+    <script src="sayHello.js"></script>
+    <script>
+        window.execState = "end";
+        document.addEventListener("DOMContentLoaded", loaded);
+        function loaded(e) {
+            window.execState = "loaded";
+        };
+    </script>
+</body>
+</html>

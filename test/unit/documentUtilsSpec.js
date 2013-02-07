@@ -30,6 +30,13 @@ uitest.require(["factory!documentUtils"], function(documentUtilsFactory) {
             });
         });
 
+        describe('serializeHtmlBeforeLastScript', function() {
+            it('should return the part of the html before the last script', function() {
+                var doc = testutils.createFrame('<html><head>asdf<script someAttr></script></head></html>').win.document;
+                expect(documentUtils.serializeHtmlBeforeLastScript(doc)).toBe('<html><head></head><body>asdf');
+            });
+        });
+
         describe('replaceScripts', function() {
             var callback;
             beforeEach(function() {

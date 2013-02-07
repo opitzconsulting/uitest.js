@@ -9,10 +9,11 @@ uitest.define('ready', ['logger', 'global'], function(logger, global) {
 	function createSensors(config) {
 		var i, sensorNames = config.readySensors,
 			sensorName,
-			readySensorInstances = {};
+			readySensorInstances = {},
+			newPrepends = [];
 		var api = {
 			prepend: function(value) {
-				config.prepends.push(value);
+				newPrepends.push(value);
 			},
 			append: function(value) {
 				config.appends.push(value);
@@ -22,6 +23,10 @@ uitest.define('ready', ['logger', 'global'], function(logger, global) {
 			sensorName = sensorNames[i];
 			readySensorInstances[sensorName] = registeredSensors[sensorName](api);
 		}
+		// Be sure that the prepends of the sensors are always before all
+		// other prepends!
+		config.prepends.unshift.apply(config.prepends, newPrepends);
+
 		return readySensorInstances;
 	}
 

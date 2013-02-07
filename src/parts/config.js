@@ -7,9 +7,7 @@ uitest.define('config', [], function() {
 		if (this === exports) {
 			return new create();
 		}
-		this._data = {
-			loadMode: LOAD_MODE_IFRAME
-		};
+		this._data = {};
 	}
 
 	create.prototype = {
@@ -83,7 +81,11 @@ uitest.define('config', [], function() {
 
 	function buildConfig(target) {
 		target = target || {
-			readySensors: ['timeout', 'interval', 'xhr', '$animation']
+			readySensors: ['timeout', 'interval', 'xhr', '$animation'],
+			appends: [],
+			prepends: [],
+			intercepts: [],
+			loadMode: LOAD_MODE_IFRAME
 		};
 		if (this.parent()) {
 			this.parent().buildConfig(target);

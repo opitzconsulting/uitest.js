@@ -31,12 +31,22 @@ uitest.require(["factory!ready"], function(readyModuleFactory) {
             });
 
             it('should pass an object with prepend and append to the sensor factory', function() {
+                someSensorFactory.andCallFake(function(installer) {
+                    installer.prepend('somePrependScript');
+                    installer.append('someAppendScript');
+                });
                 readyModule.createSensors(config);
-                var installer = someSensorFactory.mostRecentCall.args[0];
-                installer.prepend('somePrependScript');
-                installer.append('someAppendScript');
                 expect(config.prepends).toEqual(['somePrependScript']);
                 expect(config.appends).toEqual(['someAppendScript']);
+            });
+
+            it('should add prepents of sensors before all other prepends in the config', function() {
+                config.prepends.push('someNormalScript');
+                someSensorFactory.andCallFake(function(installer) {
+                    installer.prepend('someSensorScript');
+                });
+                readyModule.createSensors(config);
+                expect(config.prepends).toEqual(['someSensorScript', 'someNormalScript']);
             });
         });
 

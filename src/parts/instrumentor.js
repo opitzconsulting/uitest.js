@@ -56,7 +56,7 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
             for (i=0; i<prepends.length; i++) {
                 createScriptTagForPrependOrAppend(htmlArr, prepends[i]);
             }
-            return html.replace(/<head>/g, htmlArr.join(''));
+            return html.replace(/<head>/, htmlArr.join(''));
         }
 
         function handleAppends(html, appends) {
@@ -65,7 +65,7 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
                 createScriptTagForPrependOrAppend(htmlArr, appends[i]);
             }
             htmlArr.push('</body>');
-            return html.replace(/<\/body>/g, htmlArr.join(''));
+            return html.replace(/<\/body>/, htmlArr.join(''));
         }
 
         function createScriptTagForPrependOrAppend(html, prependOrAppend) {
@@ -145,7 +145,7 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
                 data = data.replace(NAMED_FUNCTION_RE, function(all, fnName) {
                     if (matchingInterceptsByName[fnName]) {
                         return all+'if (!'+fnName+'.delegate)return '+
-                            createRemoteCallExpression(fnCallback, fnName, "this", "arguments");
+                            createRemoteCallExpression(fnCallback, "window", fnName, "this", "arguments");
                     }
                     return all;
 
@@ -188,7 +188,7 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
         replaceScripts: docUtils.replaceScripts,
         global: {
             uitest: {
-                instrumet: instrument
+                instrument: instrument
             }
         }
     };

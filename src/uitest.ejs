@@ -1,44 +1,32 @@
 /**
-* Jasmine-Ui v<%= version %>
-* http://github.com/tigbro/jasmine-ui
+* uitest.js v<%= version %>
+* http://github.com/tigbro/uitest
 *
 * Copyright 2011, Tobias Bosch (OPITZ CONSULTING GmbH)
 * Licensed under the MIT license.
 *
-* Includes jasmine BDD (https://github.com/pivotal/jasmine).
-* Copyright Pivotal Labs
-*
 */
-if (!window.jasmine) {
-<%= include lib/jasmine.js %>
-}
 <%= include parts/simpleRequire.js %>
 <%= include parts/config.js %>
-<%= include parts/urlParser.js %>
-<%= include parts/urlLoader.js %>
-<%= include parts/scriptAccessor.js %>
-<%= include parts/logger.js %>
-<%= include parts/globals.js %>
-<%= include parts/persistentData.js %>
-<%= include parts/htmlParserFactory.js %>
+<%= include parts/documentUtils.js %>
+<%= include parts/facade.js %>
+<%= include parts/global.js %>
+<%= include parts/injector.js %>
 <%= include parts/instrumentor.js %>
-<%= include parts/client/asyncSensor.js %>
-<%= include parts/client/simulateEvent.js %>
-<%= include parts/client/loadUi.js %>
-<%= include parts/client/beforeLoad.js %>
-<%= include parts/server/loadUi.js %>
+<%= include parts/logger.js %>
+<%= include parts/ready.js %>
+<%= include parts/urlLoader.js %>
+<%= include parts/urlParser.js %>
 
-/* Jasmine adapter */
-<%= include parts/jasmine/original.js %>
-<%= include parts/jasmine/shared.js %>
-<%= include parts/jasmine/client/multiLoad.js %>
-<%= include parts/jasmine/client/waitsForAsync.js %>
-<%= include parts/jasmine/client/adapter.js %>
-<%= include parts/jasmine/server/adapter.js %>
+<%= include parts/readySensors/intervalSensor.js %>
+<%= include parts/readySensors/jqmAnimationSensor.js %>
+<%= include parts/readySensors/loadSensor.js %>
+<%= include parts/readySensors/timeoutSensor.js %>
+<%= include parts/readySensors/xhrSensor.js %>
 
 /* Main */
 (function () {
-    jasmineui.require.default();
+    uitest.require.all();
 })();
 
 

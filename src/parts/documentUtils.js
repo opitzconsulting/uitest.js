@@ -31,7 +31,7 @@ uitest.define('documentUtils', [], function() {
 
     function serializeHtmlBeforeLastScript(doc) {
         var innerHtml = doc.documentElement.innerHTML;
-        var lastScript = innerHtml.lastIndexOf('<script>');
+        var lastScript = innerHtml.lastIndexOf('<script');
         return serializeDocType(doc) + serializeHtmlTag(doc) + innerHtml.substring(0, lastScript);
     }
 
@@ -73,10 +73,11 @@ uitest.define('documentUtils', [], function() {
     }
 
     function rewriteDocument(win, html) {
-        var doc = win.document;
-        doc.open();
-        doc.write(html);
-        doc.close();
+        // eval is required here so that the window keeps
+        // it's current location.href!
+        win.newContent = html;
+        win.eval('document.open();document.write(newContent);document.close();');
+        win.newContent = '';
     }
 
     return {
@@ -87,7 +88,7 @@ uitest.define('documentUtils', [], function() {
         urlScriptHtml: urlScriptHtml,
         loadScript: loadScript,
         evalScript: evalScript,
-        replaceScripts: replaceScripts,        
+        replaceScripts: replaceScripts,
         rewriteDocument: rewriteDocument
     };
 });

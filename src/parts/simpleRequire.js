@@ -134,12 +134,12 @@
         return resolvedDeps;
     };
 
-    require.all = function (filter, callback) {
+    require.all = function (callback, filter) {
         var i, def;
         var modules = {};
         for (i = 0; i < define.moduleDefs.length; i++) {
             def = define.moduleDefs[i];
-            if (filter(def.name)) {
+            if (!filter || filter(def.name)) {
                 require([def.name], function (module) {
                     modules[def.name] = module;
                 });
