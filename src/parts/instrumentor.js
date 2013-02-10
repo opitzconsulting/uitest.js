@@ -84,13 +84,14 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
 
         function handleScripts(html, config) {
             var requirejs = false;
-            html = docUtils.replaceScripts(html, function(scriptUrl) {
+            html = docUtils.replaceScripts(html, function(scriptTag, scriptUrl, textContent) {
                 if (!scriptUrl) return;
                 
                 if (scriptUrl.match(REQUIRE_JS_RE)) {
                     requirejs = true;
-                    return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
-                        handleRequireJsScript(win, scriptUrl, config);
+                    return scriptTag+"</script>"+
+                        docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
+                        handleRequireJsScript(win, config);
                     }, "window"));
                 }
 
@@ -108,42 +109,66 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
             };
         }
 
-        function handleRequireJsScript(win, scriptUrl, config) {
-            docUtils.loadAndEvalScriptSync(win, scriptUrl);
-            var originalRequire = win.require;
-            win.require = function (deps, originalCallback) {
-                originalRequire(deps, function () {
-                    var i;
-                    for (i=0; i<config.appends.length; i++) {
-                        execAppend(config.appends[i]);
-                    }
-                    return originalCallback.apply(this, arguments);
-                });
-            };
+        function handleRequireJsScript(win, config) {
+            var _require, _load;
 
-            function execAppend(append) {
-                if (isString(append)) {
-                    docUtils.loadAndEvalScriptSync(win, append);
-                } else {
-                    injector.inject(append, win, [win]);
-                }
+            patchRequire();
+            patchLoad();
+            
+            function patchRequire() {
+                _require = win.require;
+                _require.config = _require.config;
+                win.require = function(deps, originalCallback) {
+                    _require(deps, function () {
+                        var args = arguments,
+                            self = this;
+                        execAppends(function() {
+                            originalCallback.apply(self, args);
+                        });
+                    });
+                };
             }
 
-            var _load = originalRequire.load;
-            originalRequire.load = function (context, moduleName, url) {
-                var matchingIntercepts = findMatchingIntercepts(url, config.intercepts);
-                if (matchingIntercepts.empty) {
-                    return _load.apply(this, arguments);
+            function execAppends(finishedCallback) {
+                var appends = config.appends,
+                    i = 0;
+                execNext();
+                
+                function execNext() {
+                    var append;
+                    if (i>=config.appends.length) {
+                        finishedCallback();
+                    } else {
+                        append = config.appends[i++];
+                        if (isString(append)) {
+                            _require([append], execNext);
+                        } else {
+                            // TODO error handling!
+                            injector.inject(append, win, [win]);
+                            execNext();
+                        }
+                    }
                 }
-                try {
-                    handleInterceptScript(win, matchingIntercepts, url);
-                    context.completeLoad(moduleName);
-                } catch (error) {
-                    //Set error on module, so it skips timeout checks.
-                    context.registry[moduleName].error = true;
-                    throw error;
-                }
-            };
+
+            }
+
+            function patchLoad() {
+                _load = _require.load;
+                _require.load = function (context, moduleName, url) {
+                    var matchingIntercepts = findMatchingIntercepts(url, config.intercepts);
+                    if (matchingIntercepts.empty) {
+                        return _load.apply(this, arguments);
+                    }
+                    try {
+                        handleInterceptScript(win, matchingIntercepts, url);
+                        context.completeLoad(moduleName);
+                    } catch (error) {
+                        //Set error on module, so it skips timeout checks.
+                        context.registry[moduleName].error = true;
+                        throw error;
+                    }
+                };
+            }
         }
 
         function findMatchingIntercepts(url, intercepts) {
@@ -161,13 +186,10 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
         function handleInterceptScript(win, matchingInterceptsByName, scriptUrl) {
             // Need to do the xhr in sync here so the script execution order in the document
             // stays the same!
-            docUtils.loadScript(win, scriptUrl, resultCallback, false);
+            docUtils.loadAndEvalScriptSync(win, scriptUrl, preProcessCallback);
 
-            function resultCallback(error, data) {
-                if (error) {
-                    throw error;
-                }
-                data = data.replace(NAMED_FUNCTION_RE, function(all, fnName) {
+            function preProcessCallback(data) {
+                return data.replace(NAMED_FUNCTION_RE, function(all, fnName) {
                     if (matchingInterceptsByName[fnName]) {
                         return all+'if (!'+fnName+'.delegate)return '+
                             createRemoteCallExpression(fnCallback, "window", fnName, "this", "arguments");
@@ -191,8 +213,6 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
                         }
                     }
                 });
-
-                docUtils.evalScript(win, data);
             }
         }
 
@@ -206,11 +226,7 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
         init: init,
         instrument: instrument,
         deactivateAndCaptureHtml: deactivateAndCaptureHtml,
-        serializeDocType: docUtils.serializeDocType,
-        serializeHtmlTag: docUtils.serializeHtmlTag,
         modifyHtmlWithConfig: modifyHtmlWithConfig,
-        rewriteDocument: docUtils.rewriteDocument,
-        replaceScripts: docUtils.replaceScripts,
         global: {
             uitest: {
                 instrument: instrument

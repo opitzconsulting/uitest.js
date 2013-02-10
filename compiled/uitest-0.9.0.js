@@ -351,7 +351,7 @@ uitest.define('documentUtils', [], function() {
 
     function replaceScripts(html, callback) {
         return html.replace(SCRIPT_RE, function (match, allElements, srcAttribute, textContent) {
-            var result = callback(srcAttribute, textContent);
+            var result = callback(srcAttribute, textContent, match);
             if (result===undefined) {
                 return match;
             }
@@ -719,13 +719,13 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
 
         function handleScripts(html, config) {
             var requirejs = false;
-            html = docUtils.replaceScripts(html, function(scriptUrl) {
+            html = docUtils.replaceScripts(html, function(scriptUrl, textContent, scriptTag) {
                 if (!scriptUrl) return;
                 
                 if (scriptUrl.match(REQUIRE_JS_RE)) {
                     requirejs = true;
                     return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
-                        handleRequireJsScript(win, scriptUrl, config);
+                        handleRequireJsScript(win, scriptUrl, scriptTag, config);
                     }, "window"));
                 }
 
@@ -743,10 +743,21 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
             };
         }
 
-        function handleRequireJsScript(win, scriptUrl, config) {
+        function handleRequireJsScript(win, scriptUrl, scriptTag, config) {
+            // TODO extract data-main from script-Tag and call require!
             docUtils.loadAndEvalScriptSync(win, scriptUrl);
             var originalRequire = win.require;
-            win.require = function (deps, originalCallback) {
+            patchedRequire.config = originalRequire.config;
+            win.require = patchedRequire;
+
+            var _load = originalRequire.load;
+            originalRequire.load = patchedLoad;
+            var dataMain = scriptTag.match(/data-main=\"([^\"]*)/);
+            if (dataMain) {
+                originalRequire.call(win, [dataMain[1]]);
+            }
+
+            function patchedRequire(deps, originalCallback) {
                 originalRequire(deps, function () {
                     var i;
                     for (i=0; i<config.appends.length; i++) {
@@ -754,7 +765,7 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
                     }
                     return originalCallback.apply(this, arguments);
                 });
-            };
+            }
 
             function execAppend(append) {
                 if (isString(append)) {
@@ -764,8 +775,7 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
                 }
             }
 
-            var _load = originalRequire.load;
-            originalRequire.load = function (context, moduleName, url) {
+            function patchedLoad(context, moduleName, url) {
                 var matchingIntercepts = findMatchingIntercepts(url, config.intercepts);
                 if (matchingIntercepts.empty) {
                     return _load.apply(this, arguments);
@@ -778,7 +788,7 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
                     context.registry[moduleName].error = true;
                     throw error;
                 }
-            };
+            }
         }
 
         function findMatchingIntercepts(url, intercepts) {

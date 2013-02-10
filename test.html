@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>    
+
+<body>
+Hello world
+
+<button id="test">Zoom</button>
+
+<script>
+    var el = document.getElementById("test");
+    el.addEventListener("click", addZoom, false);
+
+    function addZoom() {
+        var meta = document.createElement("meta");
+        meta.setAttribute("name", "viewport");
+        meta.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1");
+        document.head.appendChild(meta);
+
+        var iframe = document.createElement("iframe");
+        iframe.setAttribute("width", "100%");
+        iframe.setAttribute("height", "100%");
+        iframe.setAttribute("style", "position: absolute; z-index: 10; bottom: 0; left: 0; background-color: white;");
+        window.document.body.appendChild(iframe);
+        var win = iframe.contentWindow || frameElement.contentDocument;
+        win.document.open();
+        win.document.write("<html><body>Hello iframe</body></html>");
+        win.document.close();
+        setTimeout(function () {   window.scrollTo(0, 1); }, 1000);
+    }
+</script>
+</body>
+
+</html>

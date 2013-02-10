@@ -1,10 +1,10 @@
 uitest.define('documentUtils', [], function() {
 
     var // Groups:
-        // 1. text of all element attributes
+        // 1. opening script tag
         // 2. content of src attribute
         // 3. text content of script element.
-        SCRIPT_RE = /<script([^>]*src=\s*"([^"]+))?[^>]*>([\s\S]*?)<\/script>/g;
+        SCRIPT_RE = /(<script(?:[^>]*src=\s*"([^"]+))?[^>]*>)([\s\S]*?)<\/script>/g;
 
     function serializeDocType(doc) {
         var node = doc.doctype;
@@ -43,7 +43,7 @@ uitest.define('documentUtils', [], function() {
         return '<script type="text/javascript" src="'+url+'"></script>';
     }
 
-    function loadScript(win, url, resultCallback, async) {
+    function loadScript(win, url, async, resultCallback) {
         var xhr = new win.XMLHttpRequest();
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4) {
@@ -62,18 +62,21 @@ uitest.define('documentUtils', [], function() {
         win["eval"].call(win, scriptContent);
     }
 
-    function loadAndEvalScriptSync(win, url) {
-        loadScript(win, url, function(error, data) {
+    function loadAndEvalScriptSync(win, url, preProcessCallback) {
+        loadScript(win, url, false, function(error, data) {
             if (error) {
                 throw error;
+            }
+            if (preProcessCallback) {
+                data = preProcessCallback(data);
             }
             evalScript(win, data);
         });
     }
 
     function replaceScripts(html, callback) {
-        return html.replace(SCRIPT_RE, function (match, allElements, srcAttribute, textContent) {
-            var result = callback(srcAttribute, textContent);
+        return html.replace(SCRIPT_RE, function (match, scriptOpenTag, srcAttribute, textContent) {
+            var result = callback(scriptOpenTag, srcAttribute, textContent);
             if (result===undefined) {
                 return match;
             }
@@ -95,8 +98,6 @@ uitest.define('documentUtils', [], function() {
         serializeHtmlBeforeLastScript: serializeHtmlBeforeLastScript,
         contentScriptHtml: contentScriptHtml,
         urlScriptHtml: urlScriptHtml,
-        loadScript: loadScript,
-        evalScript: evalScript,
         loadAndEvalScriptSync: loadAndEvalScriptSync,
         replaceScripts: replaceScripts,
         rewriteDocument: rewriteDocument

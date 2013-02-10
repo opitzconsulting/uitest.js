@@ -1,6 +1,6 @@
-describe('requirejs', function() {
+describe('requirejsDataMain', function() {
     var uit = uitest.current;
-    uit.url("/test/ui/fixtures/requirejs.html");
+    uit.url("/test/ui/fixtures/requirejsDataMain.html");
 
     afterEach(function() {
         uitest.cleanup();
@@ -27,26 +27,4 @@ describe('requirejs', function() {
             });
         });
     });
-
-    describe('intercept', function() {
-        it('should intercept private functions by name', function() {
-            var savedData = {};
-            uit.intercept({
-                scriptUrl: "./sayHello.js",
-                fnName: "sayHello",
-                callback: function(userName, execState, $delegate) {
-                    savedData.execState = execState;
-                    savedData.$delegate = $delegate;
-                    return "intercepted " + userName;
-                }
-            });
-            uitest.runs(function(document) {
-                var el = document.getElementById("greeting");
-                expect(el.textContent).toBe("intercepted someUser");
-                expect(savedData.execState).toBe('end');
-            });
-        });
-    });    
-
-
 });

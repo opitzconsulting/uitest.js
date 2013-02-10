@@ -47,7 +47,7 @@ uitest.require(["factory!documentUtils"], function(documentUtilsFactory) {
                 callback.andReturn(someReplacement);
                 var result = documentUtils.replaceScripts('<script>a</script>', callback);
                 expect(callback.callCount).toBe(1);
-                expect(callback).toHaveBeenCalledWith(undefined, 'a');
+                expect(callback).toHaveBeenCalledWith('<script>', undefined, 'a');
             });
             it('should replace scripts if the result is not undefined', function() {
                 var someReplacement = 'someReplacement';
@@ -61,13 +61,50 @@ uitest.require(["factory!documentUtils"], function(documentUtilsFactory) {
             it('should replace multiple inline scripts', function() {
                 documentUtils.replaceScripts('<script>a</script><script>b</script>', callback);
                 expect(callback.callCount).toBe(2);
-                expect(callback.argsForCall[0]).toEqual([undefined, 'a']);
-                expect(callback.argsForCall[1]).toEqual([undefined, 'b']);
+                expect(callback.argsForCall[0]).toEqual(['<script>', undefined, 'a']);
+                expect(callback.argsForCall[1]).toEqual(['<script>', undefined, 'b']);
             });
             it('should replace multi line inline scripts', function() {
                 var content = 'a\r\nb';
                 documentUtils.replaceScripts('<script>' + content + '</script>', callback);
-                expect(callback).toHaveBeenCalledWith(undefined, content);
+                expect(callback).toHaveBeenCalledWith('<script>', undefined, content);
+            });
+        });
+
+        describe('loadAndEvalScriptSync', function() {
+            var xhr, win;
+            beforeEach(function() {
+                xhr = {
+                    open: jasmine.createSpy('open'),
+                    send: jasmine.createSpy('send')
+                };
+                win = {
+                    XMLHttpRequest: jasmine.createSpy('xhr').andReturn(xhr),
+                    "eval": jasmine.createSpy('eval')
+                };
+            });
+            function simulateXhrResponse(response) {
+                xhr.readyState = 4;
+                xhr.status = 200;
+                xhr.responseText = response;
+                xhr.onreadystatechange();
+            }
+            it('should use a sync xhr', function() {
+                documentUtils.loadAndEvalScriptSync(win, 'someUrl');
+                expect(xhr.open).toHaveBeenCalledWith('GET', 'someUrl', false);
+                expect(xhr.send).toHaveBeenCalled();
+            });
+            it('should call eval with the xhr result', function() {
+                documentUtils.loadAndEvalScriptSync(win, 'someUrl');
+                simulateXhrResponse('someResponse');
+                expect(win['eval']).toHaveBeenCalledWith('someResponse//@ sourceURL=someUrl');
+            });
+            it('should allow the preProcessCalback to change the xhr result', function() {
+                var preProcessCalback = jasmine.createSpy('preProcessCalback');
+                preProcessCalback.andReturn('someProcessedResponse');
+                documentUtils.loadAndEvalScriptSync(win, 'someUrl', preProcessCalback);
+                simulateXhrResponse('someResponse');
+                expect(win['eval']).toHaveBeenCalledWith('someProcessedResponse');
             });
         });
     });
