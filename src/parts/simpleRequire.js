@@ -31,17 +31,6 @@
         define.moduleDefs.push(def);
     };
     define.moduleDefs = [];
-    define.plugins = {
-        factory:factoryPlugin
-    };
-    define.conditionals = {
-        client:function () {
-            return !!document.documentElement.getAttribute("jasmineuiClient");
-        },
-        server:function () {
-            return !define.conditionals.client();
-        }
-    };
 
     function findModuleDefinition(name) {
         for (var i = 0; i < define.moduleDefs.length; i++) {
@@ -53,40 +42,17 @@
         throw new Error("Could not find the module " + name);
     }
 
-    function plugin(pluginName, moduleName) {
-        var p = define.plugins[pluginName];
-        if (!p) {
-            throw new Error("Unknown plugin " + pluginName);
-        }
-        return p(moduleName);
-    }
-
-    function factoryPlugin(moduleName) {
-        return function (cache) {
-            cache = cache || {};
-            return factory(moduleName, cache);
-        }
-    }
-
     function factory(name, instanceCache) {
         if (!instanceCache) {
             instanceCache = {};
         }
         if (instanceCache[name] === undefined) {
             var resolvedValue;
-            var pluginSeparator = name.indexOf('!');
-            if (pluginSeparator !== -1) {
-                var pluginName = name.substring(0, pluginSeparator);
-                var moduleName = name.substring(pluginSeparator + 1);
-                resolvedValue = plugin(pluginName, moduleName);
-            } else {
-                // Normal locally defined modules.
-                var mod = findModuleDefinition(name);
-                var resolvedDeps = listFactory(mod.deps, instanceCache);
-                resolvedValue = mod.value;
-                if (typeof mod.value === 'function') {
-                    resolvedValue = mod.value.apply(window, resolvedDeps);
-                }
+            var mod = findModuleDefinition(name);
+            var resolvedDeps = listFactory(mod.deps, instanceCache);
+            resolvedValue = mod.value;
+            if (typeof mod.value === 'function') {
+                resolvedValue = mod.value.apply(window, resolvedDeps);
             }
 
             instanceCache[name] = resolvedValue;
@@ -124,31 +90,38 @@
         return resolvedDeps;
     }
 
-    var require = function (deps, callback) {
-        var resolvedDeps = listFactory(deps, require.cache);
-        // Note: testing if typeof callback==="function" does not work
-        // in IE9 from remote window (then everything is an object...)
-        if (callback && callback.apply) {
-            callback.apply(this, resolvedDeps);
-        }
-        return resolvedDeps;
-    };
-
-    require.all = function (callback, filter) {
-        var i, def;
-        var modules = {};
-        for (i = 0; i < define.moduleDefs.length; i++) {
-            def = define.moduleDefs[i];
-            if (!filter || filter(def.name)) {
-                require([def.name], function (module) {
-                    modules[def.name] = module;
-                });
+    var require = function (cache, deps, callback) {
+        var filteredDeps = [],
+            i, def;
+        if (arguments.length===1) {
+            deps = cache;
+            cache = {};
+            callback = null;
+        } else if (arguments.length===2) {
+            if (typeof cache === 'function' || cache.slice) {
+                callback = deps;
+                deps = cache;
             }
         }
-        if (callback) callback(modules);
-    };
 
-    require.cache = {};
+        if (deps.apply) {
+            // if deps is a function, treat it as a filter function.
+            for (i = 0; i < define.moduleDefs.length; i++) {
+                def = define.moduleDefs[i];
+                if (deps(def.name)) {
+                    filteredDeps.push(def.name);
+                }
+            }
+            deps = filteredDeps;
+        }
+        var resolvedDeps = listFactory(deps, cache);
+
+        if (callback) {
+            callback.apply(this, resolvedDeps);
+        }
+
+        return cache;
+    };
 
     ns.require = require;
     ns.define = define;

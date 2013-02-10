@@ -1,128 +1,124 @@
-uitest.require(["factory!jasmineSugar"], function(jasmineSugarFactory) {
+describe('jasmineSugar', function() {
+    var jasmineSugar, facade, jasmineEnv, global, currentUitest;
+    beforeEach(function() {
+        currentUitest = {
+            ready: jasmine.createSpy('ready'),
+            inject: jasmine.createSpy('inject')
+        };
+        jasmineEnv = {
 
-    describe('jasmineSugar', function() {
-        var jasmineSugar, facade, jasmineEnv, global, currentUitest;
+        };
+        facade = {
+            currentIdAccessor: jasmine.createSpy('currentIdAccessor'),
+            current: currentUitest
+        };
+    });
+    describe('without jasmine', function() {
+        var jasmineSugar;
         beforeEach(function() {
-            currentUitest = {
-                ready: jasmine.createSpy('ready'),
-                inject: jasmine.createSpy('inject')
-            };
-            jasmineEnv = {
-
-            };
-            facade = {
-                currentIdAccessor: jasmine.createSpy('currentIdAccessor'),
-                current: currentUitest
-            };
+            jasmineSugar = uitest.require({
+                facade: facade,
+                global: {}
+            }, ["jasmineSugar"]).jasmineSugar;
         });
-        describe('without jasmine', function() {
-            var jasmineSugar;
-            beforeEach(function() {
-                jasmineSugar = jasmineSugarFactory({
-                    facade: facade,
-                    global: {}
-                });
-
-            });
-            it('should not register the currentIdAccessor', function() {
-                expect(facade.currentIdAccessor).not.toHaveBeenCalled();
-            });
-            it('should not register globals', function() {
-                expect(jasmineSugar).toEqual({});
-            });
+        it('should not register the currentIdAccessor', function() {
+            expect(facade.currentIdAccessor).not.toHaveBeenCalled();
         });
-        describe('with jasmine', function() {
-            beforeEach(function() {
-                global = {
-                    waitsFor: jasmine.createSpy('waitsFor'),
-                    runs: jasmine.createSpy('runs'),
-                    jasmine: {
-                        getEnv: jasmine.createSpy('getEnv').andReturn(jasmineEnv)
+        it('should not register globals', function() {
+            expect(jasmineSugar).toEqual({});
+        });
+    });
+    describe('with jasmine', function() {
+        beforeEach(function() {
+            global = {
+                waitsFor: jasmine.createSpy('waitsFor'),
+                runs: jasmine.createSpy('runs'),
+                jasmine: {
+                    getEnv: jasmine.createSpy('getEnv').andReturn(jasmineEnv)
+                }
+            };
+            jasmineSugar = uitest.require({
+                facade: facade,
+                global: global
+            }, ["jasmineSugar"]).jasmineSugar;
+        });
+
+        describe('currentIdAccessor', function() {
+            it('should register the currentIdAccessor at facade', function() {
+                expect(facade.currentIdAccessor).toHaveBeenCalledWith(jasmineSugar.currentIdAccessor);
+            });
+            it('should return an empty string if outside of any suite', function() {
+                expect(jasmineSugar.currentIdAccessor()).toBe('');
+            });
+            it("should return the id of the suite and it's parent suites if outside of a spec", function() {
+                jasmineEnv.currentSuite = {
+                    id: 2,
+                    parentSuite: {
+                        id: 1
                     }
                 };
-                jasmineSugar = jasmineSugarFactory({
-                    facade: facade,
-                    global: global
-                });
+                expect(jasmineSugar.currentIdAccessor()).toBe('1.2');
             });
-
-            describe('currentIdAccessor', function() {
-                it('should register the currentIdAccessor at facade', function() {
-                    expect(facade.currentIdAccessor).toHaveBeenCalledWith(jasmineSugar.currentIdAccessor);
-                });
-                it('should return an empty string if outside of any suite', function() {
-                    expect(jasmineSugar.currentIdAccessor()).toBe('');
-                });
-                it("should return the id of the suite and it's parent suites if outside of a spec", function() {
-                    jasmineEnv.currentSuite = {
+            it("should return the id of the suite and it's parent suites if outside of a spec but env.currentSpec is still filled", function() {
+                jasmineEnv.currentSuite = {
+                    id: 2,
+                    parentSuite: {
+                        id: 1
+                    }
+                };
+                jasmineEnv.currentSpec = {
+                    queue: {
+                        running: false
+                    }
+                };
+                expect(jasmineSugar.currentIdAccessor()).toBe('1.2');
+            });
+            it("should return the ids of the current spec with it's parent suites separated by a colon", function() {
+                jasmineEnv.currentSpec = {
+                    id: 3,
+                    suite: {
                         id: 2,
                         parentSuite: {
                             id: 1
                         }
-                    };
-                    expect(jasmineSugar.currentIdAccessor()).toBe('1.2');
-                });
-                it("should return the id of the suite and it's parent suites if outside of a spec but env.currentSpec is still filled", function() {
-                    jasmineEnv.currentSuite = {
-                        id: 2,
-                        parentSuite: {
-                            id: 1
-                        }
-                    };
-                    jasmineEnv.currentSpec = {
-                        queue: {
-                            running: false
-                        }
-                    };
-                    expect(jasmineSugar.currentIdAccessor()).toBe('1.2');
-                });
-                it("should return the ids of the current spec with it's parent suites separated by a colon", function() {
-                    jasmineEnv.currentSpec = {
-                        id: 3,
-                        suite: {
-                            id: 2,
-                            parentSuite: {
-                                id: 1
-                            }
-                        },
-                        queue: {
-                            running: true
-                        }
-                    };
-                    expect(jasmineSugar.currentIdAccessor()).toBe("1.2.3");
-                });
-
+                    },
+                    queue: {
+                        running: true
+                    }
+                };
+                expect(jasmineSugar.currentIdAccessor()).toBe("1.2.3");
             });
-            describe('runs', function() {
-                it('should wait with jasmine.waitsFor and uitest.current.ready', function() {
-                    var callback = jasmine.createSpy('callback');
-                    jasmineSugar.runs(callback);
-                    expect(global.runs.callCount).toBe(2);
-                    expect(global.waitsFor).toHaveBeenCalled();
-                    expect(currentUitest.ready).not.toHaveBeenCalled();
-                    global.runs.argsForCall[0][0]();
-                    expect(currentUitest.ready).toHaveBeenCalled();
-                    expect(global.waitsFor.mostRecentCall.args[0]()).toBe(false);
-                    currentUitest.ready.mostRecentCall.args[0]();
-                    expect(global.waitsFor.mostRecentCall.args[0]()).toBe(true);
-                });
-                it('should forward a timeout to jasmine.waitsFor', function() {
-                    var callback = jasmine.createSpy('callback');
-                    var someTimeout = 1234;
-                    jasmineSugar.runs(callback, someTimeout);
-                    expect(global.waitsFor.mostRecentCall.args[1]).toBe("waiting for uitest.ready");
-                    expect(global.waitsFor.mostRecentCall.args[2]).toBe(someTimeout);
-                });
-                it('should execute the given callback using uitest.current.inject after waiting', function() {
-                    var callback = jasmine.createSpy('callback');
-                    jasmineSugar.runs(callback);
-                    expect(currentUitest.inject).not.toHaveBeenCalled();
-                    global.runs.argsForCall[1][0]();
-                    expect(currentUitest.inject).toHaveBeenCalledWith(callback);
-                });
-                it('should register a global', function() {
-                    expect(global.uitest.runs).toBe(jasmineSugar.runs);
-                });
+
+        });
+        describe('runs', function() {
+            it('should wait with jasmine.waitsFor and uitest.current.ready', function() {
+                var callback = jasmine.createSpy('callback');
+                jasmineSugar.runs(callback);
+                expect(global.runs.callCount).toBe(2);
+                expect(global.waitsFor).toHaveBeenCalled();
+                expect(currentUitest.ready).not.toHaveBeenCalled();
+                global.runs.argsForCall[0][0]();
+                expect(currentUitest.ready).toHaveBeenCalled();
+                expect(global.waitsFor.mostRecentCall.args[0]()).toBe(false);
+                currentUitest.ready.mostRecentCall.args[0]();
+                expect(global.waitsFor.mostRecentCall.args[0]()).toBe(true);
+            });
+            it('should forward a timeout to jasmine.waitsFor', function() {
+                var callback = jasmine.createSpy('callback');
+                var someTimeout = 1234;
+                jasmineSugar.runs(callback, someTimeout);
+                expect(global.waitsFor.mostRecentCall.args[1]).toBe("waiting for uitest.ready");
+                expect(global.waitsFor.mostRecentCall.args[2]).toBe(someTimeout);
+            });
+            it('should execute the given callback using uitest.current.inject after waiting', function() {
+                var callback = jasmine.createSpy('callback');
+                jasmineSugar.runs(callback);
+                expect(currentUitest.inject).not.toHaveBeenCalled();
+                global.runs.argsForCall[1][0]();
+                expect(currentUitest.inject).toHaveBeenCalledWith(callback);
+            });
+            it('should register a global', function() {
+                expect(global.uitest.runs).toBe(jasmineSugar.runs);
             });
         });
     });

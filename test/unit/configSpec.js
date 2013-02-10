@@ -1,8 +1,6 @@
-uitest.require(["factory!config"], function (configFactory) {
 	var config;
 	beforeEach(function() {
-		config = configFactory({
-		});
+		config = uitest.require(["config"]).config;
 	});
 
 	describe('config', function() {
@@ -31,7 +29,7 @@ uitest.require(["factory!config"], function (configFactory) {
 			try {
 				configInstance.loadMode("someMode");
 				throw new Error("expected an error");
-			} catch (e) {
+			} catch(e) {
 				expect(e.message).toBe("unknown mode: someMode");
 			}
 			expect(configInstance.loadMode("iframe").loadMode()).toBe("iframe");
@@ -47,19 +45,19 @@ uitest.require(["factory!config"], function (configFactory) {
 		});
 
 		it('should add prepend calls', function() {
-			var someFn = function() { };
+			var someFn = function() {};
 			expect(configInstance.prepend(someFn)).toBe(configInstance);
 			expect(configInstance.buildConfig().prepends).toEqual([someFn]);
 		});
 
 		it('should add append calls', function() {
-			var someFn = function() { };
+			var someFn = function() {};
 			expect(configInstance.append(someFn)).toBe(configInstance);
 			expect(configInstance.buildConfig().appends).toEqual([someFn]);
 		});
 
 		it('should add intercept calls', function() {
-			var someFn = function() { };
+			var someFn = function() {};
 			expect(configInstance.intercept(someFn)).toBe(configInstance);
 			expect(configInstance.buildConfig().intercepts).toEqual([someFn]);
 		});
@@ -70,13 +68,13 @@ uitest.require(["factory!config"], function (configFactory) {
 			try {
 				configInstance.url("someUrl");
 				throw new Error("expected an error");
-			} catch (e) {
+			} catch(e) {
 				expect(e.message).toBe(error);
 			}
 			try {
 				configInstance.prepend(true);
 				throw new Error("expected an error");
-			} catch (e) {
+			} catch(e) {
 				expect(e.message).toBe(error);
 			}
 		});
@@ -109,7 +107,7 @@ uitest.require(["factory!config"], function (configFactory) {
 
 			configInstance._data.someProp = dataAdderArr(1);
 			child._data.someProp = dataAdderArr(2);
-			expect(child.buildConfig().someProp).toEqual([1,2]);
+			expect(child.buildConfig().someProp).toEqual([1, 2]);
 		});
 		it('should not merge array properties of non data adder properties', function() {
 			configInstance._data.someProp = [1];
@@ -117,4 +115,3 @@ uitest.require(["factory!config"], function (configFactory) {
 			expect(child.buildConfig().someProp).toEqual([2]);
 		});
 	});
-});

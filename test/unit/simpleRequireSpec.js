@@ -1,7 +1,6 @@
 describe('simpleRequire', function () {
     var oldModuleDefs;
     beforeEach(function () {
-        uitest.require.cache = {};
         oldModuleDefs = uitest.define.moduleDefs;
         uitest.define.moduleDefs = [];
         document.documentElement.removeAttribute("data-uitest");
@@ -10,7 +9,7 @@ describe('simpleRequire', function () {
         uitest.define.moduleDefs = oldModuleDefs;
     });
 
-    describe('factory plugin', function () {
+    xdescribe('factory plugin', function () {
         it('should create accessor functions', function () {
             uitest.define('someModule', {});
             var someModuleFactory;
@@ -57,31 +56,41 @@ describe('simpleRequire', function () {
     });
 
     describe('require', function () {
-        it('should cache created instances', function () {
+        it('should create new module instances if no cache is provided', function() {
             var counter = 0;
             uitest.define('someModule', function () {
                 return counter++;
             });
-            var actualValue1, actualValue2;
-            uitest.require(['someModule'], function (someModule) {
-                actualValue1 = someModule;
+            expect(uitest.require(['someModule']).someModule).toBe(0);
+            expect(uitest.require(['someModule']).someModule).toBe(1);
+        });
+        it('should allow to use a callback for the required modules', function() {
+            var someValue = 'someValue';
+            uitest.define('someModule', someValue);
+            
+            var actualValue;
+            uitest.require(['someModule'], function(someModule) {
+                actualValue = someModule;
             });
-            uitest.require(['someModule'], function (someModule) {
-                actualValue2 = someModule;
+            expect(actualValue).toBe(someValue);
+        });
+
+        it('should cache created instances', function () {
+            var counter = 0,
+                moduleCache = {};
+            uitest.define('someModule', function () {
+                return counter++;
             });
-            expect(actualValue1).toBe(0);
-            expect(actualValue2).toBe(0);
-            expect(counter).toBe(1);
+            var someCache = uitest.require(moduleCache, ['someModule']);
+            expect(someCache).toBe(moduleCache);
+            expect(moduleCache.someModule).toBe(0);
+            expect(uitest.require(moduleCache, ['someModule']).someModule).toBe(0);
         });
 
         it('should create instances of fixed value modules', function () {
             var someValue = {};
             uitest.define('someModule', someValue);
-            var actualValue;
-            uitest.require(['someModule'], function (someModule) {
-                actualValue = someModule;
-            });
-            expect(actualValue).toBe(someValue);
+            expect(uitest.require(['someModule']).someModule).toBe(someValue);
         });
 
         it('should create instances of modules with factory function', function () {
@@ -89,11 +98,7 @@ describe('simpleRequire', function () {
             uitest.define('someModule', function () {
                 return someValue;
             });
-            var actualValue;
-            uitest.require(['someModule'], function (someModule) {
-                actualValue = someModule;
-            });
-            expect(actualValue).toBe(someValue);
+            expect(uitest.require(['someModule']).someModule).toBe(someValue);
         });
 
         it('should create dependent modules and inject them', function () {
@@ -103,10 +108,9 @@ describe('simpleRequire', function () {
             });
             var actualValue;
             uitest.define('someModule2', ['someModule'], function (someModule) {
-                actualValue = someModule;
+                return someModule;
             });
-            uitest.require(['someModule2']);
-            expect(actualValue).toBe(someValue);
+            expect(uitest.require(['someModule2']).someModule2).toBe(someValue);
         });
 
         it('should merge objects under the "global" key into the global module', function () {
@@ -129,9 +133,8 @@ describe('simpleRequire', function () {
             expect(global.c.c0).toBe('c0');
             expect(global.c.c1).toBe('c1');
         });
-    });
-    describe('require.all', function () {
-        it('should instantiate all modules matching the regex and return them', function () {
+
+        it('should calculate the dependent modules using a given filter callback', function() {
             var moduleA = 'a';
             var moduleB = 'b';
             uitest.define('a', function () {
@@ -140,10 +143,7 @@ describe('simpleRequire', function () {
             uitest.define('b', function () {
                 return moduleB;
             });
-            var allModules;
-            uitest.require.all(function (modules) {
-                allModules = modules;
-            }, function (name) {
+            var allModules = uitest.require(function (name) {
                 return name === 'a';
             });
             var moduleCount = 0;
