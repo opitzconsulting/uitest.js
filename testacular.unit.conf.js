@@ -16,10 +16,12 @@ files = [
     'test/lib/testutils.js',
     'src/parts/simpleRequire.js',
     'src/parts/*.js',
-    'src/parts/readySensors/*.js',
+    'src/parts/run/*.js',
+    'src/parts/run/readySensors/*.js',
     'src/parts/testfwks/*.js',
     'test/unit/*.js',
-    'test/unit/readySensors/*.js',
+    'test/unit/run/*.js',
+    'test/unit/run/readySensors/*.js',
     'test/unit/testfkws/*.js'
 ];
 

@@ -1,48 +1,25 @@
 TODO
 ----
-Neues Modul-System:
-- require benötigt als Pflichtparameter einen "cache"
-  ==> es gibt keinen global Cache mehr.
-  ==> brauche kein factory-Plugin mehr, rufe in den Tests
-      einfach require mit einem neuen Cache auf!
-  require(cache, ['dep1']) -> cache (gefüllt)
-- Initial wird nur "facade" required, das von "config" abhängt.
-- Beim Übergang von config -> run state, wird erneut required,
-  und zwar alle Module außer "facade" (via filter),
-  und im Cache wird "config" vorbelegt
-  (besser: alle "run"-Module unter Pfad "/run/..." registrieren!)
-  ==> z.B. Logger kann seinen Log-Level auslesen und erzeugt
-      eine Instanz das direkt dieses Log-Level verwendet
-  * logger verwendet config.logLevel
-  * instrumentor:
-    - verwendet config.appends, config.prepends, config.intercepts
-    - alle bisherigen Funktionen in "internal" Objekt exportieren
-    - neue Schnittstelle: "append", "prepend", "intercept"
-      ==> fügt neue Einträge ein, aber VOR denen von config.appends/config.prepends, ...
-  * urlLoader:
-    - verwendet config.url
-    - erzeugt direkt den frame, falls notwendig
-    - ruft sofort "open" auf
-    - keine öffentliche Schnittstelle nach außen
-  * ready:
-    - öffentliche Schnittstelle: addSensor("name", sensorInstance)
-      -> dort wird jetzt keine factory, sondern schon der Sensor selber registriert!
-  * jeder Sensor:
-    - verwendet config.loadSensors
-    - ruft evtl. instrumentor.append/instrumentor.prepend/... auf
-    - ruft ready.addSensor auf.
-  * loadSensor:
-    - hat öffentliche Methode "reloaded(callback)"
-      ==> setzt internes Flag und ruft dazu ready.ready(callback) auf...
-- Für facade.reloaded:
-  * einfach an loadSensor.reloaded delegieren.
+Refactoring-Status für run-Module:
+- alles ok, bis auf Sensoren:
+  * alle fast ok, bis auf Prüfung config.enableIntervalSensor
+- UI-Tests laufen alle im UiSpecRunner.html!!
+  * aber nicht mit testacular...
 
-Folge:
-- Code in facade wird deutlich einfacher, so etwas wie:
-  this.runModules = require.all({}, function(modName) { return modName!=='facade'});
-  
-  reloaded: function(callback) { return this.runModules.loadSensor.reloaded(callback); }
---> Kein Herumreichen der "runInstance" mehr...
+- Dann: UI-Tests wieder zum laufen bekommen,
+  vor dem nächsten Refactoring!!
+
+- Generisches Config-Modul!
+
+add "logging"-Property to config-Module
+-> later, when config is dynamic, this should be automatically
+   added!
+-> Doku dazu!   
+
+TODO Mobile Support:
+- run/mobileSupport.js:
+  * kopiert <meta name="viewport"> vom testframe win global.top!
+  ==> via einem config.appends!
 
 TODO:
 - wäre super, wenn die "config" generisch wäre.

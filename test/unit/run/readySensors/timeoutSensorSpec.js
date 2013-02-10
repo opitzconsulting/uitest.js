@@ -1,18 +1,19 @@
-describe('timeout sensor', function() {
-    var sensorModule, readyModule, config, injectorModule, sensorInstance, handle, setTimeout, clearTimeout, win;
+describe('run/timeoutSensor', function() {
+    var readyModule, config, injectorModule, sensorInstance, handle, setTimeout, clearTimeout, win, otherCallback;
     beforeEach(function() {
+        otherCallback = jasmine.createSpy('someOtherCallback');
         readyModule = {
-            registerSensor: jasmine.createSpy('registerSensor')
+            addSensor: jasmine.createSpy('addSensor')
+        };
+        config = {
+            prepends: [otherCallback]
         };
         var modules = uitest.require({
-            ready: readyModule
-        }, ["timeoutSensor", "injector"]);
-        sensorModule = modules.timeoutSensor;
+            "run/ready": readyModule,
+            "run/config": config
+        }, ["run/timeoutSensor", "injector"]);
         injectorModule = modules.injector;
-        config = {
-            prepend: jasmine.createSpy('prepend')
-        };
-        sensorInstance = sensorModule.sensorFactory(config);
+        sensorInstance = modules["run/timeoutSensor"];
         handle = 1;
         setTimeout = jasmine.createSpy('setTimeout').andReturn(handle);
         clearTimeout = jasmine.createSpy('clearTimout');
@@ -22,11 +23,15 @@ describe('timeout sensor', function() {
                 clearTimeout: clearTimeout
             }
         };
-        injectorModule.inject(config.prepend.mostRecentCall.args[0], null, [win]);
+        injectorModule.inject(config.prepends[0], win, [win]);
     });
 
     it('should register itself at the ready module', function() {
-        expect(readyModule.registerSensor).toHaveBeenCalledWith('timeout', sensorModule.sensorFactory);
+        expect(readyModule.addSensor).toHaveBeenCalledWith('timeout', sensorInstance);
+    });
+    it('should add itself before all other config.prepends', function() {
+        expect(config.prepends.length).toBe(2);
+        expect(config.prepends[1]).toBe(otherCallback);
     });
     it('should wait until the timeout is completed', function() {
         expect(sensorInstance()).toEqual({

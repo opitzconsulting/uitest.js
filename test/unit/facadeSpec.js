@@ -1,13 +1,9 @@
 describe('facade', function() {
 
-	var facade, urlLoader, readyModule, loadSensorModule, instrumentorModule, frame, global;
+	var facade, readyModule, loadSensorModule, instrumentorModule, frame, global;
 	beforeEach(function() {
 		global = {};
 		frame = {};
-		urlLoader = {
-			open: jasmine.createSpy('urlLoader').andReturn(frame),
-			close: jasmine.createSpy('close')
-		};
 		loadSensorModule = {
 			sensorFactory: jasmine.createSpy('loadSensorFactory'),
 			waitForReload: jasmine.createSpy('waitForReload'),
@@ -23,7 +19,6 @@ describe('facade', function() {
 		};
 		facade = uitest.require({
 			global: global,
-			urlLoader: urlLoader,
 			ready: readyModule,
 			loadSensor: loadSensorModule,
 			instrumentor: instrumentorModule
@@ -36,16 +31,6 @@ describe('facade', function() {
 		});
 		it('should register a global', function() {
 			expect(global.uitest.create).toBe(facade.create);
-		});
-	});
-
-	describe('cleanup', function() {
-		it('should call urlLoader.cleanup()', function() {
-			facade.cleanup();
-			expect(urlLoader.close).toHaveBeenCalled();
-		});
-		it('should register a global', function() {
-			expect(global.uitest.cleanup).toBe(facade.cleanup);
 		});
 	});
 
@@ -133,89 +118,77 @@ describe('facade', function() {
 
 	describe('instance methods', function() {
 		describe('ready', function() {
-			var uit;
+			var uit, readyModule;
 			beforeEach(function() {
 				uit = facade.create();
 				uit.readySensors([]);
+				readyModule = {
+					ready: jasmine.createSpy('ready')
+				};
+				spyOn(uitest, "require").andReturn({
+					"run/ready": readyModule
+				});
 			});
 
 			describe('first call', function() {
-				it('should build a runInstance', function() {
+				it('should require all modules in the run folder', function() {
 					uit.ready();
-					expect(uit._runInstance).toBeDefined();
-					expect(uit._runInstance.config).toBeDefined();
+					expect(uitest.require).toHaveBeenCalled();
+					var args = uitest.require.mostRecentCall.args;
+					expect(args[1]("someNonRunModule")).toBe(false);
+					expect(args[1]("run/someRunModule")).toBe(true);
 				});
-
 				it('should seal the config', function() {
 					uit.ready();
 					expect(uit._config.sealed()).toBe(true);
 				});
-
-				it('should always add the load sensor', function() {
+				it('should provide config.buildConfig() as run/config module', function() {
+					var someRunConfig = {a: 2};
+					spyOn(uit._config, 'buildConfig').andReturn(someRunConfig);
 					uit.ready();
-					expect(uit._runInstance.config.readySensors).toEqual([loadSensorModule.sensorName]);
+					var args = uitest.require.mostRecentCall.args;
+					expect(args[0]).toEqual({"run/config": someRunConfig});
 				});
-
-				it('should call readyModel.createSensors', function() {
-					var callback = jasmine.createSpy('callback');
-					uit.ready(callback);
-					expect(readyModule.createSensors).toHaveBeenCalledWith(uit._runInstance.config);
+				it('should call readyModule.ready with the given callback', function() {
+					var someCallback = jasmine.createSpy('callback');
+					uit.ready(someCallback);
+					expect(readyModule.ready).toHaveBeenCalledWith(someCallback);
 				});
-
-				it('should call the urlLoader module', function() {
-					var callback = jasmine.createSpy('callback');
-					uit.ready(callback);
-					expect(urlLoader.open).toHaveBeenCalledWith(uit._runInstance.config);
-				});
-
-				it('should init the instrumentor', function() {
-					uit.ready();
-					expect(instrumentorModule.init).toHaveBeenCalledWith(uit._runInstance.config);
-				});
-
-				it('should call readyModule.ready with dependency injection', function() {
-					var callbackArgs;
-					var callback = function(someGlobal) {
-							callbackArgs = arguments;
-						};
-					uit.ready(callback);
-					expect(callbackArgs).toBeUndefined();
-					frame.someGlobal = "someGlobal";
-					var lastCallArgs = readyModule.ready.mostRecentCall.args;
-					lastCallArgs[1]();
-					expect(callbackArgs).toEqual([frame.someGlobal]);
-				});
-
 			});
 
 			describe('further calls', function() {
-				it('should delegate to the readyModule.ready with dependency injection', function() {
-					var callbackArgs;
-					var callback = function(someGlobal) {
-							callbackArgs = arguments;
-						};
-					uit.ready(callback);
-					readyModule.ready.reset();
-					uit.ready(callback);
-					expect(callbackArgs).toBeUndefined();
-					frame.someGlobal = "someGlobal";
-					readyModule.ready.mostRecentCall.args[1]();
-					expect(callbackArgs).toEqual([frame.someGlobal]);
+				it('should no more call uitest.require', function() {
+					uit.ready();
+					uitest.require.reset();
+					uit.ready();
+					expect(uitest.require).not.toHaveBeenCalled();
+				});
+				it('should call readyModule.ready with the given callback', function() {
+					uit.ready();
+					var someCallback = jasmine.createSpy('callback');
+					uit.ready(someCallback);
+					expect(readyModule.ready).toHaveBeenCalledWith(someCallback);
 				});
 			});
 		});
 
 		describe('reloaded', function() {
-			it('should call loadSensor.waitForReload and then ready', function() {
+			it('should call loadSensor.reloaded', function() {
 				var callback = jasmine.createSpy('callback');
 				var uit = facade.create();
-				uit._runInstance = {
-					readySensorInstances: {}
+				uit._runModules = {
+					"run/loadSensor": {
+						reloaded: jasmine.createSpy('reloaded')
+					}
 				};
-				spyOn(uit, "ready");
 				uit.reloaded(callback);
-				expect(loadSensorModule.waitForReload).toHaveBeenCalledWith(uit._runInstance.readySensorInstances);
-				expect(uit.ready).toHaveBeenCalledWith(callback);
+				expect(uit._runModules["run/loadSensor"].reloaded).toHaveBeenCalledWith(callback);
+			});
+			it('should throw an error if ready was not called before', function() {
+				var uit = facade.create();
+				expect(function() {
+					uit.reloaded();
+				}).toThrow(new Error("The test page has not yet loaded. Please call ready first"));
 			});
 		});
 
@@ -224,17 +197,14 @@ describe('facade', function() {
 			beforeEach(function() {
 				uit = facade.create();
 			});
-			it('should throw an error if not started yet', function() {
-				try {
+			it('should throw an error if ready was not called before', function() {
+				expect(function() {
 					uit.inject();
-					throw new Error("expected an error");
-				} catch(e) {
-					expect(e.message).toBe("The test page has not yet loaded. Please call ready first");
-				}
+				}).toThrow(new Error("The test page has not yet loaded. Please call ready first"));
 			});
-			it('should use the current frame for dependency injection', function() {
-				uit._runInstance = {
-					frame: {
+			it('should use the testframe for dependency injection', function() {
+				uit._runModules = {
+					"run/testframe": {
 						someGlobal: 'someValue'
 					}
 				};
@@ -246,7 +216,5 @@ describe('facade', function() {
 				expect(callbackArgs).toEqual(['someValue']);
 			});
 		});
-
 	});
-
 });

@@ -4,7 +4,7 @@ uitest.js
 Description
 -------------
 
-uitest.js is able to load a webpage into a frame or popup,
+uitest.js is able to load a webpage into a frame,
 instrument that page and the javascript in that page (e.g. add additional scripts at the end
 of the document, ...) and execute actions on that page.
 
@@ -17,8 +17,7 @@ TODO add details about this!
 Features
 ---------
 
-* Iframes and popups supported: iframes are good for debugging JavaScript, popups are good to see the real layout,
-  especially for mobile applications.
+* Uses an 100% width/height iframe to see the real layout of the application during automatic tests. Also supports dynamically changing the viewport for mobile apps using a `<meta name="viewport">` tag.
 * Instrumentations for a page:
     - add a script or function at the beginning/end of the page
     - intercept calls to any named function on the page, no matter if the function is global or not
@@ -35,7 +34,7 @@ Usage
 
 1. include uitest.js as library into your test-code.
 2. In the pages that should be tested, include the following line as first line in the header:
-   `<script type="text/javascript">(opener||parent).uitest && (opener||parent).uitest.instrument(window);</script>`
+   `<script type="text/javascript">parent.uitest && parent.uitest.instrument(window);</script>`
 2. create a uitest instance calling `uitest()`.
 3. configure the instance, e.g. setting setting `<uitest>.url('someUrl')`.
 4. run the test page, e.g. by calling `<uitest>.ready`.
@@ -95,9 +94,6 @@ methods are available
   Note that the link is live, i.e. changing the parent
   after calling this also affects the child.
 
-* `mode("frame"|"popup")`:
-Sets whether the test page should be loaded inside an iframe or a popup.
-
 * `url(someUrl)`:
 Sets the url of the page ot be loaded
 
@@ -119,15 +115,14 @@ Sets the ready sensors to be used. For every sensor name used here a sensorFacto
 
 
 #### Running the test page
-On the first call to the `ready` function on the uitest instance, the frame / popup gets created,
+On the first call to the `ready` function on the uitest instance, the iframe gets created,
 and all configuration is applied. Now the uitest is in running mode, and the following methods
 may be called. 
 
-Please note that the iframe / popup is shared between all uitest instances.Especially in 
-popup mode this prevents too many open windows. 
+Please note that the iframe is shared between all uitest instances.
 
 * `ready(callback)`: Waits until all sensors say the test page is ready. On the first call, this will also
-  load the test page into the iframe/popup.
+  load the test page into the iframe.
   The callback is called using dependency injection, see below.
 
 * `reloaded(callback)`: Waits until the testpage has been reloaded and is ready again.
@@ -135,12 +130,6 @@ popup mode this prevents too many open windows.
   The callback is called using dependency injection, see below.
 
 * `inject(callback)`: Calls the given callback using dependency injection.
-
-#### Cleaning up
-After all tests have been run, you might want to remove the iframe or close the popup. 
-
-* `uitest.cleanup()`: this will remove the iframe / close the popup if it exists. Otherwise this does nothing.
-
 
 #### Dependency Injection
 

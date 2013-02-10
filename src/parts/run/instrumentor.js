@@ -1,20 +1,16 @@
-uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, docUtils) {
+uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], function(injector, docUtils, runConfig) {
 
     var exports,
         NO_SCRIPT_TAG = "noscript",
-        currentConfig,
         REQUIRE_JS_RE = /require[^a-z]/,
         // group 1: name of function
         NAMED_FUNCTION_RE = /function\s*(\w+)[^{]*{/g;
 
-    function init(config) {
-        currentConfig = config;
-        instrument.callbacks = [];
-    }
+    instrument.callbacks = [];
 
     function instrument(win) {
-        exports.deactivateAndCaptureHtml(win, function(html) {
-            html = exports.modifyHtmlWithConfig(html);
+        exports.internal.deactivateAndCaptureHtml(win, function(html) {
+            html = exports.internal.modifyHtmlWithConfig(html);
             docUtils.rewriteDocument(win, html);
         });
     }
@@ -34,18 +30,18 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
         var argExpressions = Array.prototype.slice.call(arguments, 1) || [],
             callbackId = instrument.callbacks.length;
         instrument.callbacks.push(callback);
-        return "(opener||parent).uitest.instrument.callbacks["+callbackId+"]("+argExpressions.join(",")+");";
+        return "parent.uitest.instrument.callbacks["+callbackId+"]("+argExpressions.join(",")+");";
     }
 
     function modifyHtmlWithConfig(html) {
-        if (currentConfig.prepends) {
-            html = handlePrepends(html, currentConfig.prepends);
+        if (runConfig.prepends) {
+            html = handlePrepends(html, runConfig.prepends);
         }
-        var scripts = handleScripts(html, currentConfig);
+        var scripts = handleScripts(html, runConfig);
         html = scripts.html;
         if (!scripts.requirejs) {
-            if (currentConfig.appends) {
-                html = handleAppends(html, currentConfig.appends);
+            if (runConfig.appends) {
+                html = handleAppends(html, runConfig.appends);
             }
         }
 
@@ -223,10 +219,11 @@ uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, 
     }
 
     exports = {
-        init: init,
-        instrument: instrument,
-        deactivateAndCaptureHtml: deactivateAndCaptureHtml,
-        modifyHtmlWithConfig: modifyHtmlWithConfig,
+        internal: {
+            instrument: instrument,
+            deactivateAndCaptureHtml: deactivateAndCaptureHtml,
+            modifyHtmlWithConfig: modifyHtmlWithConfig
+        },
         global: {
             uitest: {
                 instrument: instrument

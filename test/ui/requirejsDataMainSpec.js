@@ -2,10 +2,6 @@ describe('requirejsDataMain', function() {
     var uit = uitest.current;
     uit.url("/test/ui/fixtures/requirejsDataMain.html");
 
-    afterEach(function() {
-        uitest.cleanup();
-    });
-
     describe('append', function() {
         it('should exec append functions before the require callback', function() {
             var savedExecState;

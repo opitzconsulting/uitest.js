@@ -12,23 +12,23 @@
 <%= include parts/facade.js %>
 <%= include parts/global.js %>
 <%= include parts/injector.js %>
-<%= include parts/instrumentor.js %>
-<%= include parts/logger.js %>
-<%= include parts/ready.js %>
-<%= include parts/urlLoader.js %>
 <%= include parts/urlParser.js %>
+<%= include parts/run/instrumentor.js %>
+<%= include parts/run/logger.js %>
+<%= include parts/run/ready.js %>
+<%= include parts/run/testframe.js %>
 
-<%= include parts/readySensors/intervalSensor.js %>
-<%= include parts/readySensors/jqmAnimationSensor.js %>
-<%= include parts/readySensors/loadSensor.js %>
-<%= include parts/readySensors/timeoutSensor.js %>
-<%= include parts/readySensors/xhrSensor.js %>
+<%= include parts/run/readySensors/intervalSensor.js %>
+<%= include parts/run/readySensors/jqmAnimationSensor.js %>
+<%= include parts/run/readySensors/loadSensor.js %>
+<%= include parts/run/readySensors/timeoutSensor.js %>
+<%= include parts/run/readySensors/xhrSensor.js %>
 
 <%= include parts/testfwks/jasmineSugar.js %>
 
 /* Main */
 (function () {
-    uitest.require(function(mod) { return true; });
+    uitest.require(["facade", "jasmineSugar"]);
 })();
 
 

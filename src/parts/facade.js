@@ -1,4 +1,4 @@
-uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector', 'instrumentor', 'global'], function(urlLoader, readyModule, loadSensor, config, injector, instrumentor, global) {
+uitest.define('facade', ['config', 'injector', 'global'], function(config, injector, global) {
     var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'readySensors', 'append', 'prepend', 'intercept'],
         _currentIdAccessor = function() { return ''; }, current;
 
@@ -81,10 +81,6 @@ uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector
         return _currentIdAccessor;
     }
 
-    function cleanup() {
-        urlLoader.close();
-    }
-
     function delegate(fn, targetAccessor) {
         return function() {
             var i,
@@ -107,51 +103,44 @@ uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector
 
     function ready(callback) {
         var self = this;
-        if(!this._runInstance) {
+        if(!this._runModules) {
             this._config.sealed(true);
             var config = this._config.buildConfig();
-            config.readySensors = config.readySensors || [];
-            config.readySensors.push(loadSensor.sensorName);
-            instrumentor.init(config);
-            this._runInstance = {
-                config: config,
-                readySensorInstances: readyModule.createSensors(config),
-                frame: urlLoader.open(config)
-            };
-
+            this._runModules = uitest.require({
+                "run/config": config
+            }, function(modName) {
+                return modName.indexOf('run/')===0;
+            });
         }
-        return readyModule.ready(this._runInstance.readySensorInstances, injectedCallback);
-
-        function injectedCallback() {
-            var frame = self._runInstance.frame;
-            return injector.inject(callback, frame, [frame]);
-        }
+        this._runModules["run/ready"].ready(callback);
     }
 
     function reloaded(callback) {
-        loadSensor.waitForReload(this._runInstance.readySensorInstances);
-        this.ready(callback);
+        checkRunning(this);
+        this._runModules["run/loadSensor"].reloaded(callback);
     }
 
     function inject(callback) {
-        if(!this._runInstance) {
+        checkRunning(this);
+        var frame = this._runModules["run/testframe"];
+        return injector.inject(callback, frame, [frame]);
+    }
+
+    function checkRunning(self) {
+        if(!self._runModules) {
             throw new Error("The test page has not yet loaded. Please call ready first");
         }
-        var frame = this._runInstance.frame;
-        return injector.inject(callback, frame, [frame]);
     }
 
     current = createCurrentFacade();
 
     return {
         create: create,
-        cleanup: cleanup,
         current: current,
         currentIdAccessor: currentIdAccessor,
         global: {
             uitest: {
                 create: create,
-                cleanup: cleanup,
                 current: current
             }
         }

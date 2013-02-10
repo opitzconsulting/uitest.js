@@ -1,58 +1,6 @@
 describe('simpleRequire', function () {
-    var oldModuleDefs;
     beforeEach(function () {
-        oldModuleDefs = uitest.define.moduleDefs;
         uitest.define.moduleDefs = [];
-        document.documentElement.removeAttribute("data-uitest");
-    });
-    afterEach(function () {
-        uitest.define.moduleDefs = oldModuleDefs;
-    });
-
-    xdescribe('factory plugin', function () {
-        it('should create accessor functions', function () {
-            uitest.define('someModule', {});
-            var someModuleFactory;
-            uitest.require(['factory!someModule'], function (_someModuleFactory) {
-                someModuleFactory = _someModuleFactory;
-            });
-            expect(typeof someModuleFactory).toBe('function');
-        });
-        it("should create a new module instance on each call of the factory function", function () {
-            var counter = 0;
-            uitest.define('someModule', function () {
-                return counter++;
-            });
-            var someModuleFactory;
-            uitest.require(['factory!someModule'], function (_someModuleFactory) {
-                someModuleFactory = _someModuleFactory;
-            });
-            expect(someModuleFactory()).toBe(0);
-            expect(someModuleFactory()).toBe(1);
-        });
-        it("should cache module instances using the given parameter", function () {
-            var counter = 0;
-            var cache = {};
-            uitest.define('someModule', function () {
-                return counter++;
-            });
-            var someModuleFactory;
-            uitest.require(['factory!someModule'], function (_someModuleFactory) {
-                someModuleFactory = _someModuleFactory;
-            });
-            expect(someModuleFactory(cache)).toBe(0);
-            expect(someModuleFactory(cache)).toBe(0);
-        });
-        it("should use the modules from the given cache", function () {
-            uitest.define('someModule', 'someOtherValue');
-            var someModuleFactory;
-            uitest.require(['factory!someModule'], function (_someModuleFactory) {
-                someModuleFactory = _someModuleFactory;
-            });
-            var someValue = 'someValue';
-            var cache = {someModule:someValue};
-            expect(someModuleFactory(cache)).toBe(someValue);
-        });
     });
 
     describe('require', function () {

@@ -1,33 +1,9 @@
-uitest.define('ready', ['logger', 'global'], function(logger, global) {
+uitest.define('run/ready', ['injector', 'global', 'run/logger', 'run/testframe'], function(injector, global, logger, testframe) {
 
-	var registeredSensors = {};
+	var sensorInstances = {};
 
-	function registerSensor(name, sensorFactory) {
-		registeredSensors[name] = sensorFactory;
-	}
-
-	function createSensors(config) {
-		var i, sensorNames = config.readySensors,
-			sensorName,
-			readySensorInstances = {},
-			newPrepends = [];
-		var api = {
-			prepend: function(value) {
-				newPrepends.push(value);
-			},
-			append: function(value) {
-				config.appends.push(value);
-			}
-		};
-		for(i = 0; i < sensorNames.length; i++) {
-			sensorName = sensorNames[i];
-			readySensorInstances[sensorName] = registeredSensors[sensorName](api);
-		}
-		// Be sure that the prepends of the sensors are always before all
-		// other prepends!
-		config.prepends.unshift.apply(config.prepends, newPrepends);
-
-		return readySensorInstances;
+	function addSensor(name, sensor) {
+		sensorInstances[name] = sensor;
 	}
 
 	// Goal:
@@ -39,7 +15,7 @@ uitest.define('ready', ['logger', 'global'], function(logger, global) {
 	// Wait until all readySensors did not change for 50ms.
 
 
-	function ready(sensorInstances, listener) {
+	function ready(listener) {
 		var sensorStatus;
 
 		function restart() {
@@ -55,7 +31,7 @@ uitest.define('ready', ['logger', 'global'], function(logger, global) {
 		function ifNoAsyncWorkCallListenerElseRestart() {
 			var currentSensorStatus = aggregateSensorStatus(sensorInstances);
 			if(currentSensorStatus.busySensors.length === 0 && currentSensorStatus.count === sensorStatus.count) {
-				listener();
+				injector.inject(listener, testframe, [testframe]);
 			} else {
 				restart();
 			}
@@ -83,8 +59,7 @@ uitest.define('ready', ['logger', 'global'], function(logger, global) {
 	}
 
 	return {
-		registerSensor: registerSensor,
-		createSensors: createSensors,
+		addSensor: addSensor,
 		ready: ready
 	};
 });

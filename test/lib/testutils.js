@@ -1,4 +1,12 @@
 (function(window) {
+    var oldModuleDefs;
+    beforeEach(function () {
+        oldModuleDefs = uitest.define.moduleDefs;
+    });
+    afterEach(function () {
+        uitest.define.moduleDefs = oldModuleDefs;
+    });
+
     var FRAME_NAME = 'testframe',
         frame,
         exports = {};
