@@ -60,5 +60,22 @@ describe('run/readySensors/load', function() {
                 ready: true
             });
         });
+        it('should wait for the append function to be called and document.readyState==="interactive"', function() {
+            var doc = {
+                readyState: ''
+            };
+            injectorModule.inject(config.appends[config.appends.length-1], null, [{
+                document: doc
+            }]);
+            expect(sensorInstance()).toEqual({
+                count: 0,
+                ready: false
+            });
+            doc.readyState = 'interactive';
+            expect(sensorInstance()).toEqual({
+                count: 0,
+                ready: true
+            });
+        });
     });
 });

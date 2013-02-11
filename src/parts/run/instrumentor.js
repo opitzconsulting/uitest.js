@@ -20,7 +20,7 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
         // By this, that content will not be executed!
         var htmlPrefix = docUtils.serializeHtmlBeforeLastScript(win.document);
         win.document.write('</head><body><' + NO_SCRIPT_TAG + '>');
-        win.document.addEventListener('DOMContentLoaded', function() {
+        win.addEventListener('load', function() {
             var noscriptEl = win.document.getElementsByTagName(NO_SCRIPT_TAG)[0];
             callback(htmlPrefix + noscriptEl.textContent);
         }, false);
@@ -108,12 +108,15 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
         function handleRequireJsScript(win, config) {
             var _require, _load;
 
+            if (!win.require) {
+                throw new Error("requirejs script was detected by url matching, but no global require function found!");
+            }
+
             patchRequire();
             patchLoad();
             
-            function patchRequire() {
+            function patchRequire() {                
                 _require = win.require;
-                _require.config = _require.config;
                 win.require = function(deps, originalCallback) {
                     _require(deps, function () {
                         var args = arguments,
@@ -123,6 +126,7 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
                         });
                     });
                 };
+                win.require.config = _require.config;
             }
 
             function execAppends(finishedCallback) {

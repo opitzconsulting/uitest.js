@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+        "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+</head>
+<body>
+
+    <iframe id="test" src="http://localhost:9000/test/ui/fixtures/requirejs.html?uitr=1">
+    </iframe>    
+
+    <script>
+        var fr = document.getElementById("test").contentWindow;
+        window.setTimeout(function() {
+            rewriteDocument(fr, "<html><head><script src="lib/require.js"></head></body>");
+        },1000);
+
+        function rewriteDocument(win, html) {
+            // eval is required here so that the window keeps
+            // it's current location.href!
+            win.newContent = html;
+            win.eval('document.open();document.write(newContent);document.close();');
+            win.newContent = '';
+        }
+
+
+    </script>
+
+</body>
+</html>

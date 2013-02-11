@@ -23,7 +23,6 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
         var doc = topWindow.document,
             frameElement = doc.createElement("iframe");
 
-        frameElement.name = WINDOW_ID;
         frameElement.setAttribute("id", WINDOW_ID);
         frameElement.setAttribute("width", "100%");
         frameElement.setAttribute("height", "100%");

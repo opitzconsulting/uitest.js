@@ -18,7 +18,7 @@ uitest.define('run/readySensors/load', ['run/ready', 'run/config'], function(rea
 	}
 
 	function loadSensor() {
-		if (waitForDocComplete && doc.readyState==='complete') {
+		if (waitForDocComplete && docReady(doc)) {
 			waitForDocComplete = false;
 			ready = true;
 		}
@@ -26,6 +26,10 @@ uitest.define('run/readySensors/load', ['run/ready', 'run/config'], function(rea
 			count: count,
 			ready: ready
 		};
+	}
+
+	function docReady(doc) {
+		return doc.readyState==='complete' || doc.readyState==='interactive';
 	}
 
 	function reloaded(callback) {

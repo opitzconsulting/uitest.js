@@ -1,7 +1,7 @@
 TODO
 ----
 
-TODO Mobile Support:
+Mobile Support:
 - run/mobileSupport.js:
   * kopiert <meta name="viewport"> vom testframe win global.top!
   ==> via einem config.appends!
@@ -16,17 +16,9 @@ Für Demo für Nils und SSC:
   * ...  
 
 features:
-- requirejs in ff geht nicht. warum?
-
-- requirejs support:
-  * impl ok, ui tests ok.
-  * 1. unit tests are missing!
-  * 2. better matching between scriptUrl and the url provided by requirejs
-    (requirejs appends a "./")
-    --> Only check the filename without the path!
-
-- 3. iframe: better display:
+- iframe: better display:
   * 100% width / height is ok
+  * set background-color of iframe to "white".
   * Add button: Switch z-index between -100 and +100
   * Always add it to the "top"-frame
   --> And: Remove Popup-Mode!
