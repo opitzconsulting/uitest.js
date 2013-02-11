@@ -9,24 +9,29 @@ instrument that page and the javascript in that page (e.g. add additional script
 of the document, ...) and execute actions on that page.
 
 uitest.js can be used standalone or with any testframework.
-
-There is also some syntactic sugar so that it integrates more easily into
+However, there is also some syntactic sugar so that it integrates more easily into
 test frameworks.
-TODO add details about this!
 
 Features
 ---------
 
-* Uses an 100% width/height iframe to see the real layout of the application during automatic tests. Also supports dynamically changing the viewport for mobile apps using a `<meta name="viewport">` tag.
+* Layout Debugging during test runs:
+    - Uses an 100% width/height iframe to see the real layout of the application.
+    - Adds a button to toggle between the iframe and the testrunner.
+    - Mobile support: Adds/removes a `<meta name="viewport">` tag in the top window
+      depending on the `<meta>` tag in the current page to be tested.
 * Instrumentations for a page:
     - add a script or function at the beginning/end of the page
     - intercept calls to any named function on the page, no matter if the function is global or not
 * Wait for the end of asynchronous work, e.g. xhr, setTimeout, setInterval, page loading, ...
   This can be easily extended.
-* Compatible with any test frameworks, can also run standalone.
-* Does not need any additional test server, only a browser to execute the tests
-* Supports applications that use requirejs 2.x.
-* Supports: Chrome, Firefox, IE9+, Safari, Mobile Safari, Android Browser.
+* Compatibility:  
+    * Testframeworks: Use any test framework and test runner, can also run standalone.
+    * Supports applications that use requirejs 2.x.
+    * Browsers: Chrome, Firefox, IE9+, Safari, Mobile Safari, Android Browser.
+* Dependencies:
+    * No additional JS libs required
+    * Does not need any additional test server, only a browser to execute the tests
 
 
 Usage

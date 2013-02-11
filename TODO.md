@@ -1,10 +1,5 @@
 TODO
 ----
-Mobile Support:
-- run/mobileSupport.js:
-  * kopiert <meta name="viewport"> vom testframe win global.top!
-  ==> via einem config.appends!
-
 Für Demo für Nils und SSC:
 - Rylc-Tests komplett umstellen
   ==> auch testutils
@@ -13,16 +8,6 @@ Für Demo für Nils und SSC:
   * intercept
   * uitest.current.runs mit Dep. Injection.
   * ...  
-
-features:
-  For mobile sites:
-  * as "append"-script: check the child iframe for a "meta"-tag in the head.
-    If present, add it also to the top frame
-    ==> Does work in ios and android, also when that frame has already loaded!!
-    ==> Zoom is correct!!
-  * Remove the "meta"-tag from top on cleanup!
-    
-  ==> Add in Readme!!  
 
 - Migration Guide for jasmine-ui
   + Decision why to drop jasmine-ui:
