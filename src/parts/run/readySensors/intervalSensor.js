@@ -1,11 +1,8 @@
-uitest.define('run/intervalSensor', ['run/ready', 'run/config'], function(ready, runConfig) {
-    
-
+uitest.define('run/readySensors/interval', ['run/config'], function(runConfig) {
     var intervals = {},
         intervalStartCounter = 0;
 
     runConfig.prepends.unshift(install);
-    ready.addSensor('interval', state);
     return state;
 
     function install(window) {

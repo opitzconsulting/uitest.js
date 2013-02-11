@@ -14,8 +14,8 @@ uitest.define('config', [], function() {
 		parent: simpleProp("_parent"),
 		sealed: simpleProp("_sealed"),
 		url: dataProp("url"),
-		loadMode: dataProp("loadMode", loadModeValidator),
-		readySensors: dataProp("readySensors"),
+		trace: dataProp("trace"),
+		readySensors: dataProp("readySensors", readySensorsValidator),
 		append: dataAdder("appends"),
 		prepend: dataAdder("prepends"),
 		intercept: dataAdder("intercepts"),
@@ -67,15 +67,18 @@ uitest.define('config', [], function() {
 		});
 	}
 
-	function checkNotSealed(self) {
-		if (self.sealed()) {
-			throw new Error("This configuration cannot be modified.");
+	function readySensorsValidator(sensorNames) {
+		var i;
+		for (i=0; i<sensorNames.length; i++) {
+			if (!uitest.define.findModuleDefinition("run/readySensors/"+sensorNames[i])) {
+				throw new Error("Unknown sensor: "+sensorNames[i]);
+			}
 		}
 	}
 
-	function loadModeValidator(mode) {
-		if(mode !== LOAD_MODE_POPUP && mode !== LOAD_MODE_IFRAME) {
-			throw new Error("unknown mode: " + mode);
+	function checkNotSealed(self) {
+		if (self.sealed()) {
+			throw new Error("This configuration cannot be modified.");
 		}
 	}
 
@@ -84,8 +87,7 @@ uitest.define('config', [], function() {
 			readySensors: ['timeout', 'interval', 'xhr', '$animation'],
 			appends: [],
 			prepends: [],
-			intercepts: [],
-			loadMode: LOAD_MODE_IFRAME
+			intercepts: []
 		};
 		if (this.parent()) {
 			this.parent().buildConfig(target);

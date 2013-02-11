@@ -15,7 +15,7 @@ proxies = {'/': 'http://localhost:9000/'};
 files = [
   JASMINE,
   JASMINE_ADAPTER,
-  'http://localhost:9876/uitest.js',
+  'http://localhost:9877/uitest.js',
   'test/ui/*.js'
 ];
 
@@ -29,11 +29,11 @@ reporters = ['progress'];
 
 // web server port
 // CLI --port 9876
-port = 9876;
+port = 9877;
 
 // cli runner port
 // CLI --runner-port 9100
-runnerPort = 9100;
+runnerPort = 9101;
 
 // enable / disable colors in the output (reporters and logs)
 // CLI --colors --no-colors

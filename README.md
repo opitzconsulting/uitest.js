@@ -97,6 +97,9 @@ methods are available
 * `url(someUrl)`:
 Sets the url of the page ot be loaded
 
+* `trace(boolean)`:
+Enables debug logging for several features.
+
 * `prepend(someScriptUrl | callback)`:
 Adds the given script or an inline script that calls the given callback at the beginning of the `<head>` of the document to be loaded. The callback is called using dependency injection, see below.
 
@@ -111,7 +114,7 @@ of the original function and all global variables. The argument with the special
 contain the following data: `{fn: ..., name: 'someFnName, self: ..., args: ...}`, allowing access to the original function, the original `this` and `arguments` properties. The original function can be called by calling the given `fn` function.
 
 * `readySensors(['xhr', '...'])`
-Sets the ready sensors to be used. For every sensor name used here a sensorFactory needs to be registered first. Details see below.
+Sets the ready sensors to be used. For every sensor name used here a sensor module needs to be registered first. Details see below.
 
 
 #### Running the test page
@@ -142,7 +145,7 @@ E.g. a callback that would have access to the jQuery object of the test frame: `
 
 #### Ready sensors
 
-For every ready sensor a sensor factory needs to be registered first. 
+For every ready sensor a sensor module needs to be registered first. 
 The following sensors are built-in and already registered:
 
 * `xhr`: Waits for the end of all xhr calls
@@ -151,24 +154,26 @@ The following sensors are built-in and already registered:
 * `$animation`: waits for the end calls to `$.fn.animationComplete` (jQuery mobile 
    event listener for css3 animations).
 
-Creating a custom ready sensor:
+Create a custom ready sensor by defining a module that follows this template:
 
-1. define a factory function 
-`function({prepend: function, append: function})`. This function is called for every reload of the test frame and may instrument that test frame using the 
-given methods `prepend` or `append` (see above). 
+     uitest.define('run/readySensors/yourSensorName', ['run/config'], function(runConfig) {
 
-2. The sensor factory needs to return the sensor instance for that frame. A sensor instance is a function that returns the following data:
+        return state;
 
-        {
-          count: 0, // The number of times the sensor was not ready
-          ready: true // If the sensor is currently ready
+        function state() {
+            return {
+                count: 0, // The number of times the sensor was not ready
+                ready: true // If the sensor is currently ready
+            };
         }
+     });
 
-3. Register the sensor factory with the ready module:
+Explanation:
 
-        uitest.require(['ready'], function(ready) {
-          ready.addSensorFactory('someSensorName', someSensorFactory);
-        });
+* Module base path `run/readySensors/`: This is required for uitest to detect
+  your sensor automatically.
+* `runConfig`: Is the merged configuration of the uitest instance.
+
 
 Syntactic sugar for Jasmine-BDD
 -------------------------------

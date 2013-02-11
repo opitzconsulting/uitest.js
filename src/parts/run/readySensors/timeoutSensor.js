@@ -1,10 +1,9 @@
-uitest.define('run/timeoutSensor', ['run/ready', 'run/config'], function(ready, runConfig) {
+uitest.define('run/readySensors/timeout', ['run/config'], function(runConfig) {
     
     var timeouts = {},
         timoutStartCounter = 0;
 
     runConfig.prepends.unshift(install);
-    ready.addSensor('timeout', state);
     return state;
 
     function install(window) {

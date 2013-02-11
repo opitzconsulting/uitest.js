@@ -11,8 +11,7 @@ describe('facade', function() {
 		};
 		readyModule = {
 			ready: jasmine.createSpy('ready'),
-			reloaded: jasmine.createSpy('reloaded'),
-			createSensors: jasmine.createSpy('createSensors')
+			addSensor: jasmine.createSpy('addSensor')
 		};
 		instrumentorModule = {
 			init: jasmine.createSpy('createWithConfig')
@@ -118,36 +117,64 @@ describe('facade', function() {
 
 	describe('instance methods', function() {
 		describe('ready', function() {
-			var uit, readyModule;
+			var uit;
 			beforeEach(function() {
 				uit = facade.create();
 				uit.readySensors([]);
-				readyModule = {
-					ready: jasmine.createSpy('ready')
-				};
-				spyOn(uitest, "require").andReturn({
-					"run/ready": readyModule
+				spyOn(uitest, "require").andCallFake(function(cache) {
+					cache["run/ready"] = readyModule;
+					return cache;
 				});
 			});
 
 			describe('first call', function() {
-				it('should require all modules in the run folder', function() {
+				it('should require all run modules expect ready sensors', function() {
 					uit.ready();
 					expect(uitest.require).toHaveBeenCalled();
-					var args = uitest.require.mostRecentCall.args;
-					expect(args[1]("someNonRunModule")).toBe(false);
-					expect(args[1]("run/someRunModule")).toBe(true);
+					var moduleFilter = uitest.require.argsForCall[0][1];
+					expect(moduleFilter("someNonRunModule")).toBe(false);
+					expect(moduleFilter("run/someRunModule")).toBe(true);
+					expect(moduleFilter("run/readySensors/someSensor")).toBe(false);
 				});
+				it('should require the specified ready sensors', function() {
+					uitest.define('run/readySensors/someSensor', {});
+					uit.readySensors(["someSensor"]);
+					uit.ready();
+					expect(uitest.require).toHaveBeenCalled();
+					var sensorModules = uitest.require.mostRecentCall.args[1];
+					expect(sensorModules).toEqual(['run/readySensors/load', 'run/readySensors/someSensor']);
+				});
+				it('should always require the load sensor', function() {
+					uit.ready();
+					var sensorModules = uitest.require.argsForCall[1][1];
+					expect(sensorModules).toEqual(["run/readySensors/load"]);
+				});
+				it('should register readySensors at the ready-module', function() {
+					var someSensor = jasmine.createSpy('someSensor');
+					var loadSensor = jasmine.createSpy('loadSensor');
+					uitest.define('run/readySensors/someSensor', someSensor);
+					uit.readySensors(["someSensor"]);
+					uitest.require.andCallFake(function(cache) {
+						cache["run/ready"] = readyModule;
+						cache["run/readySensors/someSensor"] = someSensor;
+						cache["run/readySensors/load"] = loadSensor;
+						return cache;
+					});
+					uit.ready();
+					expect(readyModule.addSensor).toHaveBeenCalledWith("someSensor", someSensor);
+					expect(readyModule.addSensor).toHaveBeenCalledWith("load", loadSensor);
+				});
+
 				it('should seal the config', function() {
 					uit.ready();
 					expect(uit._config.sealed()).toBe(true);
 				});
 				it('should provide config.buildConfig() as run/config module', function() {
-					var someRunConfig = {a: 2};
+					var someRunConfig = {a: 2, readySensors: []};
 					spyOn(uit._config, 'buildConfig').andReturn(someRunConfig);
 					uit.ready();
 					var args = uitest.require.mostRecentCall.args;
-					expect(args[0]).toEqual({"run/config": someRunConfig});
+					expect(args[0]["run/config"]).toBe(someRunConfig);
 				});
 				it('should call readyModule.ready with the given callback', function() {
 					var someCallback = jasmine.createSpy('callback');

@@ -1,5 +1,5 @@
 uitest.define('facade', ['config', 'injector', 'global'], function(config, injector, global) {
-    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'readySensors', 'append', 'prepend', 'intercept'],
+    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'readySensors', 'append', 'prepend', 'intercept', 'trace'],
         _currentIdAccessor = function() { return ''; }, current;
 
     function create() {
@@ -104,15 +104,42 @@ uitest.define('facade', ['config', 'injector', 'global'], function(config, injec
     function ready(callback) {
         var self = this;
         if(!this._runModules) {
-            this._config.sealed(true);
-            var config = this._config.buildConfig();
-            this._runModules = uitest.require({
-                "run/config": config
-            }, function(modName) {
-                return modName.indexOf('run/')===0;
-            });
+            run(this);
         }
         this._runModules["run/ready"].ready(callback);
+    }
+
+    function run(self) {
+        var config, sensorName, sensorModules, i;
+
+        self._config.sealed(true);
+        config = self._config.buildConfig();
+        self._runModules = {"run/config": config};
+        uitest.require(self._runModules, function(moduleName) {
+            if (moduleName.indexOf('run/')!==0) {
+                return false;
+            }
+            if (moduleName.indexOf('run/readySensors')===0) {
+                return false;
+            }
+            return true;
+        });
+        config.readySensors.unshift("load");
+        sensorModules = [];
+        for (i=0; i<config.readySensors.length; i++) {
+            sensorName = config.readySensors[i];
+            sensorModules.push(sensorModule(sensorName));
+        }
+        uitest.require(self._runModules, sensorModules);
+        var ready = self._runModules["run/ready"];
+        for (i=0; i<config.readySensors.length; i++) {
+            sensorName = config.readySensors[i];
+            ready.addSensor(sensorName, self._runModules[sensorModule(sensorName)]);
+        }
+    }
+
+    function sensorModule(sensorName) {
+        return "run/readySensors/"+sensorName;
     }
 
     function reloaded(callback) {

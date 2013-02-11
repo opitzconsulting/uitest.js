@@ -42,6 +42,8 @@
         throw new Error("Could not find the module " + name);
     }
 
+    define.findModuleDefinition = findModuleDefinition;
+
     function factory(name, instanceCache) {
         if (!instanceCache) {
             instanceCache = {};
@@ -103,7 +105,6 @@
                 deps = cache;
             }
         }
-
         if (deps.apply) {
             // if deps is a function, treat it as a filter function.
             for (i = 0; i < define.moduleDefs.length; i++) {

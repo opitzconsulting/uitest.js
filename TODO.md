@@ -1,50 +1,10 @@
 TODO
 ----
-Refactoring-Status für run-Module:
-- alles ok, bis auf Sensoren:
-  * alle fast ok, bis auf Prüfung config.enableIntervalSensor
-- UI-Tests laufen alle im UiSpecRunner.html!!
-  * aber nicht mit testacular...
-
-- Dann: UI-Tests wieder zum laufen bekommen,
-  vor dem nächsten Refactoring!!
-
-- Generisches Config-Modul!
-
-add "logging"-Property to config-Module
--> later, when config is dynamic, this should be automatically
-   added!
--> Doku dazu!   
 
 TODO Mobile Support:
 - run/mobileSupport.js:
   * kopiert <meta name="viewport"> vom testframe win global.top!
   ==> via einem config.appends!
-
-TODO:
-- wäre super, wenn die "config" generisch wäre.
-  z.B. Module haben Abhängigkeiten "config/someProp" -> config analysiert das für alle Module und erzeugt die entspr. Property.
-  - Validierung des Wertes erst, wenn das Modul erzeugt wird (das ist aber auch ok, macht Angular auch so).
-  - Problem: Unterscheidung zw. Arrays und Nicht-Arrays
-  - Problem: Unterscheidung zw. mergable und nicht-mergable arrays.
-- Lösung Idee 1:
-    * arrays haben "s" am Schluss    
-    * readySensors-Property weg, dafür für jeden Sensor eine eigene Property:
-      "intervalSensorEnabled", "timeoutSensorEnabled", ...
-    * Folge: Alle Arrays sind mergable...
-- andere Lösung:
-  * Im Aufruf von define nicht nur einen String angeben, sondern ein Objekt!
-    z.B. define('mySensor', [
-    {configProp: 'appends', isMergableArray: true}
-    ], function() { ... });
-- Eigentlich muss ich nur zw. mergable Array und allem anderen unterscheiden...
-  * Das sollte über speziellen Namen gehen:
-    "config/mergeArray/someProp"
-    "config/someProp"
-  ==> Das machen! Wenn die config erzeugt wird,
-      wird require nach allen Modulnamen und deren Dependencies gefragt
-      (require.listDependencies())
-
 
 Für Demo für Nils und SSC:
 - Rylc-Tests komplett umstellen
@@ -55,20 +15,12 @@ Für Demo für Nils und SSC:
   * uitest.current.runs mit Dep. Injection.
   * ...  
 
-
-
-
 features:
 - jasmineSugar.js:
   uitest.runs weg, dafür uitest.current.runs
   ==> Man arbeitet dann immer nur mit uitest.current!
 
 - requirejs in ff geht nicht. warum?
-- refactoring:
-  
-  * documentUtils.loadAndEvalScript
-    ==> Tests dafür machen!
-
 - requirejs support:
   * impl ok, ui tests ok.
   * 1. unit tests are missing!
@@ -90,13 +42,6 @@ features:
   * Remove the "meta"-tag from top on cleanup!
     
   ==> Add in Readme!!  
-
-* logger.log: Sollte man konfigurieren können
-  (per default kein logging!)
-  - Und: noch mehr loggen?
-  - Idee: in config ein logLevel angeben  
-  - Problem: es gibt nur 1 logger, aber mehrere configs
-    ==> Beim loggen die config mitgeben!
 
 - Migration Guide form jasmine-ui
   + Decision why to drop jasmine-ui:

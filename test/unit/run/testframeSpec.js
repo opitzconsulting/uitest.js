@@ -23,8 +23,19 @@ describe('run/testframe', function() {
 			}
 		};
 		global = {
-			top: topFrame
+			top: topFrame,
+			uitest: {}
 		};
+	});
+	it('should publish the uitest module to the top frame', function() {
+		uitest.require({
+			global: global,
+			"run/config": {
+				url: 'someUrl'
+			}
+		}, ["run/testframe"]);
+		expect(global.top.uitest).toBe(global.uitest);
+
 	});
 	it('should create an iframe in the top frame on first module creation', function() {
 		var testframe = uitest.require({

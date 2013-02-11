@@ -1,8 +1,10 @@
 uitest.define('run/logger', ['global', 'run/config'], function(global, runConfig) {
 
-    function log() {
-        if (runConfig.logging) {
-            global.console.log.apply(global.console, arguments);
+    var lastMsg;
+    function log(msg) {
+        if (runConfig.trace && lastMsg!==msg) {
+            lastMsg = msg;
+            global.console.log(msg);
         }
     }
 

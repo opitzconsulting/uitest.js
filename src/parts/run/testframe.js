@@ -4,12 +4,14 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
         REFRESH_COUNTER = WINDOW_ID+'RefreshCounter',
         frameElement, frameWindow;
 
+    global.top.uitest = global.uitest;
     frameElement = findIframe(global.top);
     if (!frameElement) {
         frameElement = createIframe(global.top);
     }
     frameWindow = getIframeWindow(frameElement);
     navigateWithReloadTo(frameWindow, runConfig.url);
+
 
     return frameWindow;
 

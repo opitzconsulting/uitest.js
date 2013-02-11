@@ -39,17 +39,6 @@
         define.moduleDefs.push(def);
     };
     define.moduleDefs = [];
-    define.plugins = {
-        factory:factoryPlugin
-    };
-    define.conditionals = {
-        client:function () {
-            return !!document.documentElement.getAttribute("jasmineuiClient");
-        },
-        server:function () {
-            return !define.conditionals.client();
-        }
-    };
 
     function findModuleDefinition(name) {
         for (var i = 0; i < define.moduleDefs.length; i++) {
@@ -61,20 +50,7 @@
         throw new Error("Could not find the module " + name);
     }
 
-    function plugin(pluginName, moduleName) {
-        var p = define.plugins[pluginName];
-        if (!p) {
-            throw new Error("Unknown plugin " + pluginName);
-        }
-        return p(moduleName);
-    }
-
-    function factoryPlugin(moduleName) {
-        return function (cache) {
-            cache = cache || {};
-            return factory(moduleName, cache);
-        }
-    }
+    define.findModuleDefinition = findModuleDefinition;
 
     function factory(name, instanceCache) {
         if (!instanceCache) {
@@ -82,19 +58,11 @@
         }
         if (instanceCache[name] === undefined) {
             var resolvedValue;
-            var pluginSeparator = name.indexOf('!');
-            if (pluginSeparator !== -1) {
-                var pluginName = name.substring(0, pluginSeparator);
-                var moduleName = name.substring(pluginSeparator + 1);
-                resolvedValue = plugin(pluginName, moduleName);
-            } else {
-                // Normal locally defined modules.
-                var mod = findModuleDefinition(name);
-                var resolvedDeps = listFactory(mod.deps, instanceCache);
-                resolvedValue = mod.value;
-                if (typeof mod.value === 'function') {
-                    resolvedValue = mod.value.apply(window, resolvedDeps);
-                }
+            var mod = findModuleDefinition(name);
+            var resolvedDeps = listFactory(mod.deps, instanceCache);
+            resolvedValue = mod.value;
+            if (typeof mod.value === 'function') {
+                resolvedValue = mod.value.apply(window, resolvedDeps);
             }
 
             instanceCache[name] = resolvedValue;
@@ -132,31 +100,37 @@
         return resolvedDeps;
     }
 
-    var require = function (deps, callback) {
-        var resolvedDeps = listFactory(deps, require.cache);
-        // Note: testing if typeof callback==="function" does not work
-        // in IE9 from remote window (then everything is an object...)
-        if (callback && callback.apply) {
-            callback.apply(this, resolvedDeps);
-        }
-        return resolvedDeps;
-    };
-
-    require.all = function (callback, filter) {
-        var i, def;
-        var modules = {};
-        for (i = 0; i < define.moduleDefs.length; i++) {
-            def = define.moduleDefs[i];
-            if (!filter || filter(def.name)) {
-                require([def.name], function (module) {
-                    modules[def.name] = module;
-                });
+    var require = function (cache, deps, callback) {
+        var filteredDeps = [],
+            i, def;
+        if (arguments.length===1) {
+            deps = cache;
+            cache = {};
+            callback = null;
+        } else if (arguments.length===2) {
+            if (typeof cache === 'function' || cache.slice) {
+                callback = deps;
+                deps = cache;
             }
         }
-        if (callback) callback(modules);
-    };
+        if (deps.apply) {
+            // if deps is a function, treat it as a filter function.
+            for (i = 0; i < define.moduleDefs.length; i++) {
+                def = define.moduleDefs[i];
+                if (deps(def.name)) {
+                    filteredDeps.push(def.name);
+                }
+            }
+            deps = filteredDeps;
+        }
+        var resolvedDeps = listFactory(deps, cache);
 
-    require.cache = {};
+        if (callback) {
+            callback.apply(this, resolvedDeps);
+        }
+
+        return cache;
+    };
 
     ns.require = require;
     ns.define = define;
@@ -179,8 +153,8 @@ uitest.define('config', [], function() {
 		parent: simpleProp("_parent"),
 		sealed: simpleProp("_sealed"),
 		url: dataProp("url"),
-		loadMode: dataProp("loadMode", loadModeValidator),
-		readySensors: dataProp("readySensors"),
+		trace: dataProp("trace"),
+		readySensors: dataProp("readySensors", readySensorsValidator),
 		append: dataAdder("appends"),
 		prepend: dataAdder("prepends"),
 		intercept: dataAdder("intercepts"),
@@ -232,15 +206,18 @@ uitest.define('config', [], function() {
 		});
 	}
 
-	function checkNotSealed(self) {
-		if (self.sealed()) {
-			throw new Error("This configuration cannot be modified.");
+	function readySensorsValidator(sensorNames) {
+		var i;
+		for (i=0; i<sensorNames.length; i++) {
+			if (!uitest.define.findModuleDefinition("run/readySensors/"+sensorNames[i])) {
+				throw new Error("Unknown sensor: "+sensorNames[i]);
+			}
 		}
 	}
 
-	function loadModeValidator(mode) {
-		if(mode !== LOAD_MODE_POPUP && mode !== LOAD_MODE_IFRAME) {
-			throw new Error("unknown mode: " + mode);
+	function checkNotSealed(self) {
+		if (self.sealed()) {
+			throw new Error("This configuration cannot be modified.");
 		}
 	}
 
@@ -249,8 +226,7 @@ uitest.define('config', [], function() {
 			readySensors: ['timeout', 'interval', 'xhr', '$animation'],
 			appends: [],
 			prepends: [],
-			intercepts: [],
-			loadMode: LOAD_MODE_IFRAME
+			intercepts: []
 		};
 		if (this.parent()) {
 			this.parent().buildConfig(target);
@@ -279,10 +255,10 @@ uitest.define('config', [], function() {
 uitest.define('documentUtils', [], function() {
 
     var // Groups:
-        // 1. text of all element attributes
+        // 1. opening script tag
         // 2. content of src attribute
         // 3. text content of script element.
-        SCRIPT_RE = /<script([^>]*src=\s*"([^"]+))?[^>]*>([\s\S]*?)<\/script>/g;
+        SCRIPT_RE = /(<script(?:[^>]*src=\s*"([^"]+))?[^>]*>)([\s\S]*?)<\/script>/g;
 
     function serializeDocType(doc) {
         var node = doc.doctype;
@@ -321,7 +297,7 @@ uitest.define('documentUtils', [], function() {
         return '<script type="text/javascript" src="'+url+'"></script>';
     }
 
-    function loadScript(win, url, resultCallback, async) {
+    function loadScript(win, url, async, resultCallback) {
         var xhr = new win.XMLHttpRequest();
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4) {
@@ -340,18 +316,21 @@ uitest.define('documentUtils', [], function() {
         win["eval"].call(win, scriptContent);
     }
 
-    function loadAndEvalScriptSync(win, url) {
-        loadScript(win, url, function(error, data) {
+    function loadAndEvalScriptSync(win, url, preProcessCallback) {
+        loadScript(win, url, false, function(error, data) {
             if (error) {
                 throw error;
+            }
+            if (preProcessCallback) {
+                data = preProcessCallback(data);
             }
             evalScript(win, data);
         });
     }
 
     function replaceScripts(html, callback) {
-        return html.replace(SCRIPT_RE, function (match, allElements, srcAttribute, textContent) {
-            var result = callback(srcAttribute, textContent, match);
+        return html.replace(SCRIPT_RE, function (match, scriptOpenTag, srcAttribute, textContent) {
+            var result = callback(scriptOpenTag, srcAttribute, textContent);
             if (result===undefined) {
                 return match;
             }
@@ -373,15 +352,13 @@ uitest.define('documentUtils', [], function() {
         serializeHtmlBeforeLastScript: serializeHtmlBeforeLastScript,
         contentScriptHtml: contentScriptHtml,
         urlScriptHtml: urlScriptHtml,
-        loadScript: loadScript,
-        evalScript: evalScript,
         loadAndEvalScriptSync: loadAndEvalScriptSync,
         replaceScripts: replaceScripts,
         rewriteDocument: rewriteDocument
     };
 });
-uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector', 'instrumentor', 'global'], function(urlLoader, readyModule, loadSensor, config, injector, instrumentor, global) {
-    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'readySensors', 'append', 'prepend', 'intercept'],
+uitest.define('facade', ['config', 'injector', 'global'], function(config, injector, global) {
+    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'readySensors', 'append', 'prepend', 'intercept', 'trace'],
         _currentIdAccessor = function() { return ''; }, current;
 
     function create() {
@@ -463,10 +440,6 @@ uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector
         return _currentIdAccessor;
     }
 
-    function cleanup() {
-        urlLoader.close();
-    }
-
     function delegate(fn, targetAccessor) {
         return function() {
             var i,
@@ -489,51 +462,71 @@ uitest.define('facade', ['urlLoader', 'ready', 'loadSensor', 'config', 'injector
 
     function ready(callback) {
         var self = this;
-        if(!this._runInstance) {
-            this._config.sealed(true);
-            var config = this._config.buildConfig();
-            config.readySensors = config.readySensors || [];
-            config.readySensors.push(loadSensor.sensorName);
-            instrumentor.init(config);
-            this._runInstance = {
-                config: config,
-                readySensorInstances: readyModule.createSensors(config),
-                frame: urlLoader.open(config)
-            };
-
+        if(!this._runModules) {
+            run(this);
         }
-        return readyModule.ready(this._runInstance.readySensorInstances, injectedCallback);
+        this._runModules["run/ready"].ready(callback);
+    }
 
-        function injectedCallback() {
-            var frame = self._runInstance.frame;
-            return injector.inject(callback, frame, [frame]);
+    function run(self) {
+        var config, sensorName, sensorModules, i;
+
+        self._config.sealed(true);
+        config = self._config.buildConfig();
+        self._runModules = {"run/config": config};
+        uitest.require(self._runModules, function(moduleName) {
+            if (moduleName.indexOf('run/')!==0) {
+                return false;
+            }
+            if (moduleName.indexOf('run/readySensors')===0) {
+                return false;
+            }
+            return true;
+        });
+        config.readySensors.unshift("load");
+        sensorModules = [];
+        for (i=0; i<config.readySensors.length; i++) {
+            sensorName = config.readySensors[i];
+            sensorModules.push(sensorModule(sensorName));
         }
+        uitest.require(self._runModules, sensorModules);
+        var ready = self._runModules["run/ready"];
+        for (i=0; i<config.readySensors.length; i++) {
+            sensorName = config.readySensors[i];
+            ready.addSensor(sensorName, self._runModules[sensorModule(sensorName)]);
+        }
+    }
+
+    function sensorModule(sensorName) {
+        return "run/readySensors/"+sensorName;
     }
 
     function reloaded(callback) {
-        loadSensor.waitForReload(this._runInstance.readySensorInstances);
-        this.ready(callback);
+        checkRunning(this);
+        this._runModules["run/loadSensor"].reloaded(callback);
     }
 
     function inject(callback) {
-        if(!this._runInstance) {
+        checkRunning(this);
+        var frame = this._runModules["run/testframe"];
+        return injector.inject(callback, frame, [frame]);
+    }
+
+    function checkRunning(self) {
+        if(!self._runModules) {
             throw new Error("The test page has not yet loaded. Please call ready first");
         }
-        var frame = this._runInstance.frame;
-        return injector.inject(callback, frame, [frame]);
     }
 
     current = createCurrentFacade();
 
     return {
         create: create,
-        cleanup: cleanup,
         current: current,
         currentIdAccessor: currentIdAccessor,
         global: {
             uitest: {
                 create: create,
-                cleanup: cleanup,
                 current: current
             }
         }
@@ -633,400 +626,6 @@ uitest.define('injector', [], function() {
 		inject: inject
 	};
 });
-uitest.define('instrumentor', ['injector', 'documentUtils'], function(injector, docUtils) {
-
-    var exports,
-        NO_SCRIPT_TAG = "noscript",
-        currentConfig,
-        REQUIRE_JS_RE = /require[^a-z]/,
-        // group 1: name of function
-        NAMED_FUNCTION_RE = /function\s*(\w+)[^{]*{/g;
-
-    function init(config) {
-        currentConfig = config;
-        instrument.callbacks = [];
-    }
-
-    function instrument(win) {
-        exports.deactivateAndCaptureHtml(win, function(html) {
-            html = exports.modifyHtmlWithConfig(html);
-            docUtils.rewriteDocument(win, html);
-        });
-    }
-
-    function deactivateAndCaptureHtml(win, callback) {
-        // This will wrap the rest of the document into a noscript tag.
-        // By this, that content will not be executed!
-        var htmlPrefix = docUtils.serializeHtmlBeforeLastScript(win.document);
-        win.document.write('</head><body><' + NO_SCRIPT_TAG + '>');
-        win.document.addEventListener('DOMContentLoaded', function() {
-            var noscriptEl = win.document.getElementsByTagName(NO_SCRIPT_TAG)[0];
-            callback(htmlPrefix + noscriptEl.textContent);
-        }, false);
-    }
-
-    function createRemoteCallExpression(callback) {
-        var argExpressions = Array.prototype.slice.call(arguments, 1) || [],
-            callbackId = instrument.callbacks.length;
-        instrument.callbacks.push(callback);
-        return "(opener||parent).uitest.instrument.callbacks["+callbackId+"]("+argExpressions.join(",")+");";
-    }
-
-    function modifyHtmlWithConfig(html) {
-        if (currentConfig.prepends) {
-            html = handlePrepends(html, currentConfig.prepends);
-        }
-        var scripts = handleScripts(html, currentConfig);
-        html = scripts.html;
-        if (!scripts.requirejs) {
-            if (currentConfig.appends) {
-                html = handleAppends(html, currentConfig.appends);
-            }
-        }
-
-        return html;
-
-        function handlePrepends(html, prepends) {
-            var htmlArr = ['<head>'], i;
-            for (i=0; i<prepends.length; i++) {
-                createScriptTagForPrependOrAppend(htmlArr, prepends[i]);
-            }
-            return html.replace(/<head>/, htmlArr.join(''));
-        }
-
-        function handleAppends(html, appends) {
-            var htmlArr = [], i;
-            for (i=0; i<appends.length; i++) {
-                createScriptTagForPrependOrAppend(htmlArr, appends[i]);
-            }
-            htmlArr.push('</body>');
-            return html.replace(/<\/body>/, htmlArr.join(''));
-        }
-
-        function createScriptTagForPrependOrAppend(html, prependOrAppend) {
-            if (isString(prependOrAppend)) {
-                html.push(docUtils.urlScriptHtml(prependOrAppend));
-            } else {
-                html.push(docUtils.contentScriptHtml(createRemoteCallExpression(injectedCallback(prependOrAppend), 'window')));
-            }
-        }
-
-        function injectedCallback(prepend) {
-            return function(win) {
-                return injector.inject(prepend, win, [win]);
-            };
-        }
-
-        function handleScripts(html, config) {
-            var requirejs = false;
-            html = docUtils.replaceScripts(html, function(scriptUrl, textContent, scriptTag) {
-                if (!scriptUrl) return;
-                
-                if (scriptUrl.match(REQUIRE_JS_RE)) {
-                    requirejs = true;
-                    return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
-                        handleRequireJsScript(win, scriptUrl, scriptTag, config);
-                    }, "window"));
-                }
-
-                var matchingIntercepts = findMatchingIntercepts(scriptUrl, config.intercepts);
-                if (!matchingIntercepts.empty) {
-                    return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
-                        handleInterceptScript(win, matchingIntercepts, scriptUrl);
-                    }, "window"));
-                }
-            });
-
-            return {
-                requirejs: requirejs,
-                html: html
-            };
-        }
-
-        function handleRequireJsScript(win, scriptUrl, scriptTag, config) {
-            // TODO extract data-main from script-Tag and call require!
-            docUtils.loadAndEvalScriptSync(win, scriptUrl);
-            var originalRequire = win.require;
-            patchedRequire.config = originalRequire.config;
-            win.require = patchedRequire;
-
-            var _load = originalRequire.load;
-            originalRequire.load = patchedLoad;
-            var dataMain = scriptTag.match(/data-main=\"([^\"]*)/);
-            if (dataMain) {
-                originalRequire.call(win, [dataMain[1]]);
-            }
-
-            function patchedRequire(deps, originalCallback) {
-                originalRequire(deps, function () {
-                    var i;
-                    for (i=0; i<config.appends.length; i++) {
-                        execAppend(config.appends[i]);
-                    }
-                    return originalCallback.apply(this, arguments);
-                });
-            }
-
-            function execAppend(append) {
-                if (isString(append)) {
-                    docUtils.loadAndEvalScriptSync(win, append);
-                } else {
-                    injector.inject(append, win, [win]);
-                }
-            }
-
-            function patchedLoad(context, moduleName, url) {
-                var matchingIntercepts = findMatchingIntercepts(url, config.intercepts);
-                if (matchingIntercepts.empty) {
-                    return _load.apply(this, arguments);
-                }
-                try {
-                    handleInterceptScript(win, matchingIntercepts, url);
-                    context.completeLoad(moduleName);
-                } catch (error) {
-                    //Set error on module, so it skips timeout checks.
-                    context.registry[moduleName].error = true;
-                    throw error;
-                }
-            }
-        }
-
-        function findMatchingIntercepts(url, intercepts) {
-            var i, matchingIntercepts = { empty: true };
-            if (!intercepts) return matchingIntercepts;
-            for (i=0; i<intercepts.length; i++) {
-                if (intercepts[i].scriptUrl===url) {
-                    matchingIntercepts[intercepts[i].fnName] = intercepts[i];
-                    matchingIntercepts.empty = false;
-                }
-            }
-            return matchingIntercepts;
-        }
-
-        function handleInterceptScript(win, matchingInterceptsByName, scriptUrl) {
-            // Need to do the xhr in sync here so the script execution order in the document
-            // stays the same!
-            docUtils.loadScript(win, scriptUrl, resultCallback, false);
-
-            function resultCallback(error, data) {
-                if (error) {
-                    throw error;
-                }
-                data = data.replace(NAMED_FUNCTION_RE, function(all, fnName) {
-                    if (matchingInterceptsByName[fnName]) {
-                        return all+'if (!'+fnName+'.delegate)return '+
-                            createRemoteCallExpression(fnCallback, "window", fnName, "this", "arguments");
-                    }
-                    return all;
-
-                    function fnCallback(win, fn, self, args) {
-                        var originalArgNames = injector.annotate(fn),
-                            originalArgsByName = {},
-                            $delegate = {fn:fn, name: fnName, self: self, args: args},
-                            i;
-                        for (i=0; i<args.length; i++) {
-                            originalArgsByName[originalArgNames[i]] = args[i];
-                        }
-                        fn.delegate = true;
-                        try {
-                            return injector.inject(matchingInterceptsByName[fnName].callback,
-                                self, [originalArgsByName, {$delegate: $delegate}, win]);
-                        } finally {
-                            fn.delegate = false;
-                        }
-                    }
-                });
-
-                docUtils.evalScript(win, data);
-            }
-        }
-
-    }
-
-    function isString(obj) {
-        return obj && obj.slice;
-    }
-
-    exports = {
-        init: init,
-        instrument: instrument,
-        deactivateAndCaptureHtml: deactivateAndCaptureHtml,
-        serializeDocType: docUtils.serializeDocType,
-        serializeHtmlTag: docUtils.serializeHtmlTag,
-        modifyHtmlWithConfig: modifyHtmlWithConfig,
-        rewriteDocument: docUtils.rewriteDocument,
-        replaceScripts: docUtils.replaceScripts,
-        global: {
-            uitest: {
-                instrument: instrument
-            }
-        }
-    };
-    return exports;
-});
-uitest.define('logger', ['global'], function(global) {
-
-    function log() {
-        return global.console.log.apply(global.console, arguments);
-    }
-
-    return {
-        log: log
-    };
-});
-
-uitest.define('ready', ['logger', 'global'], function(logger, global) {
-
-	var registeredSensors = {};
-
-	function registerSensor(name, sensorFactory) {
-		registeredSensors[name] = sensorFactory;
-	}
-
-	function createSensors(config) {
-		var i, sensorNames = config.readySensors,
-			sensorName,
-			readySensorInstances = {},
-			newPrepends = [];
-		var api = {
-			prepend: function(value) {
-				newPrepends.push(value);
-			},
-			append: function(value) {
-				config.appends.push(value);
-			}
-		};
-		for(i = 0; i < sensorNames.length; i++) {
-			sensorName = sensorNames[i];
-			readySensorInstances[sensorName] = registeredSensors[sensorName](api);
-		}
-		// Be sure that the prepends of the sensors are always before all
-		// other prepends!
-		config.prepends.unshift.apply(config.prepends, newPrepends);
-
-		return readySensorInstances;
-	}
-
-	// Goal:
-	// - Detect async work that cannot detected before some time after it's start
-	//   (e.g. the WebKitAnimationStart event is not fired until some ms after the dom change that started the animation).
-	// - Detect the situation where async work starts another async work
-	//
-	// Algorithm:
-	// Wait until all readySensors did not change for 50ms.
-
-
-	function ready(sensorInstances, listener) {
-		var sensorStatus;
-
-		function restart() {
-			sensorStatus = aggregateSensorStatus(sensorInstances);
-			if(sensorStatus.busySensors.length !== 0) {
-				logger.log("ready waiting for [" + sensorStatus.busySensors + "]");
-				global.setTimeout(restart, 20);
-			} else {
-				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 50);
-			}
-		}
-
-		function ifNoAsyncWorkCallListenerElseRestart() {
-			var currentSensorStatus = aggregateSensorStatus(sensorInstances);
-			if(currentSensorStatus.busySensors.length === 0 && currentSensorStatus.count === sensorStatus.count) {
-				listener();
-			} else {
-				restart();
-			}
-		}
-
-		restart();
-	}
-
-	function aggregateSensorStatus(sensorInstances) {
-		var count = 0,
-			busySensors = [],
-			sensorName, sensor, sensorStatus;
-		for(sensorName in sensorInstances) {
-			sensor = sensorInstances[sensorName];
-			sensorStatus = sensor();
-			count += sensorStatus.count;
-			if(!sensorStatus.ready) {
-				busySensors.push(sensorName);
-			}
-		}
-		return {
-			count: count,
-			busySensors: busySensors
-		};
-	}
-
-	return {
-		registerSensor: registerSensor,
-		createSensors: createSensors,
-		ready: ready
-	};
-});
-uitest.define('urlLoader', ['urlParser', 'global'], function(urlParser, global) {
-
-    var REFRESH_URL_ATTRIBUTE = 'uitr',
-        WINDOW_ID = 'uitestwindow',
-        frameElement,
-        frameWindow,
-        popupWindow,
-        openCounter = 0;
-
-    function navigateWithReloadTo(win, url) {
-        var parsedUrl = urlParser.parseUrl(url);
-        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, openCounter++);
-        win.location.href = urlParser.serializeUrl(parsedUrl);
-    }
-
-    function open(config) {
-        var remoteWindow;
-        if (config.loadMode === 'popup') {
-            if (!popupWindow) {
-                popupWindow = global.open('', WINDOW_ID);
-            }
-            remoteWindow = popupWindow;
-        } else if (config.loadMode === 'iframe') {
-            if (!frameWindow) {
-                frameElement = global.document.createElement("iframe");
-                frameElement.name = WINDOW_ID;
-                frameElement.setAttribute("width", "100%");
-                frameElement.setAttribute("height", "100%");
-                var winSize = {
-                    width: window.innerWidth,
-                    height: window.innerHeight
-                };
-                frameElement.setAttribute("style", "position: absolute; z-index: 10; bottom: 0; left: 0; pointer-events:none;");
-                var body = global.document.body;
-                body.appendChild(frameElement);
-                frameWindow = frameElement.contentWindow || frameElement.contentDocument;
-            }
-            remoteWindow = frameWindow;
-        }
-        navigateWithReloadTo(remoteWindow, config.url);
-        return remoteWindow;
-    }
-
-    function close() {
-        if (frameElement) {
-            frameElement.parentElement.removeChild(frameElement);
-            frameElement = null;
-            frameWindow = null;
-        }
-        if (popupWindow) {
-            popupWindow.close();
-            popupWindow = null;
-        }
-    }
-
-    return {
-        open: open,
-        navigateWithReloadTo: navigateWithReloadTo,
-        close: close
-    };
-});
-
 uitest.define('urlParser', [], function () {
     function parseUrl(url) {
         var hashIndex = url.indexOf('#');
@@ -1077,268 +676,593 @@ uitest.define('urlParser', [], function () {
         serializeUrl:serializeUrl
     };
 });
+uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], function(injector, docUtils, runConfig) {
 
-uitest.define('intervalSensor', ['ready'], function(ready) {
-    
-    ready.registerSensor('interval', sensorFactory);
+    var exports,
+        NO_SCRIPT_TAG = "noscript",
+        REQUIRE_JS_RE = /require[^a-z]/,
+        // group 1: name of function
+        NAMED_FUNCTION_RE = /function\s*(\w+)[^{]*{/g;
 
-    function sensorFactory(config) {
-        var intervals = {},
-            intervalStartCounter = 0;
+    instrument.callbacks = [];
 
-        config.prepend(function(window) {
-            var oldInterval = window.setInterval;
-            window.setInterval = function (fn, time) {
-                var handle = oldInterval(fn, time);
-                intervals[handle] = true;
-                intervalStartCounter++;
-                return handle;
-            };
-
-            var oldClearInterval = window.clearInterval;
-            window.clearInterval = function (code) {                
-                oldClearInterval(code);
-                delete intervals[code];
-            };
+    function instrument(win) {
+        exports.internal.deactivateAndCaptureHtml(win, function(html) {
+            html = exports.internal.modifyHtmlWithConfig(html);
+            docUtils.rewriteDocument(win, html);
         });
-
-        return state;
-
-        function isReady() {
-            var x;
-            for (x in intervals) {
-                return false;
-            }
-            return true;
-        }
-
-        function state() {
-            return {
-                count: intervalStartCounter,
-                ready: isReady()
-            };
-        }        
     }
 
-    return {
-        sensorFactory: sensorFactory
-    };
-});
+    function deactivateAndCaptureHtml(win, callback) {
+        // This will wrap the rest of the document into a noscript tag.
+        // By this, that content will not be executed!
+        var htmlPrefix = docUtils.serializeHtmlBeforeLastScript(win.document);
+        win.document.write('</head><body><' + NO_SCRIPT_TAG + '>');
+        win.document.addEventListener('DOMContentLoaded', function() {
+            var noscriptEl = win.document.getElementsByTagName(NO_SCRIPT_TAG)[0];
+            callback(htmlPrefix + noscriptEl.textContent);
+        }, false);
+    }
 
-uitest.define('jqmAnimationSensor', ['ready'], function(ready) {
+    function createRemoteCallExpression(callback) {
+        var argExpressions = Array.prototype.slice.call(arguments, 1) || [],
+            callbackId = instrument.callbacks.length;
+        instrument.callbacks.push(callback);
+        return "parent.uitest.instrument.callbacks["+callbackId+"]("+argExpressions.join(",")+");";
+    }
 
-    ready.registerSensor('$animation', sensorFactory);
+    function modifyHtmlWithConfig(html) {
+        if (runConfig.prepends) {
+            html = handlePrepends(html, runConfig.prepends);
+        }
+        var scripts = handleScripts(html, runConfig);
+        html = scripts.html;
+        if (!scripts.requirejs) {
+            if (runConfig.appends) {
+                html = handleAppends(html, runConfig.appends);
+            }
+        }
 
-    function sensorFactory(config) {
-        var ready = true,
-            startCounter = 0;
+        return html;
 
-        config.append(function(window) {
-            var jQuery = window.jQuery;
-            if(!(jQuery && jQuery.fn && jQuery.fn.animationComplete)) {
-                return;
+        function handlePrepends(html, prepends) {
+            var htmlArr = ['<head>'], i;
+            for (i=0; i<prepends.length; i++) {
+                createScriptTagForPrependOrAppend(htmlArr, prepends[i]);
+            }
+            return html.replace(/<head>/, htmlArr.join(''));
+        }
+
+        function handleAppends(html, appends) {
+            var htmlArr = [], i;
+            for (i=0; i<appends.length; i++) {
+                createScriptTagForPrependOrAppend(htmlArr, appends[i]);
+            }
+            htmlArr.push('</body>');
+            return html.replace(/<\/body>/, htmlArr.join(''));
+        }
+
+        function createScriptTagForPrependOrAppend(html, prependOrAppend) {
+            if (isString(prependOrAppend)) {
+                html.push(docUtils.urlScriptHtml(prependOrAppend));
+            } else {
+                html.push(docUtils.contentScriptHtml(createRemoteCallExpression(injectedCallback(prependOrAppend), 'window')));
+            }
+        }
+
+        function injectedCallback(prepend) {
+            return function(win) {
+                return injector.inject(prepend, win, [win]);
+            };
+        }
+
+        function handleScripts(html, config) {
+            var requirejs = false;
+            html = docUtils.replaceScripts(html, function(scriptTag, scriptUrl, textContent) {
+                if (!scriptUrl) return;
+                
+                if (scriptUrl.match(REQUIRE_JS_RE)) {
+                    requirejs = true;
+                    return scriptTag+"</script>"+
+                        docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
+                        handleRequireJsScript(win, config);
+                    }, "window"));
+                }
+
+                var matchingIntercepts = findMatchingIntercepts(scriptUrl, config.intercepts);
+                if (!matchingIntercepts.empty) {
+                    return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
+                        handleInterceptScript(win, matchingIntercepts, scriptUrl);
+                    }, "window"));
+                }
+            });
+
+            return {
+                requirejs: requirejs,
+                html: html
+            };
+        }
+
+        function handleRequireJsScript(win, config) {
+            var _require, _load;
+
+            patchRequire();
+            patchLoad();
+            
+            function patchRequire() {
+                _require = win.require;
+                _require.config = _require.config;
+                win.require = function(deps, originalCallback) {
+                    _require(deps, function () {
+                        var args = arguments,
+                            self = this;
+                        execAppends(function() {
+                            originalCallback.apply(self, args);
+                        });
+                    });
+                };
             }
 
-            var oldFn = jQuery.fn.animationComplete;
-            jQuery.fn.animationComplete = function(callback) {
-                startCounter++;
-                ready = false;
-                return oldFn.call(this, function() {
-                    ready = true;
-                    return callback.apply(this, arguments);
+            function execAppends(finishedCallback) {
+                var appends = config.appends,
+                    i = 0;
+                execNext();
+                
+                function execNext() {
+                    var append;
+                    if (i>=config.appends.length) {
+                        finishedCallback();
+                    } else {
+                        append = config.appends[i++];
+                        if (isString(append)) {
+                            _require([append], execNext);
+                        } else {
+                            // TODO error handling!
+                            injector.inject(append, win, [win]);
+                            execNext();
+                        }
+                    }
+                }
+
+            }
+
+            function patchLoad() {
+                _load = _require.load;
+                _require.load = function (context, moduleName, url) {
+                    var matchingIntercepts = findMatchingIntercepts(url, config.intercepts);
+                    if (matchingIntercepts.empty) {
+                        return _load.apply(this, arguments);
+                    }
+                    try {
+                        handleInterceptScript(win, matchingIntercepts, url);
+                        context.completeLoad(moduleName);
+                    } catch (error) {
+                        //Set error on module, so it skips timeout checks.
+                        context.registry[moduleName].error = true;
+                        throw error;
+                    }
+                };
+            }
+        }
+
+        function findMatchingIntercepts(url, intercepts) {
+            var i, matchingIntercepts = { empty: true };
+            if (!intercepts) return matchingIntercepts;
+            for (i=0; i<intercepts.length; i++) {
+                if (intercepts[i].scriptUrl===url) {
+                    matchingIntercepts[intercepts[i].fnName] = intercepts[i];
+                    matchingIntercepts.empty = false;
+                }
+            }
+            return matchingIntercepts;
+        }
+
+        function handleInterceptScript(win, matchingInterceptsByName, scriptUrl) {
+            // Need to do the xhr in sync here so the script execution order in the document
+            // stays the same!
+            docUtils.loadAndEvalScriptSync(win, scriptUrl, preProcessCallback);
+
+            function preProcessCallback(data) {
+                return data.replace(NAMED_FUNCTION_RE, function(all, fnName) {
+                    if (matchingInterceptsByName[fnName]) {
+                        return all+'if (!'+fnName+'.delegate)return '+
+                            createRemoteCallExpression(fnCallback, "window", fnName, "this", "arguments");
+                    }
+                    return all;
+
+                    function fnCallback(win, fn, self, args) {
+                        var originalArgNames = injector.annotate(fn),
+                            originalArgsByName = {},
+                            $delegate = {fn:fn, name: fnName, self: self, args: args},
+                            i;
+                        for (i=0; i<args.length; i++) {
+                            originalArgsByName[originalArgNames[i]] = args[i];
+                        }
+                        fn.delegate = true;
+                        try {
+                            return injector.inject(matchingInterceptsByName[fnName].callback,
+                                self, [originalArgsByName, {$delegate: $delegate}, win]);
+                        } finally {
+                            fn.delegate = false;
+                        }
+                    }
                 });
-            };
-        });
+            }
+        }
 
-        return state;
+    }
 
-        function state() {
-            return {
-                count: startCounter,
-                ready: ready
-            };
+    function isString(obj) {
+        return obj && obj.slice;
+    }
+
+    exports = {
+        internal: {
+            instrument: instrument,
+            deactivateAndCaptureHtml: deactivateAndCaptureHtml,
+            modifyHtmlWithConfig: modifyHtmlWithConfig
+        },
+        global: {
+            uitest: {
+                instrument: instrument
+            }
+        }
+    };
+    return exports;
+});
+uitest.define('run/logger', ['global', 'run/config'], function(global, runConfig) {
+
+    var lastMsg;
+    function log(msg) {
+        if (runConfig.trace && lastMsg!==msg) {
+            lastMsg = msg;
+            global.console.log(msg);
         }
     }
 
     return {
-        sensorFactory: sensorFactory
+        log: log
     };
 });
-uitest.define('loadSensor', ['ready'], function(ready) {
-	var LOAD_SENSOR_NAME = "load";
 
-	function loadSensorFactory(installer) {
+uitest.define('run/ready', ['injector', 'global', 'run/logger', 'run/testframe'], function(injector, global, logger, testframe) {
+
+	var sensorInstances = {};
+
+	function addSensor(name, sensor) {
+		sensorInstances[name] = sensor;
+	}
+
+	// Goal:
+	// - Detect async work that cannot detected before some time after it's start
+	//   (e.g. the WebKitAnimationStart event is not fired until some ms after the dom change that started the animation).
+	// - Detect the situation where async work starts another async work
+	//
+	// Algorithm:
+	// Wait until all readySensors did not change for 50ms.
+
+
+	function ready(listener) {
+		var sensorStatus;
+
+		function restart() {
+			sensorStatus = aggregateSensorStatus(sensorInstances);
+			if(sensorStatus.busySensors.length !== 0) {
+				logger.log("ready waiting for [" + sensorStatus.busySensors + "]");
+				global.setTimeout(restart, 20);
+			} else {
+				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 50);
+			}
+		}
+
+		function ifNoAsyncWorkCallListenerElseRestart() {
+			var currentSensorStatus = aggregateSensorStatus(sensorInstances);
+			if(currentSensorStatus.busySensors.length === 0 && currentSensorStatus.count === sensorStatus.count) {
+				injector.inject(listener, testframe, [testframe]);
+			} else {
+				restart();
+			}
+		}
+
+		restart();
+	}
+
+	function aggregateSensorStatus(sensorInstances) {
 		var count = 0,
-			ready, doc, waitForDocComplete;
-		
-		init();
-		installer.append(function(document) {
-			doc = document;
-			waitForDocComplete = true;
-		});
-		return loadSensor;
-
-		function init() {
-			ready = false;
-			waitForDocComplete = false;
-		}
-
-		function loadSensor(reload) {
-			if (waitForDocComplete && doc.readyState==='complete') {
-				waitForDocComplete = false;
-				ready = true;
+			busySensors = [],
+			sensorName, sensor, sensorStatus;
+		for(sensorName in sensorInstances) {
+			sensor = sensorInstances[sensorName];
+			sensorStatus = sensor();
+			count += sensorStatus.count;
+			if(!sensorStatus.ready) {
+				busySensors.push(sensorName);
 			}
-			if(reload) {
-				count++;
-				init();
-			}
-			return {
-				count: count,
-				ready: ready
-			};
 		}
+		return {
+			count: count,
+			busySensors: busySensors
+		};
 	}
-
-	function waitForReload(sensorInstances) {
-		sensorInstances[LOAD_SENSOR_NAME](true);
-	}
-
-	ready.registerSensor(LOAD_SENSOR_NAME, loadSensorFactory);
 
 	return {
-		sensorFactory: loadSensorFactory,
-		sensorName: LOAD_SENSOR_NAME,
-		waitForReload: waitForReload
+		addSensor: addSensor,
+		ready: ready
 	};
 });
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(urlParser, global, runConfig) {
+    var REFRESH_URL_ATTRIBUTE = 'uitr',
+        WINDOW_ID = 'uitestwindow',
+        REFRESH_COUNTER = WINDOW_ID+'RefreshCounter',
+        frameElement, frameWindow;
 
-uitest.define('timeoutSensor', ['ready'], function(ready) {
-    
-    ready.registerSensor('timeout', sensorFactory);
+    global.top.uitest = global.uitest;
+    frameElement = findIframe(global.top);
+    if (!frameElement) {
+        frameElement = createIframe(global.top);
+    }
+    frameWindow = getIframeWindow(frameElement);
+    navigateWithReloadTo(frameWindow, runConfig.url);
 
-    function sensorFactory(config) {
-        var timeouts = {},
-            timoutStartCounter = 0;
 
-        config.prepend(function(window) {
-            var oldTimeout = window.setTimeout;
-            window.setTimeout = function (fn, time) {
-                var handle;
-                var callback = function () {
-                    delete timeouts[handle];
-                    if (typeof fn == 'string') {
-                        window.eval(fn);
-                    } else {
-                        fn();
-                    }
-                };
-                handle = oldTimeout(callback, time);
-                timeouts[handle] = true;
-                timoutStartCounter++;
-                return handle;
-            };
+    return frameWindow;
 
-            var oldClearTimeout = window.clearTimeout;
-            window.clearTimeout = function (code) {                
-                oldClearTimeout(code);
-                delete timeouts[code];
-            };
-        });
-
-        return state;
-
-        function isReady() {
-            var x;
-            for (x in timeouts) {
-                return false;
-            }
-            return true;
-        }
-
-        function state() {
-            return {
-                count: timoutStartCounter,
-                ready: isReady()
-            };
-        }        
+    function findIframe(topWindow) {
+        return topWindow.document.getElementById(WINDOW_ID);
     }
 
-    return {
-        sensorFactory: sensorFactory
-    };
+    function createIframe(topWindow) {
+        var doc = topWindow.document,
+            frameElement = doc.createElement("iframe");
+
+        frameElement.name = WINDOW_ID;
+        frameElement.setAttribute("id", WINDOW_ID);
+        frameElement.setAttribute("width", "100%");
+        frameElement.setAttribute("height", "100%");
+        frameElement.setAttribute("style", "position: absolute; z-index: 100; bottom: 0; left: 0;");
+        doc.body.appendChild(frameElement);
+        return frameElement;
+    }
+
+    function getIframeWindow(frameElement) {
+        return frameElement.contentWindow || frameElement.contentDocument;
+    }
+
+    function navigateWithReloadTo(win, url) {
+        var parsedUrl = urlParser.parseUrl(url);
+        var openCounter = global.top[REFRESH_COUNTER] || 0;
+        openCounter++;
+        global.top[REFRESH_COUNTER] = openCounter;
+
+        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, openCounter);
+        win.location.href = urlParser.serializeUrl(parsedUrl);
+    }
 });
 
-uitest.define('xhrSensor', ['ready'], function(ready) {
 
-    ready.registerSensor('xhr', sensorFactory);
+uitest.define('run/readySensors/interval', ['run/config'], function(runConfig) {
+    var intervals = {},
+        intervalStartCounter = 0;
 
-    function sensorFactory(config) {
-        var ready = true,
-            startCounter = 0;
+    runConfig.prepends.unshift(install);
+    return state;
 
-        config.prepend(function(window) {
-            var copyStateFields = ['readyState', 'responseText', 'responseXML', 'status', 'statusText'];
-            var proxyMethods = ['abort', 'getAllResponseHeaders', 'getResponseHeader', 'open', 'send', 'setRequestHeader'];
+    function install(window) {
+        var oldInterval = window.setInterval;
+        window.setInterval = function (fn, time) {
+            var handle = oldInterval(fn, time);
+            intervals[handle] = true;
+            intervalStartCounter++;
+            return handle;
+        };
 
-            var oldXHR = window.XMLHttpRequest;
-            var DONE = 4;
-            var newXhr = function() {
-                    var self = this;
-                    this.origin = new oldXHR();
-
-                    function copyState() {
-                        for(var i = 0; i < copyStateFields.length; i++) {
-                            var field = copyStateFields[i];
-                            try {
-                                self[field] = self.origin[field];
-                            } catch(_) {}
-                        }
-                    }
-
-                    function proxyMethod(name) {
-                        self[name] = function() {
-                            if(name == 'send') {
-                                ready = false;
-                                startCounter++;
-                            } else if(name == 'abort') {
-                                ready = true;
-                            }
-                            var res = self.origin[name].apply(self.origin, arguments);
-                            copyState();
-                            return res;
-                        };
-                    }
-
-                    for(var i = 0; i < proxyMethods.length; i++) {
-                        proxyMethod(proxyMethods[i]);
-                    }
-                    this.origin.onreadystatechange = function() {
-                        if(self.origin.readyState == DONE) {
-                            ready = true;
-                        }
-                        copyState();
-                        if(self.onreadystatechange) {
-                            self.onreadystatechange.apply(self.origin, arguments);
-                        }
-                    };
-                    copyState();
-                };
-            window.XMLHttpRequest = newXhr;
-        });
-
-        return state;
-
-        function state() {
-            return {
-                count: startCounter,
-                ready: ready
-            };
-        }
+        var oldClearInterval = window.clearInterval;
+        window.clearInterval = function (code) {
+            oldClearInterval(code);
+            delete intervals[code];
+        };
     }
 
-    return {
-        sensorFactory: sensorFactory
-    };
+    function isReady() {
+        var x;
+        for (x in intervals) {
+            return false;
+        }
+        return true;
+    }
+
+    function state() {
+        return {
+            count: intervalStartCounter,
+            ready: isReady()
+        };
+    }        
+});
+
+uitest.define('run/readySensors/$animation', ['run/config'], function(runConfig) {
+
+    var ready = true,
+        startCounter = 0;
+
+    runConfig.appends.unshift(install);
+
+    return state;
+
+    function install(window) {
+        var jQuery = window.jQuery;
+        if(!(jQuery && jQuery.fn && jQuery.fn.animationComplete)) {
+            return;
+        }
+
+        var oldFn = jQuery.fn.animationComplete;
+        jQuery.fn.animationComplete = function(callback) {
+            startCounter++;
+            ready = false;
+            return oldFn.call(this, function() {
+                ready = true;
+                return callback.apply(this, arguments);
+            });
+        };
+    }
+
+    function state() {
+        return {
+            count: startCounter,
+            ready: ready
+        };
+    }
+});
+uitest.define('run/readySensors/load', ['run/ready', 'run/config'], function(readyModule, runConfig) {
+
+	var count = 0,
+		ready, doc, waitForDocComplete;
+
+	init();
+	runConfig.appends.push(function(document) {
+		doc = document;
+		waitForDocComplete = true;
+	});
+
+	loadSensor.reloaded = reloaded;
+	return loadSensor;
+
+	function init() {
+		ready = false;
+		waitForDocComplete = false;
+	}
+
+	function loadSensor() {
+		if (waitForDocComplete && doc.readyState==='complete') {
+			waitForDocComplete = false;
+			ready = true;
+		}
+		return {
+			count: count,
+			ready: ready
+		};
+	}
+
+	function reloaded(callback) {
+		count++;
+		init();
+		readyModule.ready(callback);
+	}
+});
+
+uitest.define('run/readySensors/timeout', ['run/config'], function(runConfig) {
+    
+    var timeouts = {},
+        timoutStartCounter = 0;
+
+    runConfig.prepends.unshift(install);
+    return state;
+
+    function install(window) {
+        var oldTimeout = window.setTimeout;
+        window.setTimeout = function (fn, time) {
+            var handle;
+            var callback = function () {
+                delete timeouts[handle];
+                if (typeof fn == 'string') {
+                    window.eval(fn);
+                } else {
+                    fn();
+                }
+            };
+            handle = oldTimeout(callback, time);
+            timeouts[handle] = true;
+            timoutStartCounter++;
+            return handle;
+        };
+
+        var oldClearTimeout = window.clearTimeout;
+        window.clearTimeout = function (code) {                
+            oldClearTimeout(code);
+            delete timeouts[code];
+        };
+    }
+
+    function isReady() {
+        var x;
+        for (x in timeouts) {
+            return false;
+        }
+        return true;
+    }
+
+    function state() {
+        return {
+            count: timoutStartCounter,
+            ready: isReady()
+        };
+    }        
+});
+
+uitest.define('run/readySensors/xhr', ['run/config'], function(runConfig) {
+
+    var ready = true,
+        startCounter = 0;
+
+    runConfig.prepends.unshift(install);
+
+    return state;
+
+    function install(window) {
+        var copyStateFields = ['readyState', 'responseText', 'responseXML', 'status', 'statusText'];
+        var proxyMethods = ['abort', 'getAllResponseHeaders', 'getResponseHeader', 'open', 'send', 'setRequestHeader'];
+
+        var oldXHR = window.XMLHttpRequest;
+        var DONE = 4;
+        var newXhr = function() {
+                var self = this;
+                this.origin = new oldXHR();
+
+                function copyState() {
+                    for(var i = 0; i < copyStateFields.length; i++) {
+                        var field = copyStateFields[i];
+                        try {
+                            self[field] = self.origin[field];
+                        } catch(_) {}
+                    }
+                }
+
+                function proxyMethod(name) {
+                    self[name] = function() {
+                        if(name == 'send') {
+                            ready = false;
+                            startCounter++;
+                        } else if(name == 'abort') {
+                            ready = true;
+                        }
+                        var res = self.origin[name].apply(self.origin, arguments);
+                        copyState();
+                        return res;
+                    };
+                }
+
+                for(var i = 0; i < proxyMethods.length; i++) {
+                    proxyMethod(proxyMethods[i]);
+                }
+                this.origin.onreadystatechange = function() {
+                    if(self.origin.readyState == DONE) {
+                        ready = true;
+                    }
+                    copyState();
+                    if(self.onreadystatechange) {
+                        self.onreadystatechange.apply(self.origin, arguments);
+                    }
+                };
+                copyState();
+            };
+        window.XMLHttpRequest = newXhr;
+    }
+
+    function state() {
+        return {
+            count: startCounter,
+            ready: ready
+        };
+    }
 });
 
 uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
@@ -1396,7 +1320,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
 
 /* Main */
 (function () {
-    uitest.require.all();
+    uitest.require(["facade", "jasmineSugar"]);
 })();
 
 

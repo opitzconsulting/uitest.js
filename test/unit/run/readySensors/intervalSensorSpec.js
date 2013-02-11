@@ -1,4 +1,4 @@
-describe('run/intervalSensor', function() {
+describe('run/readySensors/interval', function() {
     var readyModule, config, injectorModule, sensorInstance, handle, setInterval, clearInterval, testframe, otherCallback;
     beforeEach(function() {
         otherCallback = jasmine.createSpy('someOtherCallback');
@@ -11,9 +11,9 @@ describe('run/intervalSensor', function() {
         var modules = uitest.require({
             "run/ready": readyModule,
             "run/config": config
-        }, ["run/intervalSensor", "injector"]);
+        }, ["run/readySensors/interval", "injector"]);
         injectorModule = modules.injector;
-        sensorInstance = modules["run/intervalSensor"];
+        sensorInstance = modules["run/readySensors/interval"];
         handle = 1;
         setInterval = jasmine.createSpy('setInterval').andReturn(handle);
         clearInterval = jasmine.createSpy('clearInterval');
@@ -25,9 +25,6 @@ describe('run/intervalSensor', function() {
         };
     });
 
-    it('should register itself at the ready module', function() {
-        expect(readyModule.addSensor).toHaveBeenCalledWith('interval', sensorInstance);
-    });
     it('should add itself before all other config.prepends', function() {
         expect(config.prepends.length).toBe(2);
         expect(config.prepends[1]).toBe(otherCallback);
