@@ -1,6 +1,5 @@
 TODO
 ----
-
 Mobile Support:
 - run/mobileSupport.js:
   * kopiert <meta name="viewport"> vom testframe win global.top!
@@ -16,13 +15,6 @@ Für Demo für Nils und SSC:
   * ...  
 
 features:
-- iframe: better display:
-  * 100% width / height is ok
-  * set background-color of iframe to "white".
-  * Add button: Switch z-index between -100 and +100
-  * Always add it to the "top"-frame
-  --> And: Remove Popup-Mode!
-
   For mobile sites:
   * as "append"-script: check the child iframe for a "meta"-tag in the head.
     If present, add it also to the top frame
@@ -32,7 +24,7 @@ features:
     
   ==> Add in Readme!!  
 
-- Migration Guide form jasmine-ui
+- Migration Guide for jasmine-ui
   + Decision why to drop jasmine-ui:
     * too complicated
     * too complex to integrate other test languages
@@ -44,7 +36,6 @@ tests and cleanup:
 - test on different browsers!!
   * Safari, Chrome, FF: OK!
   * IE?
-- Check against rylc!
 - Samples
   * include xhr mock
   * include angular-mocks in angular
@@ -56,15 +47,12 @@ Later
   * Mocha
   * QUnit
 
-* Performance:
-  - Chrome: Ausführung der UI-Tests via testacular ist langsam, wenn das
-    Fenster nicht den Fokus hat!
-    -> evtl. eine andere setTimeout-Funktion verwenden?
+* Performance if the browser-tab is in the background:
+  - In chrome, executing ui tests via testacular is slow if
+    the browser-tab is in the background (i.e. another tab is open and focused).
 
 * Better error handling:
   - error event listener for general errors in iframes/popups
-* Check memory consumption / garbage collection:
-  - run a lot of tests (WITHOUT the browser inspector on),
-    then open the inspector and look at the loaded scripts...    
+  - how to report? On the next call to ready/inject/...?
 
 - Update build system to grunt.js, without ejs templates!

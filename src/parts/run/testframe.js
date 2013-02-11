@@ -8,6 +8,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
     frameElement = findIframe(global.top);
     if (!frameElement) {
         frameElement = createIframe(global.top);
+        createToggleButton(global.top, frameElement);
     }
     frameWindow = getIframeWindow(frameElement);
     navigateWithReloadTo(frameWindow, runConfig.url);
@@ -26,9 +27,25 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
         frameElement.setAttribute("id", WINDOW_ID);
         frameElement.setAttribute("width", "100%");
         frameElement.setAttribute("height", "100%");
-        frameElement.setAttribute("style", "position: absolute; z-index: 100; bottom: 0; left: 0;");
+        frameElement.setAttribute("style", "position: absolute; bottom: 0; left: 0;background-color:white");
+        frameElement.style.zIndex = 100;
         doc.body.appendChild(frameElement);
+
         return frameElement;
+    }
+
+    function createToggleButton(topWindow, iframeElement) {
+        var doc = topWindow.document,
+            toggleButton = doc.createElement("button");
+        toggleButton.textContent = "Toggle testframe";
+        toggleButton.setAttribute("style", "position: absolute; z-index: 1000; top: 0; right: 0; cursor: pointer;");
+        toggleButton.addEventListener("click", toggleListener, false);
+        doc.body.appendChild(toggleButton);
+        return toggleButton;
+
+        function toggleListener() {
+            frameElement.style.zIndex = frameElement.style.zIndex * -1;
+        }
     }
 
     function getIframeWindow(frameElement) {

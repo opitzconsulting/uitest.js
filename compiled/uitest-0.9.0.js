@@ -138,9 +138,7 @@
 })(window);
 
 uitest.define('config', [], function() {
-	var exports,
-		LOAD_MODE_IFRAME = "iframe",
-        LOAD_MODE_POPUP = "popup";
+	var exports;
 
 	function create() {
 		if (this === exports) {
@@ -698,7 +696,7 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
         // By this, that content will not be executed!
         var htmlPrefix = docUtils.serializeHtmlBeforeLastScript(win.document);
         win.document.write('</head><body><' + NO_SCRIPT_TAG + '>');
-        win.document.addEventListener('DOMContentLoaded', function() {
+        win.addEventListener('load', function() {
             var noscriptEl = win.document.getElementsByTagName(NO_SCRIPT_TAG)[0];
             callback(htmlPrefix + noscriptEl.textContent);
         }, false);
@@ -786,12 +784,15 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
         function handleRequireJsScript(win, config) {
             var _require, _load;
 
+            if (!win.require) {
+                throw new Error("requirejs script was detected by url matching, but no global require function found!");
+            }
+
             patchRequire();
             patchLoad();
             
-            function patchRequire() {
+            function patchRequire() {                
                 _require = win.require;
-                _require.config = _require.config;
                 win.require = function(deps, originalCallback) {
                     _require(deps, function () {
                         var args = arguments,
@@ -801,6 +802,7 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
                         });
                     });
                 };
+                win.require.config = _require.config;
             }
 
             function execAppends(finishedCallback) {
@@ -846,12 +848,14 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
         }
 
         function findMatchingIntercepts(url, intercepts) {
-            var i, matchingIntercepts = { empty: true };
-            if (!intercepts) return matchingIntercepts;
-            for (i=0; i<intercepts.length; i++) {
-                if (intercepts[i].scriptUrl===url) {
-                    matchingIntercepts[intercepts[i].fnName] = intercepts[i];
-                    matchingIntercepts.empty = false;
+            var i, matchingIntercepts = { empty: true },
+                urlFilename = filenameFor(url);
+            if (intercepts) {
+                for (i=0; i<intercepts.length; i++) {
+                    if (intercepts[i].script===urlFilename) {
+                        matchingIntercepts[intercepts[i].fn] = intercepts[i];
+                        matchingIntercepts.empty = false;
+                    }
                 }
             }
             return matchingIntercepts;
@@ -890,6 +894,14 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
             }
         }
 
+    }
+
+    function filenameFor(url) {
+        var lastSlash = url.lastIndexOf('/');
+        if (lastSlash!==-1) {
+            return url.substring(lastSlash+1);
+        }
+        return url;
     }
 
     function isString(obj) {
@@ -1000,6 +1012,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
     frameElement = findIframe(global.top);
     if (!frameElement) {
         frameElement = createIframe(global.top);
+        createToggleButton(global.top, frameElement);
     }
     frameWindow = getIframeWindow(frameElement);
     navigateWithReloadTo(frameWindow, runConfig.url);
@@ -1015,13 +1028,28 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
         var doc = topWindow.document,
             frameElement = doc.createElement("iframe");
 
-        frameElement.name = WINDOW_ID;
         frameElement.setAttribute("id", WINDOW_ID);
         frameElement.setAttribute("width", "100%");
         frameElement.setAttribute("height", "100%");
-        frameElement.setAttribute("style", "position: absolute; z-index: 100; bottom: 0; left: 0;");
+        frameElement.setAttribute("style", "position: absolute; bottom: 0; left: 0;background-color:white");
+        frameElement.style.zIndex = 100;
         doc.body.appendChild(frameElement);
+
         return frameElement;
+    }
+
+    function createToggleButton(topWindow, iframeElement) {
+        var doc = topWindow.document,
+            toggleButton = doc.createElement("button");
+        toggleButton.textContent = "Toggle testframe";
+        toggleButton.setAttribute("style", "position: absolute; z-index: 1000; top: 0; right: 0; cursor: pointer;");
+        toggleButton.addEventListener("click", toggleListener, false);
+        doc.body.appendChild(toggleButton);
+        return toggleButton;
+
+        function toggleListener() {
+            frameElement.style.zIndex = frameElement.style.zIndex * -1;
+        }
     }
 
     function getIframeWindow(frameElement) {
@@ -1132,7 +1160,7 @@ uitest.define('run/readySensors/load', ['run/ready', 'run/config'], function(rea
 	}
 
 	function loadSensor() {
-		if (waitForDocComplete && doc.readyState==='complete') {
+		if (waitForDocComplete && docReady(doc)) {
 			waitForDocComplete = false;
 			ready = true;
 		}
@@ -1140,6 +1168,10 @@ uitest.define('run/readySensors/load', ['run/ready', 'run/config'], function(rea
 			count: count,
 			ready: ready
 		};
+	}
+
+	function docReady(doc) {
+		return doc.readyState==='complete' || doc.readyState==='interactive';
 	}
 
 	function reloaded(callback) {
@@ -1286,7 +1318,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         while (suite) {
             ids.unshift(suite.id);
             suite = suite.parentSuite;
-        }        
+        }
         return ids.join(".");
     }
 
@@ -1312,7 +1344,9 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         runs: runs,
         global: {
             uitest: {
-                runs: runs
+                current: {
+                    runs: runs
+                }
             }
         }
     };
