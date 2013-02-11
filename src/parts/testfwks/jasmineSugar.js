@@ -19,7 +19,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         while (suite) {
             ids.unshift(suite.id);
             suite = suite.parentSuite;
-        }        
+        }
         return ids.join(".");
     }
 
@@ -45,7 +45,9 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         runs: runs,
         global: {
             uitest: {
-                runs: runs
+                current: {
+                    runs: runs
+                }
             }
         }
     };

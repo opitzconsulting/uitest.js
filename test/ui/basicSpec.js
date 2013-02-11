@@ -4,7 +4,7 @@ describe('basic', function() {
     uit.trace("true");
 
     it('should load the page with the right location set', function() {
-        uitest.runs(function(window) {
+        uit.runs(function(window) {
             expect(window.location.pathname).toBe('/test/ui/fixtures/basic.html');
         });
     });
@@ -16,14 +16,14 @@ describe('basic', function() {
                     state: execState
                 };
             });
-            uitest.runs(function(execState) {
+            uit.runs(function(execState) {
                 expect(savedExecState.state).toBe("end");
                 expect(execState).toBe("loaded");
             });
         });
         it('script should be called before DOMContentLoaded but after any other script', function() {
             uit.append('saveExecState.js');
-            uitest.runs(function(savedExecState, execState) {
+            uit.runs(function(savedExecState, execState) {
                 expect(savedExecState.state).toBe("end");
                 expect(execState).toBe("loaded");
             });
@@ -38,7 +38,7 @@ describe('basic', function() {
                     state: execState
                 };
             });
-            uitest.runs(function(execState) {
+            uit.runs(function(execState) {
                 expect(savedExecState).toBeTruthy();
                 expect(savedExecState.state).toBeUndefined();
                 expect(execState).toBe("loaded");
@@ -46,7 +46,7 @@ describe('basic', function() {
         });
         it('script should be called before any other script', function() {
             uit.prepend('saveExecState.js');
-            uitest.runs(function(savedExecState, execState) {
+            uit.runs(function(savedExecState, execState) {
                 expect(savedExecState).toBeTruthy();
                 expect(savedExecState.state).toBeUndefined();
                 expect(execState).toBe("loaded");
@@ -65,7 +65,7 @@ describe('basic', function() {
                     return "intercepted " + userName;
                 }
             });
-            uitest.runs(function(document) {
+            uit.runs(function(document) {
                 var el = document.getElementById("greeting");
                 expect(el.textContent).toBe("intercepted someUser");
                 expect(savedData.execState).toBe('start');
@@ -75,11 +75,11 @@ describe('basic', function() {
 
     it('should wait for async actions', function() {
         var startDate;
-        uitest.runs(function(window, Date) {
+        uit.runs(function(window, Date) {
             window.setTimeout(function() {}, 300);
             startDate = new Date();
         });
-        uitest.runs(function(Date) {
+        uit.runs(function(Date) {
             var endDate = new Date();
             expect(endDate.getTime() - startDate.getTime()).toBeGreaterThan(200);
         });

@@ -16,11 +16,10 @@ Für Demo für Nils und SSC:
   * ...  
 
 features:
-- jasmineSugar.js:
-  uitest.runs weg, dafür uitest.current.runs
-  ==> Man arbeitet dann immer nur mit uitest.current!
+- intercept: Only check the filename, without the folder!!
 
 - requirejs in ff geht nicht. warum?
+
 - requirejs support:
   * impl ok, ui tests ok.
   * 1. unit tests are missing!

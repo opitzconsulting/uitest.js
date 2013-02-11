@@ -20,14 +20,14 @@ describe('requirejs', function() {
                         state: execState
                     };
                 });
-                uitest.runs(function(execState) {
+                uit.runs(function(execState) {
                     expect(savedExecState.state).toBe("end");
                     expect(execState).toBe("loaded");
                 });
             });
             it('should load append scripts before the require callback', function() {
                 uit.append("saveExecState.js");
-                uitest.runs(function(savedExecState, execState) {
+                uit.runs(function(savedExecState, execState) {
                     expect(savedExecState.state).toBe("end");
                     expect(execState).toBe("loaded");
                 });
@@ -46,7 +46,7 @@ describe('requirejs', function() {
                         return "intercepted " + userName;
                     }
                 });
-                uitest.runs(function(document) {
+                uit.runs(function(document) {
                     var el = document.getElementById("greeting");
                     expect(el.textContent).toBe("intercepted someUser");
                     expect(savedData.execState).toBe('end');

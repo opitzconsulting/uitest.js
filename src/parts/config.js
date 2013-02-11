@@ -1,7 +1,5 @@
 uitest.define('config', [], function() {
-	var exports,
-		LOAD_MODE_IFRAME = "iframe",
-        LOAD_MODE_POPUP = "popup";
+	var exports;
 
 	function create() {
 		if (this === exports) {

@@ -118,7 +118,7 @@ describe('jasmineSugar', function() {
                 expect(currentUitest.inject).toHaveBeenCalledWith(callback);
             });
             it('should register a global', function() {
-                expect(global.uitest.runs).toBe(jasmineSugar.runs);
+                expect(global.uitest.current.runs).toBe(jasmineSugar.runs);
             });
         });
     });
