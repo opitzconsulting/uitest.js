@@ -16,8 +16,6 @@ Für Demo für Nils und SSC:
   * ...  
 
 features:
-- intercept: Only check the filename, without the folder!!
-
 - requirejs in ff geht nicht. warum?
 
 - requirejs support:

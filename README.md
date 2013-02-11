@@ -106,9 +106,10 @@ Adds the given script or an inline script that calls the given callback at the b
 * `append(someScriptUrl | callback)`:
 Adds the given script or an inline script that calls the given callback at the end of the `<body>` of the document to be loaded.
 
-* `intercept({scriptUrl: 'someScriptUrl', fnName: 'someFnName', callback: callback})`
-Intercepts all calls to functions with the given name in scripts with the given scriptUrl. The function
+* `intercept({script: 'someScript', fn: 'someFnName', callback: callback})`
+Intercepts all calls to functions with the name `someFnName` in scripts whose filename is `someScript`. The function
 does not need to be a global function, but may also be a nested function definition.
+The script name must be provided without a folder, and will match all script urls ignoring their folders too.
 The callback is called using dependency injection, using the argument names
 of the original function and all global variables. The argument with the special name `$delegate` will
 contain the following data: `{fn: ..., name: 'someFnName, self: ..., args: ...}`, allowing access to the original function, the original `this` and `arguments` properties. The original function can be called by calling the given `fn` function.

@@ -171,8 +171,8 @@ describe('run/instrumentor', function() {
 
                 function simulateLoad(instrumentCb) {
                     config.intercepts = [{
-                            scriptUrl: 'interceptUrl',
-                            fnName: 'someName',
+                            script: 'interceptUrl',
+                            fn: 'someName',
                             callback: instrumentCb
                         }];
                     instrumentor.internal.modifyHtmlWithConfig('<script src="interceptUrl"></script>');
@@ -183,15 +183,23 @@ describe('run/instrumentor', function() {
 
                 it('should replace intercepted scripts with an inline script', function() {
                     config.intercepts = [{
-                            scriptUrl: 'interceptUrl'
+                            script: 'interceptUrl'
                         }];
                     var html = '<script src="interceptUrl"></script><script src="nonInterceptUrl"></script>';
                     html = instrumentor.internal.modifyHtmlWithConfig(html);
                     expect(html).toBe('<script type="text/javascript">parent.uitest.instrument.callbacks[0](window);</script><script src="nonInterceptUrl"></script>');
                 });
+                it('should only check the filname ignoring the folder', function() {
+                    config.intercepts = [{
+                            script: 'interceptUrl'
+                        }];
+                    var html = '<script src="someFolder/interceptUrl"></script><script src="nonInterceptUrl"></script>';
+                    html = instrumentor.internal.modifyHtmlWithConfig(html);
+                    expect(html).toBe('<script type="text/javascript">parent.uitest.instrument.callbacks[0](window);</script><script src="nonInterceptUrl"></script>');
+                });
                 it('should load the original script using docUtils.loadAndEvalScriptSync', function() {
                     config.intercepts = [{
-                            scriptUrl: 'interceptUrl'
+                            script: 'interceptUrl'
                         }];
                     instrumentor.internal.modifyHtmlWithConfig('<script src="interceptUrl"></script>');
                     instrumentor.internal.instrument.callbacks[0](win);

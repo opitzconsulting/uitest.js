@@ -168,12 +168,14 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
         }
 
         function findMatchingIntercepts(url, intercepts) {
-            var i, matchingIntercepts = { empty: true };
-            if (!intercepts) return matchingIntercepts;
-            for (i=0; i<intercepts.length; i++) {
-                if (intercepts[i].scriptUrl===url) {
-                    matchingIntercepts[intercepts[i].fnName] = intercepts[i];
-                    matchingIntercepts.empty = false;
+            var i, matchingIntercepts = { empty: true },
+                urlFilename = filenameFor(url);
+            if (intercepts) {
+                for (i=0; i<intercepts.length; i++) {
+                    if (intercepts[i].script===urlFilename) {
+                        matchingIntercepts[intercepts[i].fn] = intercepts[i];
+                        matchingIntercepts.empty = false;
+                    }
                 }
             }
             return matchingIntercepts;
@@ -212,6 +214,14 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
             }
         }
 
+    }
+
+    function filenameFor(url) {
+        var lastSlash = url.lastIndexOf('/');
+        if (lastSlash!==-1) {
+            return url.substring(lastSlash+1);
+        }
+        return url;
     }
 
     function isString(obj) {

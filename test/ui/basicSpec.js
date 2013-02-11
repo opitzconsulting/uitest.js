@@ -57,8 +57,8 @@ describe('basic', function() {
         it('should intercept private functions by name', function() {
             var savedData = {};
             uit.intercept({
-                scriptUrl: "sayHello.js",
-                fnName: "sayHello",
+                script: "sayHello.js",
+                fn: "sayHello",
                 callback: function(userName, execState, $delegate) {
                     savedData.execState = execState;
                     savedData.$delegate = $delegate;
