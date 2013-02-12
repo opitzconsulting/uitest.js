@@ -152,7 +152,7 @@ uitest.define('config', [], function() {
 		sealed: simpleProp("_sealed"),
 		url: dataProp("url"),
 		trace: dataProp("trace"),
-		readySensors: dataProp("readySensors", readySensorsValidator),
+		feature: dataAdder("features", featureValidator),
 		append: dataAdder("appends"),
 		prepend: dataAdder("prepends"),
 		intercept: dataAdder("intercepts"),
@@ -193,22 +193,23 @@ uitest.define('config', [], function() {
 	function dataAdder(name, checkFn) {
 		return getterSetter(function() {
 			return this._data[name];
-		}, function(newValue) {
+		}, function() {
+			var values = Array.prototype.slice.call(arguments),
+				arr = this._data[name];
 			checkNotSealed(this);
-			if (checkFn) checkFn(newValue);
-			if (!this._data[name]) {
-				this._data[name] = [];
-				this._data[name].dataAdder = true;
+			if (checkFn) checkFn(values);
+			if (!arr) {
+				arr = this._data[name] = [];
 			}
-			this._data[name].push(newValue);
+			arr.push.apply(arr, values);
 		});
 	}
 
-	function readySensorsValidator(sensorNames) {
+	function featureValidator(features) {
 		var i;
-		for (i=0; i<sensorNames.length; i++) {
-			if (!uitest.define.findModuleDefinition("run/readySensors/"+sensorNames[i])) {
-				throw new Error("Unknown sensor: "+sensorNames[i]);
+		for (i=0; i<features.length; i++) {
+			if (!uitest.define.findModuleDefinition("run/feature/"+features[i])) {
+				throw new Error("Unknown feature: "+features[i]);
 			}
 		}
 	}
@@ -221,7 +222,7 @@ uitest.define('config', [], function() {
 
 	function buildConfig(target) {
 		target = target || {
-			readySensors: ['timeout', 'interval', 'xhr', '$animation'],
+			features: [],
 			appends: [],
 			prepends: [],
 			intercepts: []
@@ -233,7 +234,7 @@ uitest.define('config', [], function() {
             data = this._data;
 		for(prop in data) {
 			value = data[prop];
-			if(isArray(value) && value.dataAdder) {
+			if(isArray(value)) {
 				value = (target[prop] || []).concat(value);
 			}
 			target[prop] = value;
@@ -355,8 +356,8 @@ uitest.define('documentUtils', [], function() {
         rewriteDocument: rewriteDocument
     };
 });
-uitest.define('facade', ['config', 'injector', 'global'], function(config, injector, global) {
-    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'readySensors', 'append', 'prepend', 'intercept', 'trace'],
+uitest.define('facade', ['config', 'global'], function(config, global) {
+    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'feature', 'append', 'prepend', 'intercept', 'trace'],
         _currentIdAccessor = function() { return ''; }, current;
 
     function create() {
@@ -467,7 +468,7 @@ uitest.define('facade', ['config', 'injector', 'global'], function(config, injec
     }
 
     function run(self) {
-        var config, sensorName, sensorModules, i;
+        var config, featureName, featureModules, i;
 
         self._config.sealed(true);
         config = self._config.buildConfig();
@@ -476,38 +477,32 @@ uitest.define('facade', ['config', 'injector', 'global'], function(config, injec
             if (moduleName.indexOf('run/')!==0) {
                 return false;
             }
-            if (moduleName.indexOf('run/readySensors')===0) {
+            if (moduleName.indexOf('run/feature/')===0) {
                 return false;
             }
             return true;
         });
-        config.readySensors.unshift("load");
-        sensorModules = [];
-        for (i=0; i<config.readySensors.length; i++) {
-            sensorName = config.readySensors[i];
-            sensorModules.push(sensorModule(sensorName));
+        featureModules = [];
+        for (i=0; i<config.features.length; i++) {
+            featureName = config.features[i];
+            featureModules.push(featureModule(featureName));
         }
-        uitest.require(self._runModules, sensorModules);
-        var ready = self._runModules["run/ready"];
-        for (i=0; i<config.readySensors.length; i++) {
-            sensorName = config.readySensors[i];
-            ready.addSensor(sensorName, self._runModules[sensorModule(sensorName)]);
-        }
+        uitest.require(self._runModules, featureModules);
     }
 
-    function sensorModule(sensorName) {
-        return "run/readySensors/"+sensorName;
+    function featureModule(featureName) {
+        return "run/feature/"+featureName;
     }
 
     function reloaded(callback) {
         checkRunning(this);
-        this._runModules["run/loadSensor"].reloaded(callback);
+        this._runModules["run/feature/loadSensor"].reloaded(callback);
     }
 
     function inject(callback) {
         checkRunning(this);
-        var frame = this._runModules["run/testframe"];
-        return injector.inject(callback, frame, [frame]);
+        var injector = this._runModules["run/injector"];
+        return injector.inject(callback, null, []);
     }
 
     function checkRunning(self) {
@@ -534,96 +529,6 @@ uitest.define('global', [], function() {
 	return window;
 });
 
-uitest.define('injector', [], function() {
-
-	// Copied from https://github.com/angular
-	var FN_ARGS = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
-	var FN_ARG_SPLIT = /,/;
-	var FN_ARG = /^\s*(_?)(\S+?)\1\s*$/;
-	var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
-
-	function annotate(fn) {
-		var $inject, fnText, argDecl, last, args, i;
-
-		if(typeof fn == 'function') {
-			if(!($inject = fn.$inject)) {
-				$inject = [];
-				fnText = fn.toString().replace(STRIP_COMMENTS, '');
-				argDecl = fnText.match(FN_ARGS);
-				args = argDecl[1].split(FN_ARG_SPLIT);
-				for(i = 0; i < args.length; i++) {
-					args[i].replace(FN_ARG, addFnArgTo$Inject);
-				}
-				fn.$inject = $inject;
-			}
-		} else if(isArray(fn)) {
-			last = fn.length - 1;
-			assertArgFn(fn[last], 'fn');
-			$inject = fn.slice(0, last);
-		} else {
-			assertArgFn(fn, 'fn', true);
-		}
-		return $inject;
-
-		function addFnArgTo$Inject(all, underscore, name) {
-			$inject.push(name);
-		}
-	}
-
-	function inject(fn, self, values) {
-		var argNames = annotate(fn),
-			argValues = [],
-			i;
-		fn = isArray(fn)?fn[fn.length-1]:fn;
-		for (i=0; i<argNames.length; i++) {
-			argValues.push(findValue(argNames[i]));
-		}
-		return fn.apply(self, argValues);
-
-		function findValue(argName) {
-			var i;
-			for (i=0; i<values.length; i++) {
-				if (argName in values[i]) {
-					return values[i][argName];
-				}
-			}
-			return undefined;
-		}
-	}
-
-	/**
-	 * throw error of the argument is falsy.
-	 */
-	function assertArg(arg, name, reason) {
-		if(!arg) {
-			throw new Error("Argument '" + (name || '?') + "' is " + (reason || "required"));
-		}
-		return arg;
-	}
-
-	function assertArgFn(arg, name, acceptArrayAnnotation) {
-		if(acceptArrayAnnotation && isArray(arg)) {
-			arg = arg[arg.length - 1];
-		}
-
-		assertArg(isFunction(arg), name, 'not a function, got ' + (arg && typeof arg == 'object' ? arg.constructor.name || 'Object' : typeof arg));
-		return arg;
-	}
-
-	function isFunction(value) {
-		return typeof value == 'function';
-	}
-
-	function isArray(value) {
-		return toString.apply(value) == '[object Array]';
-	}
-
-
-	return {
-		annotate: annotate,
-		inject: inject
-	};
-});
 uitest.define('urlParser', [], function () {
     function parseUrl(url) {
         var hashIndex = url.indexOf('#');
@@ -674,7 +579,126 @@ uitest.define('urlParser', [], function () {
         serializeUrl:serializeUrl
     };
 });
-uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], function(injector, docUtils, runConfig) {
+uitest.define('annotate', [], function() {
+
+    // Copied from https://github.com/angular
+    var FN_ARGS = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
+    var FN_ARG_SPLIT = /,/;
+    var FN_ARG = /^\s*(_?)(\S+?)\1\s*$/;
+    var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+
+    function annotate(fn) {
+        var $inject, fnText, argDecl, last, args, i;
+
+        if(typeof fn == 'function') {
+            if(!($inject = fn.$inject)) {
+                $inject = [];
+                fnText = fn.toString().replace(STRIP_COMMENTS, '');
+                argDecl = fnText.match(FN_ARGS);
+                args = argDecl[1].split(FN_ARG_SPLIT);
+                for(i = 0; i < args.length; i++) {
+                    args[i].replace(FN_ARG, addFnArgTo$Inject);
+                }
+                fn.$inject = $inject;
+            }
+        } else if(isArray(fn)) {
+            last = fn.length - 1;
+            assertArgFn(fn[last], 'fn');
+            $inject = fn.slice(0, last);
+        } else {
+            assertArgFn(fn, 'fn', true);
+        }
+        return $inject;
+
+        function addFnArgTo$Inject(all, underscore, name) {
+            $inject.push(name);
+        }
+    }
+
+    /**
+     * throw error of the argument is falsy.
+     */
+    function assertArg(arg, name, reason) {
+        if(!arg) {
+            throw new Error("Argument '" + (name || '?') + "' is " + (reason || "required"));
+        }
+        return arg;
+    }
+
+    function assertArgFn(arg, name, acceptArrayAnnotation) {
+        if(acceptArrayAnnotation && isArray(arg)) {
+            arg = arg[arg.length - 1];
+        }
+
+        assertArg(isFunction(arg), name, 'not a function, got ' + (arg && typeof arg == 'object' ? arg.constructor.name || 'Object' : typeof arg));
+        return arg;
+    }
+
+    function isFunction(value) {
+        return typeof value == 'function';
+    }
+
+    function isArray(value) {
+        return toString.apply(value) == '[object Array]';
+    }
+
+    return annotate;
+});
+uitest.define('run/injector', ['annotate'], function(annotate) {
+
+	var defaultResolvers = [];
+
+	function inject(fn, self, values) {
+		var argNames = annotate(fn),
+			argValues = [],
+			i;
+		fn = isArray(fn)?fn[fn.length-1]:fn;
+		for (i=0; i<argNames.length; i++) {
+			
+			argValues.push(resolveArgIncludingDefaultResolvers(argNames[i], values));
+		}
+		return fn.apply(self, argValues);
+	}
+
+	function resolveArgIncludingDefaultResolvers(argName, resolvers) {
+		var resolved = resolveArg(argName, resolvers);
+		if (resolved===undefined) {
+			resolved = resolveArg(argName, defaultResolvers);
+		}
+		return resolved;
+	}
+
+	function resolveArg(argName, resolvers) {
+		var i, resolver, resolved;
+		for (i=0; i<resolvers.length && !resolved; i++) {
+			resolver = resolvers[i];
+			if (isFunction(resolver)) {
+				resolved = resolver(argName);
+			} else {
+				resolved = resolver[argName];
+			}
+		}
+		return resolved;
+	}
+
+    function isFunction(value) {
+        return typeof value == 'function';
+    }
+
+	function isArray(value) {
+		return toString.apply(value) == '[object Array]';
+	}
+
+	function addDefaultResolver(resolver) {
+		defaultResolvers.push(resolver);
+	}
+
+	return {
+		inject: inject,
+		addDefaultResolver: addDefaultResolver
+	};
+});
+uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config', 'annotate', 'run/logger'], function(injector, docUtils, runConfig, annotate, logger) {
 
     var exports,
         NO_SCRIPT_TAG = "noscript",
@@ -685,6 +709,7 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
     instrument.callbacks = [];
 
     function instrument(win) {
+        logger.log("starting instrumentation");
         exports.internal.deactivateAndCaptureHtml(win, function(html) {
             html = exports.internal.modifyHtmlWithConfig(html);
             docUtils.rewriteDocument(win, html);
@@ -875,7 +900,7 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
                     return all;
 
                     function fnCallback(win, fn, self, args) {
-                        var originalArgNames = injector.annotate(fn),
+                        var originalArgNames = annotate(fn),
                             originalArgsByName = {},
                             $delegate = {fn:fn, name: fnName, self: self, args: args},
                             i;
@@ -937,7 +962,7 @@ uitest.define('run/logger', ['global', 'run/config'], function(global, runConfig
     };
 });
 
-uitest.define('run/ready', ['injector', 'global', 'run/logger', 'run/testframe'], function(injector, global, logger, testframe) {
+uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(injector, global, logger) {
 
 	var sensorInstances = {};
 
@@ -961,16 +986,16 @@ uitest.define('run/ready', ['injector', 'global', 'run/logger', 'run/testframe']
 			sensorStatus = aggregateSensorStatus(sensorInstances);
 			if(sensorStatus.busySensors.length !== 0) {
 				logger.log("ready waiting for [" + sensorStatus.busySensors + "]");
-				global.setTimeout(restart, 20);
+				global.setTimeout(restart, 10);
 			} else {
-				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 50);
+				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 10);
 			}
 		}
 
 		function ifNoAsyncWorkCallListenerElseRestart() {
 			var currentSensorStatus = aggregateSensorStatus(sensorInstances);
 			if(currentSensorStatus.busySensors.length === 0 && currentSensorStatus.count === sensorStatus.count) {
-				injector.inject(listener, testframe, [testframe]);
+				injector.inject(listener, null, []);
 			} else {
 				restart();
 			}
@@ -1002,7 +1027,7 @@ uitest.define('run/ready', ['injector', 'global', 'run/logger', 'run/testframe']
 		ready: ready
 	};
 });
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(urlParser, global, runConfig) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger'], function(urlParser, global, runConfig, injector, logger) {
     var REFRESH_URL_ATTRIBUTE = 'uitr',
         WINDOW_ID = 'uitestwindow',
         REFRESH_COUNTER = WINDOW_ID+'RefreshCounter',
@@ -1017,7 +1042,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
     frameWindow = getIframeWindow(frameElement);
     navigateWithReloadTo(frameWindow, runConfig.url);
 
-
+    injector.addDefaultResolver(frameWindow);
     return frameWindow;
 
     function findIframe(topWindow) {
@@ -1057,6 +1082,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
     }
 
     function navigateWithReloadTo(win, url) {
+        logger.log("opening url "+runConfig.url);
         var parsedUrl = urlParser.parseUrl(url);
         var openCounter = global.top[REFRESH_COUNTER] || 0;
         openCounter++;
@@ -1067,12 +1093,56 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
     }
 });
 
+uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModule, runConfig) {
 
-uitest.define('run/readySensors/interval', ['run/config'], function(runConfig) {
+	var count = 0,
+		ready, doc, waitForDocComplete;
+
+	init();
+	runConfig.appends.push(function(document) {
+		doc = document;
+		waitForDocComplete = true;
+	});
+
+	loadSensor.reloaded = reloaded;
+
+	readyModule.addSensor("load", loadSensor);
+	return loadSensor;
+
+	function init() {
+		ready = false;
+		waitForDocComplete = false;
+	}
+
+	function loadSensor() {
+		if (waitForDocComplete && docReady(doc)) {
+			waitForDocComplete = false;
+			ready = true;
+		}
+		return {
+			count: count,
+			ready: ready
+		};
+	}
+
+	function docReady(doc) {
+		return doc.readyState==='complete' || doc.readyState==='interactive';
+	}
+
+	function reloaded(callback) {
+		count++;
+		init();
+		readyModule.ready(callback);
+	}
+});
+
+
+uitest.define('run/feature/intervalSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
     var intervals = {},
         intervalStartCounter = 0;
 
     runConfig.prepends.unshift(install);
+    readyModule.addSensor('interval', state);
     return state;
 
     function install(window) {
@@ -1107,12 +1177,14 @@ uitest.define('run/readySensors/interval', ['run/config'], function(runConfig) {
     }        
 });
 
-uitest.define('run/readySensors/$animation', ['run/config'], function(runConfig) {
+uitest.define('run/feature/jqmAnimationSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
 
     var ready = true,
         startCounter = 0;
 
     runConfig.appends.unshift(install);
+
+    readyModule.addSensor('jqmAnimationSensor', state);
 
     return state;
 
@@ -1140,53 +1212,13 @@ uitest.define('run/readySensors/$animation', ['run/config'], function(runConfig)
         };
     }
 });
-uitest.define('run/readySensors/load', ['run/ready', 'run/config'], function(readyModule, runConfig) {
-
-	var count = 0,
-		ready, doc, waitForDocComplete;
-
-	init();
-	runConfig.appends.push(function(document) {
-		doc = document;
-		waitForDocComplete = true;
-	});
-
-	loadSensor.reloaded = reloaded;
-	return loadSensor;
-
-	function init() {
-		ready = false;
-		waitForDocComplete = false;
-	}
-
-	function loadSensor() {
-		if (waitForDocComplete && docReady(doc)) {
-			waitForDocComplete = false;
-			ready = true;
-		}
-		return {
-			count: count,
-			ready: ready
-		};
-	}
-
-	function docReady(doc) {
-		return doc.readyState==='complete' || doc.readyState==='interactive';
-	}
-
-	function reloaded(callback) {
-		count++;
-		init();
-		readyModule.ready(callback);
-	}
-});
-
-uitest.define('run/readySensors/timeout', ['run/config'], function(runConfig) {
+uitest.define('run/feature/timeoutSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
     
     var timeouts = {},
         timoutStartCounter = 0;
 
     runConfig.prepends.unshift(install);
+    readyModule.addSensor('timeout', state);
     return state;
 
     function install(window) {
@@ -1230,13 +1262,14 @@ uitest.define('run/readySensors/timeout', ['run/config'], function(runConfig) {
     }        
 });
 
-uitest.define('run/readySensors/xhr', ['run/config'], function(runConfig) {
+uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
 
     var ready = true,
         startCounter = 0;
 
     runConfig.prepends.unshift(install);
 
+    readyModule.addSensor('xhr', state);
     return state;
 
     function install(window) {
@@ -1294,6 +1327,70 @@ uitest.define('run/readySensors/xhr', ['run/config'], function(runConfig) {
             count: startCounter,
             ready: ready
         };
+    }
+});
+uitest.define('run/feature/mobileViewport', ['run/config'], function(runConfig) {
+    runConfig.appends.push(install);
+
+    function install(window) {
+        var doc = window.document,
+            topDoc = window.top.document,
+            viewportMeta = findViewportMeta(doc),
+            topViewportMeta = findViewportMeta(topDoc),
+            newMeta;
+        if (topViewportMeta) {
+            topViewportMeta.parentNode.removeChild(topViewportMeta);
+        }
+
+        if (viewportMeta) {
+            newMeta = topDoc.createElement("meta");
+            newMeta.setAttribute("name", "viewport");
+            newMeta.setAttribute("content", viewportMeta.getAttribute("content"));
+            topDoc.head.appendChild(newMeta);
+        }
+    }
+
+    function findViewportMeta(doc) {
+        var metas = doc.getElementsByTagName("meta"),
+            meta,
+            i;
+        for (i=0; i<metas.length; i++) {
+            meta = metas[i];
+            if (meta.getAttribute('name')==='viewport') {
+                return meta;
+            }
+        }
+        return null;
+    }
+});
+uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], function(injector, runConfig) {
+    runConfig.appends.push(install);
+
+    function install(angular) {
+        if (!angular) throw new Error("Angular is not loaded!");
+
+        var ng = angular.module("ng");
+        ng.config(function($provide){
+            if (angular.mock) {
+                // disable auto-flushing by removing the $browser argument,
+                // so we can control flushing using $httpBackend.flush()!
+                angular.mock.e2e.$httpBackendDecorator.splice(1,1);
+                // enable the mock backend
+                $provide.decorator('$httpBackend', angular.mock.e2e.$httpBackendDecorator);
+            }
+        });
+
+        ng.run(function($injector) {
+            injector.addDefaultResolver(angularResolver);
+            
+            function angularResolver(argName) {
+                try {
+                    return $injector.get(argName);
+                } catch (e) {
+                    return undefined;
+                }
+            }
+        });
     }
 });
 
