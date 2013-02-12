@@ -1,4 +1,4 @@
-uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config', 'annotate'], function(injector, docUtils, runConfig, annotate) {
+uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config', 'annotate', 'run/logger'], function(injector, docUtils, runConfig, annotate, logger) {
 
     var exports,
         NO_SCRIPT_TAG = "noscript",
@@ -9,6 +9,7 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
     instrument.callbacks = [];
 
     function instrument(win) {
+        logger.log("starting instrumentation");
         exports.internal.deactivateAndCaptureHtml(win, function(html) {
             html = exports.internal.modifyHtmlWithConfig(html);
             docUtils.rewriteDocument(win, html);

@@ -27,29 +27,29 @@ describe('run/ready', function() {
             readyModule.addSensor("someSensor", someSensor);
             callback = jasmine.createSpy();
         });
-        it('should call the callback after 50ms if no async work happened', function() {
+        it('should call the callback after 10ms if no async work happened', function() {
             readyModule.ready(callback);
             expect(callback).not.toHaveBeenCalled();
-            jasmine.Clock.tick(50);
+            jasmine.Clock.tick(10);
             expect(callback).toHaveBeenCalled();
         });
         it('should wait until the sensor is ready', function() {
             someSensorResult.ready = false;
             readyModule.ready(callback);
 
-            jasmine.Clock.tick(50);
+            jasmine.Clock.tick(10);
             expect(callback).not.toHaveBeenCalled();
             someSensorResult.ready = true;
-            jasmine.Clock.tick(70);
+            jasmine.Clock.tick(20);
             expect(callback).toHaveBeenCalled();
         });
         it('should wait if the sensor was busy and ready again', function() {
             readyModule.ready(callback);
             someSensorResult.count++;
 
-            jasmine.Clock.tick(50);
+            jasmine.Clock.tick(10);
             expect(callback).not.toHaveBeenCalled();
-            jasmine.Clock.tick(70);
+            jasmine.Clock.tick(20);
             expect(callback).toHaveBeenCalled();
         });
         it('should log the sensor names on which it is waiting', function() {
@@ -64,7 +64,7 @@ describe('run/ready', function() {
             };
 
             readyModule.ready(callback);
-            jasmine.Clock.tick(50);
+            jasmine.Clock.tick(10);
             expect(injector.inject).toHaveBeenCalledWith(callback, null, []);
         });
     });

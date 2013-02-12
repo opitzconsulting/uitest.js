@@ -1,7 +1,6 @@
 describe('basic', function() {
     var uit = uitest.current;
     uit.url("/test/ui/fixtures/basic.html");
-    uit.trace("true");
 
     it('should load the page with the right location set', function() {
         uit.runs(function(window) {

@@ -3,7 +3,7 @@ module.controller("MainCtrl", MainCtrl);
 
 function MainCtrl($scope, $http) {
     $scope.loadData = function loadData() {
-        $http.get("main.js").success(function(data) {
+        $http.get("angularApp.js").success(function(data) {
             $scope.data = data;
         });
     };

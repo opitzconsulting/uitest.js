@@ -25,6 +25,11 @@ Features
     - intercept calls to any named function on the page, no matter if the function is global or not
 * Wait for the end of asynchronous work, e.g. xhr, setTimeout, setInterval, page loading, ...
   This can be easily extended.
+* Easy access to global variables of the app to be tested in the test case using dependency injection.
+* Extended integration with frameworks:
+    - angular.js for mocking backend calls
+    - mobile sites for automatically adjusting the viewport
+    - testframeworks: syntactic sugar for Jasmine BDD, ...
 * Compatibility:  
     * Testframeworks: Use any test framework and test runner, can also run standalone.
     * Supports applications that use requirejs 2.x.
@@ -49,9 +54,9 @@ Preconditions:
 * The page to be tested must be loaded from the same domain as the test code.
 
 
-Sample
+Samples
 ------------
-TODO
+See the ui tests under `test/ui/*Spec.js`.
 
 Build
 --------------
@@ -140,7 +145,8 @@ Please note that the iframe is shared between all uitest instances.
 
 * `inject(callback)`: Calls the given callback using dependency injection.
 
-#### Dependency Injection
+Dependency Injection
+--------------------
 
 Many methods in the API take a callback whose arguments can use dependency injection. For this,
 the names of the arguments of the callback are inspected. The values for the callback arguments 
@@ -149,42 +155,19 @@ then are the globals of the test frame with the same name as the arguments.
 E.g. a callback that would have access to the jQuery object of the test frame: `function($) { ... }`.
 
 
-#### Ready sensors
+Ready sensors
+--------------
 
-For every ready sensor a sensor module needs to be registered first. 
-The following sensors are built-in and can be used as features:
+The following ready sensors are built-in. To enable them, they have to be enabled as feature:
 
-* `xhrSensor`: Waits for the end of all xhr calls
-* `timeoutSensor`: Waits for the end of all `setTimeout` calls
-* `intervalSensor`: Waits for the end of all `setInterval` calls (via `clearInterval`).
-* `jqmAnimationSensor`: waits for the end calls to `$.fn.animationComplete` (jQuery mobile 
+* `feature('xhrSensor')`: Waits for the end of all xhr calls
+* `feature('timeoutSensor')`: Waits for the end of all `setTimeout` calls
+* `feature('intervalSensor')`: Waits for the end of all `setInterval` calls (via `clearInterval`).
+* `feature('jqmAnimationSensor')`: waits for the end calls to `$.fn.animationComplete` (jQuery mobile 
    event listener for css3 animations).
 
-Create a custom ready sensor by defining a module that follows this template:
 
-     uitest.define('run/feature/yourSensorName', ['run/config', 'run/ready'], function(runConfig, ready) {
-
-        ready.addSensor('yourSensorName', state);
-        
-        return state;
-
-        function state() {
-            return {
-                count: 0, // The number of times the sensor was not ready
-                ready: true // If the sensor is currently ready
-            };
-        }
-     });
-
-Explanation:
-
-* Module base path `run/feature/`: This is required for uitest to detect
-  your sensor automatically as feature.
-* `runConfig`: Is the merged configuration of the uitest instance.
-* `ready`: Is the internal module that handles waiting.
-
-
-Syntactic sugar for Jasmine-BDD
+Jasmine-BDD syntactic sugar
 -------------------------------
 To make it easier to use uitest together with jasmine, a separate uitest instance
 is created for every suite and every spec. The uitest instance for a spec/suite
@@ -196,6 +179,43 @@ The following additional functions exist for Jasmine-BDD:
   whose functions delegate to the current uitest instance of the spec/suite.  
 - `uitest.current.runs(callback[,timeout])`: First, this executes a `waitsFor` call using `uitest.current.ready`.
 Then it executes the the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
+
+Angular-Js Support
+------------------
+The `feature('angularIntegration')` enables angular.js support in uitest:
+
+#### Mocking the backend using `angular-mocks.js`:
+
+Angular provides a special library for unit testing, `angular-mocks.js`. This library contains a mock `$httpBackend` that can be programmed to return fake responses (see [http://docs.angularjs.org/api/ngMock.$httpBackend](http://docs.angularjs.org/api/ngMock.$httpBackend)). The `feature('jasmineIntegration')` automatically enables this mock backend, so you can program and verify xhr calls just like unit tests. E.g.
+
+    var uit = uitest.current;
+    uit.feature("angularIntegration");
+    uit.append("lib/angular-mocks.js");
+
+    uit.runs(function($httpBackend) {
+        $httpBackend.whenGet(...);
+        ...
+        $httpBackend.flush();
+    });
+    
+
+#### Extended dependency injection:
+
+now you can use angular services for dependency injection at all places, e.g. in `uitest.current.runs` to access angular services of the app to be tested. E.g.
+        
+    var uit = uitest.current;
+    uit.feature("angularIntegration");
+
+    uit.runs(function($rootScope) {
+        ...
+    });
+
+
+Mobile Viewport Support
+--------
+Mobile applications usually control the viewport of an application using a `<meta name="viewport">` tag to adjust the zoom level of the browser.
+
+The `feature('mobileViewport')` automatically copies this `<meta>` tag form the iframe to the top window so that the zoom level is correct, although the app is loaded in an iframe.
 
 
 Supporting libraries

@@ -2,7 +2,7 @@ uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], 
     runConfig.appends.push(install);
 
     function install(angular) {
-        if (!angular) return;
+        if (!angular) throw new Error("Angular is not loaded!");
 
         var ng = angular.module("ng");
         ng.config(function($provide){
@@ -17,8 +17,8 @@ uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], 
 
         ng.run(function($injector) {
             injector.addDefaultResolver(angularResolver);
+            
             function angularResolver(argName) {
-                if (!$injector) return;
                 try {
                     return $injector.get(argName);
                 } catch (e) {

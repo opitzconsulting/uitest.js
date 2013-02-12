@@ -22,9 +22,9 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 			sensorStatus = aggregateSensorStatus(sensorInstances);
 			if(sensorStatus.busySensors.length !== 0) {
 				logger.log("ready waiting for [" + sensorStatus.busySensors + "]");
-				global.setTimeout(restart, 20);
+				global.setTimeout(restart, 10);
 			} else {
-				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 50);
+				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 10);
 			}
 		}
 
