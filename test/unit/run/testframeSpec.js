@@ -1,5 +1,5 @@
 describe('run/testframe', function() {
-	var global, body, topFrame, iframeElement, uitestwindow, buttonElement;
+	var global, body, topFrame, iframeElement, uitestwindow, buttonElement, injector;
 	beforeEach(function() {
 		uitestwindow = {
 			location: {},
@@ -37,77 +37,58 @@ describe('run/testframe', function() {
 			top: topFrame,
 			uitest: {}
 		};
+		injector = {
+			addDefaultResolver: jasmine.createSpy('addDefaultResolver')
+		};
 	});
-	it('should publish the uitest module to the top frame', function() {
-		uitest.require({
+	function createTestframe() {
+		return uitest.require({
 			global: global,
 			"run/config": {
 				url: 'someUrl'
-			}
-		}, ["run/testframe"]);
-		expect(global.top.uitest).toBe(global.uitest);
+			},
+			"run/injector": injector
+		}, ["run/testframe"])["run/testframe"];
+	}
 
+	it('should publish the uitest module to the top frame', function() {
+		createTestframe();
+		expect(global.top.uitest).toBe(global.uitest);
+	});
+	it('should register itself as default resolver at the injector', function() {
+		var testframe = createTestframe();
+		expect(injector.addDefaultResolver).toHaveBeenCalledWith(testframe);
 	});
 	it('should create an iframe in the top frame on first module creation', function() {
-		var testframe = uitest.require({
-			global: global,
-			"run/config": {
-				url: 'someUrl'
-			}
-		}, ["run/testframe"])["run/testframe"];
+		var testframe = createTestframe();
 		expect(body.appendChild).toHaveBeenCalledWith(iframeElement);
 		expect(iframeElement.setAttribute).toHaveBeenCalledWith("id", "uitestwindow");
 		expect(testframe).toBe(uitestwindow);
 	});
 	it('should reuse an existing iframe in the top frame by its id', function() {
 		topFrame.document.getElementById.andReturn(iframeElement);
-		var testframe = uitest.require({
-			global: global,
-			"run/config": {
-				url: 'someUrl'
-			}
-		}, ["run/testframe"])["run/testframe"];
+		var testframe = createTestframe();
 		expect(body.appendChild).not.toHaveBeenCalled();
 		expect(testframe).toBe(uitestwindow);
 	});
 	it('should set the location.href on the first call', function() {
-		uitest.require({
-			global: global,
-			"run/config": {
-				url: 'someUrl'
-			}
-		}, ["run/testframe"]);
+		createTestframe();
 		expect(uitestwindow.location.href).toBe("someUrl?uitr=1");
 		expect(topFrame.uitestwindowRefreshCounter).toBe(1);
 	});
 	it('should set the location.href on further calls', function() {
 		topFrame.uitestwindowRefreshCounter = 10;
-		uitest.require({
-			global: global,
-			"run/config": {
-				url: 'someUrl'
-			}
-		}, ["run/testframe"]);
+		createTestframe();
 		expect(uitestwindow.location.href).toBe("someUrl?uitr=11");
 	});
 	describe('toggleButton', function() {
 		it('should create a button', function() {
-			uitest.require({
-				global: global,
-				"run/config": {
-					url: 'someUrl'
-				}
-			}, ["run/testframe"]);
+			createTestframe();
 			expect(topFrame.document.createElement).toHaveBeenCalledWith("button");
 			expect(topFrame.document.body.appendChild).toHaveBeenCalledWith(buttonElement);
 		});
 		it('should toggle the zIndex from -100 to +100', function() {
-			uitest.require({
-				global: global,
-				"run/config": {
-					url: 'someUrl'
-				}
-			}, ["run/testframe"]);
+			createTestframe();
 			expect(iframeElement.style.zIndex).toBe(100);
 			buttonElement.addEventListener.mostRecentCall.args[1]();
 			expect(iframeElement.style.zIndex).toBe(-100);

@@ -1,4 +1,4 @@
-uitest.define('run/readySensors/load', ['run/ready', 'run/config'], function(readyModule, runConfig) {
+uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModule, runConfig) {
 
 	var count = 0,
 		ready, doc, waitForDocComplete;
@@ -10,6 +10,8 @@ uitest.define('run/readySensors/load', ['run/ready', 'run/config'], function(rea
 	});
 
 	loadSensor.reloaded = reloaded;
+
+	readyModule.addSensor("load", loadSensor);
 	return loadSensor;
 
 	function init() {

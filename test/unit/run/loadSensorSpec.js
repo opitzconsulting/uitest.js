@@ -1,4 +1,4 @@
-describe('run/readySensors/load', function() {
+describe('run/loadSensor', function() {
     var loadSensorModule, readyModule, globalModule, config, injectorModule, otherCallback, sensorInstance;
     beforeEach(function() {
         otherCallback = jasmine.createSpy('someOtherCallback');
@@ -12,10 +12,14 @@ describe('run/readySensors/load', function() {
         var modules = uitest.require({
             "run/ready": readyModule,
             "run/config": config
-        }, ["run/readySensors/load", "injector"]);
-        loadSensorModule = modules["run/readySensors/load"];
+        }, ["run/loadSensor", "run/injector"]);
+        loadSensorModule = modules["run/loadSensor"];
         sensorInstance = loadSensorModule;
-        injectorModule = modules.injector;
+        injectorModule = modules["run/injector"];
+    });
+
+    it('should add itself to the ready-module', function() {
+        expect(readyModule.addSensor).toHaveBeenCalledWith('load', sensorInstance);
     });
 
     it('should add itself after all other config.appends', function() {

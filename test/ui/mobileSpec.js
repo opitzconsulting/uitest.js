@@ -12,7 +12,9 @@ describe('mobile', function() {
             }
         }
         return null;
-    }    
+    }
+
+    uit.feature("mobileViewport");
 
     it('should add a viewport-meta tag to the top frame', function() {
         uit.url("/test/ui/fixtures/mobile.html");

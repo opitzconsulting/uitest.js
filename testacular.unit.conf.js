@@ -17,11 +17,11 @@ files = [
     'src/parts/simpleRequire.js',
     'src/parts/*.js',
     'src/parts/run/*.js',
-    'src/parts/run/readySensors/*.js',
+    'src/parts/run/feature/*.js',
     'src/parts/testfwks/*.js',
     'test/unit/*.js',
     'test/unit/run/*.js',
-    'test/unit/run/readySensors/*.js',
+    'test/unit/run/feature/*.js',
     'test/unit/testfkws/*.js'
 ];
 

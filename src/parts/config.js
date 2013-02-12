@@ -13,7 +13,7 @@ uitest.define('config', [], function() {
 		sealed: simpleProp("_sealed"),
 		url: dataProp("url"),
 		trace: dataProp("trace"),
-		readySensors: dataProp("readySensors", readySensorsValidator),
+		feature: dataAdder("features", featureValidator),
 		append: dataAdder("appends"),
 		prepend: dataAdder("prepends"),
 		intercept: dataAdder("intercepts"),
@@ -54,22 +54,23 @@ uitest.define('config', [], function() {
 	function dataAdder(name, checkFn) {
 		return getterSetter(function() {
 			return this._data[name];
-		}, function(newValue) {
+		}, function() {
+			var values = Array.prototype.slice.call(arguments),
+				arr = this._data[name];
 			checkNotSealed(this);
-			if (checkFn) checkFn(newValue);
-			if (!this._data[name]) {
-				this._data[name] = [];
-				this._data[name].dataAdder = true;
+			if (checkFn) checkFn(values);
+			if (!arr) {
+				arr = this._data[name] = [];
 			}
-			this._data[name].push(newValue);
+			arr.push.apply(arr, values);
 		});
 	}
 
-	function readySensorsValidator(sensorNames) {
+	function featureValidator(features) {
 		var i;
-		for (i=0; i<sensorNames.length; i++) {
-			if (!uitest.define.findModuleDefinition("run/readySensors/"+sensorNames[i])) {
-				throw new Error("Unknown sensor: "+sensorNames[i]);
+		for (i=0; i<features.length; i++) {
+			if (!uitest.define.findModuleDefinition("run/feature/"+features[i])) {
+				throw new Error("Unknown feature: "+features[i]);
 			}
 		}
 	}
@@ -82,7 +83,7 @@ uitest.define('config', [], function() {
 
 	function buildConfig(target) {
 		target = target || {
-			readySensors: ['timeout', 'interval', 'xhr', '$animation'],
+			features: [],
 			appends: [],
 			prepends: [],
 			intercepts: []
@@ -94,7 +95,7 @@ uitest.define('config', [], function() {
             data = this._data;
 		for(prop in data) {
 			value = data[prop];
-			if(isArray(value) && value.dataAdder) {
+			if(isArray(value)) {
 				value = (target[prop] || []).concat(value);
 			}
 			target[prop] = value;

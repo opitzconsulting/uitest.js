@@ -7,7 +7,7 @@ describe('config', function() {
 
 	it('should use defaults', function() {
 		expect(configInstance.buildConfig()).toEqual({
-			readySensors: ['timeout', 'interval', 'xhr', '$animation'],
+			features: [],
 			prepends: [],
 			appends: [],
 			intercepts: []
@@ -25,18 +25,17 @@ describe('config', function() {
 		expect(configInstance.buildConfig().trace).toBe(true);
 	});
 
-	it('should save the readySensors property', function() {
-		uitest.define('run/readySensors/sensor1', {});
-		var sensors = ['sensor1'];
-		expect(configInstance.readySensors(sensors).readySensors()).toBe(sensors);
-		expect(configInstance.buildConfig().readySensors).toEqual(sensors);
+	it('should save the feature property', function() {
+		uitest.define('run/feature/feature1', {});
+		expect(configInstance.feature('feature1').feature()).toEqual(['feature1']);
+		expect(configInstance.buildConfig().features).toEqual(['feature1']);
 	});
 
-	it('should validate the readySensors property against the available modules', function() {
+	it('should validate the feature property against the available features', function() {
 		expect(function() {
-			configInstance.readySensors(["someNonExistentSensor"]);
+			configInstance.feature("someNonExistentFeature");
 
-		}).toThrow(new Error("Could not find the module run/readySensors/someNonExistentSensor"));
+		}).toThrow(new Error("Could not find the module run/feature/someNonExistentFeature"));
 	});
 
 	it('should add prepend calls', function() {
@@ -92,21 +91,10 @@ describe('config', function() {
 			child._data.someProp = someValue;
 			expect(child.buildConfig().someProp).toBe(someValue);
 		});
-		it('should merge array properties of data adder properties', function() {
-			function dataAdderArr() {
-				var res = Array.prototype.slice.call(arguments);
-				res.dataAdder = true;
-				return res;
-			}
-
-			configInstance._data.someProp = dataAdderArr(1);
-			child._data.someProp = dataAdderArr(2);
-			expect(child.buildConfig().someProp).toEqual([1, 2]);
-		});
-		it('should not merge array properties of non data adder properties', function() {
+		it('should merge array properties of array properties', function() {
 			configInstance._data.someProp = [1];
 			child._data.someProp = [2];
-			expect(child.buildConfig().someProp).toEqual([2]);
+			expect(child.buildConfig().someProp).toEqual([1, 2]);
 		});
 	});
 });

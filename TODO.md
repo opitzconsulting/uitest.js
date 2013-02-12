@@ -1,5 +1,27 @@
 TODO
 ----
+Unit-Tests for angular-integration!
+Change docs according to features:
+- mobileViewport
+- angularIntegration
+
+UI-Test für inject und reloaded
+-> Für reloaded auch Jasmine-Support:
+
+readySensor: Timeouts kleiner machen:
+- nur jeweils 10ms, nicht mehr!
+  (warten auf das CSSAnimationEvent nicht machen...)  
+
+examples/
+  plainjs/
+    xhrmock
+    controllermock
+    jeweils + simulate events
+  angularjs/
+    xhrmock
+    controllermock
+    jeweils + simulate events  
+
 Für Demo für Nils und SSC:
 - Rylc-Tests komplett umstellen
   ==> auch testutils

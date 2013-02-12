@@ -11,19 +11,21 @@
 <%= include parts/documentUtils.js %>
 <%= include parts/facade.js %>
 <%= include parts/global.js %>
-<%= include parts/injector.js %>
 <%= include parts/urlParser.js %>
+<%= include parts/annotate.js %>
+<%= include parts/run/injector.js %>
 <%= include parts/run/instrumentor.js %>
 <%= include parts/run/logger.js %>
 <%= include parts/run/ready.js %>
 <%= include parts/run/testframe.js %>
-<%= include parts/run/mobileViewport.js %>
+<%= include parts/run/loadSensor.js %>
 
-<%= include parts/run/readySensors/intervalSensor.js %>
-<%= include parts/run/readySensors/jqmAnimationSensor.js %>
-<%= include parts/run/readySensors/loadSensor.js %>
-<%= include parts/run/readySensors/timeoutSensor.js %>
-<%= include parts/run/readySensors/xhrSensor.js %>
+<%= include parts/run/feature/intervalSensor.js %>
+<%= include parts/run/feature/jqmAnimationSensor.js %>
+<%= include parts/run/feature/timeoutSensor.js %>
+<%= include parts/run/feature/xhrSensor.js %>
+<%= include parts/run/feature/mobileViewport.js %>
+<%= include parts/run/feature/angularIntegration.js %>
 
 <%= include parts/testfwks/jasmineSugar.js %>
 

@@ -1,4 +1,4 @@
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(urlParser, global, runConfig) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector'], function(urlParser, global, runConfig, injector) {
     var REFRESH_URL_ATTRIBUTE = 'uitr',
         WINDOW_ID = 'uitestwindow',
         REFRESH_COUNTER = WINDOW_ID+'RefreshCounter',
@@ -13,7 +13,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config'], function(u
     frameWindow = getIframeWindow(frameElement);
     navigateWithReloadTo(frameWindow, runConfig.url);
 
-
+    injector.addDefaultResolver(frameWindow);
     return frameWindow;
 
     function findIframe(topWindow) {

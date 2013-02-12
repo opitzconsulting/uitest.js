@@ -1,4 +1,4 @@
-describe('run/readySensors/xhr', function() {
+describe('run/feature/xhrSensor', function() {
     var readyModule, config, injectorModule, win, xhr, sensorInstance, otherCallback;
     beforeEach(function() {
         otherCallback = jasmine.createSpy('someOtherCallback');
@@ -11,9 +11,9 @@ describe('run/readySensors/xhr', function() {
         var modules = uitest.require({
             "run/ready": readyModule,
             "run/config": config
-        }, ["run/readySensors/xhr", "injector"]);
-        sensorInstance = modules["run/readySensors/xhr"];
-        injectorModule = modules.injector;
+        }, ["run/feature/xhrSensor", "run/injector"]);
+        sensorInstance = modules["run/feature/xhrSensor"];
+        injectorModule = modules["run/injector"];
         xhr = {
             send: jasmine.createSpy('send'),
             open: jasmine.createSpy('open'),
@@ -27,6 +27,9 @@ describe('run/readySensors/xhr', function() {
         injectorModule.inject(config.prepends[0], win, [win]);
     });
 
+    it('should add itself to the ready-module', function() {
+        expect(readyModule.addSensor).toHaveBeenCalledWith('xhr', sensorInstance);
+    });
     it('should add itself before all other config.prepends', function() {
         expect(config.prepends.length).toBe(2);
         expect(config.prepends[1]).toBe(otherCallback);

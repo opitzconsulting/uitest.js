@@ -1,4 +1,4 @@
-uitest.define('run/ready', ['injector', 'global', 'run/logger', 'run/testframe'], function(injector, global, logger, testframe) {
+uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(injector, global, logger) {
 
 	var sensorInstances = {};
 
@@ -31,7 +31,7 @@ uitest.define('run/ready', ['injector', 'global', 'run/logger', 'run/testframe']
 		function ifNoAsyncWorkCallListenerElseRestart() {
 			var currentSensorStatus = aggregateSensorStatus(sensorInstances);
 			if(currentSensorStatus.busySensors.length === 0 && currentSensorStatus.count === sensorStatus.count) {
-				injector.inject(listener, testframe, [testframe]);
+				injector.inject(listener, null, []);
 			} else {
 				restart();
 			}

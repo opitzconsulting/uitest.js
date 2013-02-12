@@ -16,7 +16,9 @@ files = [
   JASMINE,
   JASMINE_ADAPTER,
   'http://localhost:9877/uitest.js',
-  'test/ui/*.js'
+  'test/lib/uitestutils.js',
+  'test/ui/*.js',
+  'examples/**/*Spec.js'
 ];
 
 // list of files to exclude

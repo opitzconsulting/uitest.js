@@ -1,12 +1,16 @@
 describe('run/ready', function() {
-    var readyModule, logger, testframe;
+    var readyModule, logger, injector;
     beforeEach(function() {
-        testframe = {};
+        injector = {
+            inject: jasmine.createSpy('inject').andCallFake(function(callback) {
+                callback();
+            })
+        };
         logger = {
             log: jasmine.createSpy('logger')
         };
         readyModule = uitest.require({
-            "run/testframe": testframe,
+            "run/injector": injector,
             "run/logger": logger
         }, ["run/ready"])["run/ready"];
     });
@@ -53,16 +57,15 @@ describe('run/ready', function() {
             readyModule.ready(callback);
             expect(logger.log).toHaveBeenCalledWith('ready waiting for [someSensor]');
         });
-        it('should do dependency injection on the callback using the testframe', function() {
+        it('should do dependency injection on the callback', function() {
             var callbackArgs;
             callback = function(someGlobal) {
                 callbackArgs = arguments;
             };
-            testframe.someGlobal = 'a';
 
             readyModule.ready(callback);
             jasmine.Clock.tick(50);
-            expect(callbackArgs).toEqual([testframe.someGlobal]);
+            expect(injector.inject).toHaveBeenCalledWith(callback, null, []);
         });
     });
 });

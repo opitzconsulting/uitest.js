@@ -1,5 +1,5 @@
-uitest.define('facade', ['config', 'injector', 'global'], function(config, injector, global) {
-    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'readySensors', 'append', 'prepend', 'intercept', 'trace'],
+uitest.define('facade', ['config', 'global'], function(config, global) {
+    var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'feature', 'append', 'prepend', 'intercept', 'trace'],
         _currentIdAccessor = function() { return ''; }, current;
 
     function create() {
@@ -110,7 +110,7 @@ uitest.define('facade', ['config', 'injector', 'global'], function(config, injec
     }
 
     function run(self) {
-        var config, sensorName, sensorModules, i;
+        var config, featureName, featureModules, i;
 
         self._config.sealed(true);
         config = self._config.buildConfig();
@@ -119,38 +119,32 @@ uitest.define('facade', ['config', 'injector', 'global'], function(config, injec
             if (moduleName.indexOf('run/')!==0) {
                 return false;
             }
-            if (moduleName.indexOf('run/readySensors')===0) {
+            if (moduleName.indexOf('run/feature/')===0) {
                 return false;
             }
             return true;
         });
-        config.readySensors.unshift("load");
-        sensorModules = [];
-        for (i=0; i<config.readySensors.length; i++) {
-            sensorName = config.readySensors[i];
-            sensorModules.push(sensorModule(sensorName));
+        featureModules = [];
+        for (i=0; i<config.features.length; i++) {
+            featureName = config.features[i];
+            featureModules.push(featureModule(featureName));
         }
-        uitest.require(self._runModules, sensorModules);
-        var ready = self._runModules["run/ready"];
-        for (i=0; i<config.readySensors.length; i++) {
-            sensorName = config.readySensors[i];
-            ready.addSensor(sensorName, self._runModules[sensorModule(sensorName)]);
-        }
+        uitest.require(self._runModules, featureModules);
     }
 
-    function sensorModule(sensorName) {
-        return "run/readySensors/"+sensorName;
+    function featureModule(featureName) {
+        return "run/feature/"+featureName;
     }
 
     function reloaded(callback) {
         checkRunning(this);
-        this._runModules["run/loadSensor"].reloaded(callback);
+        this._runModules["run/feature/loadSensor"].reloaded(callback);
     }
 
     function inject(callback) {
         checkRunning(this);
-        var frame = this._runModules["run/testframe"];
-        return injector.inject(callback, frame, [frame]);
+        var injector = this._runModules["run/injector"];
+        return injector.inject(callback, null, []);
     }
 
     function checkRunning(self) {

@@ -4,11 +4,6 @@ describe('facade', function() {
 	beforeEach(function() {
 		global = {};
 		frame = {};
-		loadSensorModule = {
-			sensorFactory: jasmine.createSpy('loadSensorFactory'),
-			waitForReload: jasmine.createSpy('waitForReload'),
-			sensorName: 'load'
-		};
 		readyModule = {
 			ready: jasmine.createSpy('ready'),
 			addSensor: jasmine.createSpy('addSensor')
@@ -19,7 +14,6 @@ describe('facade', function() {
 		facade = uitest.require({
 			global: global,
 			ready: readyModule,
-			loadSensor: loadSensorModule,
 			instrumentor: instrumentorModule
 		}, ["facade"]).facade;
 	});
@@ -120,7 +114,6 @@ describe('facade', function() {
 			var uit;
 			beforeEach(function() {
 				uit = facade.create();
-				uit.readySensors([]);
 				spyOn(uitest, "require").andCallFake(function(cache) {
 					cache["run/ready"] = readyModule;
 					return cache;
@@ -128,49 +121,28 @@ describe('facade', function() {
 			});
 
 			describe('first call', function() {
-				it('should require all run modules expect ready sensors', function() {
+				it('should require all run modules expect features', function() {
 					uit.ready();
 					expect(uitest.require).toHaveBeenCalled();
 					var moduleFilter = uitest.require.argsForCall[0][1];
 					expect(moduleFilter("someNonRunModule")).toBe(false);
 					expect(moduleFilter("run/someRunModule")).toBe(true);
-					expect(moduleFilter("run/readySensors/someSensor")).toBe(false);
+					expect(moduleFilter("run/feature/someFeature")).toBe(false);
 				});
-				it('should require the specified ready sensors', function() {
-					uitest.define('run/readySensors/someSensor', {});
-					uit.readySensors(["someSensor"]);
+				it('should require the specified features', function() {
+					uitest.define('run/feature/someFeature', {});
+					uit.feature("someFeature");
 					uit.ready();
 					expect(uitest.require).toHaveBeenCalled();
-					var sensorModules = uitest.require.mostRecentCall.args[1];
-					expect(sensorModules).toEqual(['run/readySensors/load', 'run/readySensors/someSensor']);
+					var featureModules = uitest.require.mostRecentCall.args[1];
+					expect(featureModules).toEqual(['run/feature/someFeature']);
 				});
-				it('should always require the load sensor', function() {
-					uit.ready();
-					var sensorModules = uitest.require.argsForCall[1][1];
-					expect(sensorModules).toEqual(["run/readySensors/load"]);
-				});
-				it('should register readySensors at the ready-module', function() {
-					var someSensor = jasmine.createSpy('someSensor');
-					var loadSensor = jasmine.createSpy('loadSensor');
-					uitest.define('run/readySensors/someSensor', someSensor);
-					uit.readySensors(["someSensor"]);
-					uitest.require.andCallFake(function(cache) {
-						cache["run/ready"] = readyModule;
-						cache["run/readySensors/someSensor"] = someSensor;
-						cache["run/readySensors/load"] = loadSensor;
-						return cache;
-					});
-					uit.ready();
-					expect(readyModule.addSensor).toHaveBeenCalledWith("someSensor", someSensor);
-					expect(readyModule.addSensor).toHaveBeenCalledWith("load", loadSensor);
-				});
-
 				it('should seal the config', function() {
 					uit.ready();
 					expect(uit._config.sealed()).toBe(true);
 				});
 				it('should provide config.buildConfig() as run/config module', function() {
-					var someRunConfig = {a: 2, readySensors: []};
+					var someRunConfig = {a: 2, features: []};
 					spyOn(uit._config, 'buildConfig').andReturn(someRunConfig);
 					uit.ready();
 					var args = uitest.require.mostRecentCall.args;
@@ -204,12 +176,12 @@ describe('facade', function() {
 				var callback = jasmine.createSpy('callback');
 				var uit = facade.create();
 				uit._runModules = {
-					"run/loadSensor": {
+					"run/feature/loadSensor": {
 						reloaded: jasmine.createSpy('reloaded')
 					}
 				};
 				uit.reloaded(callback);
-				expect(uit._runModules["run/loadSensor"].reloaded).toHaveBeenCalledWith(callback);
+				expect(uit._runModules["run/feature/loadSensor"].reloaded).toHaveBeenCalledWith(callback);
 			});
 			it('should throw an error if ready was not called before', function() {
 				var uit = facade.create();
@@ -229,18 +201,16 @@ describe('facade', function() {
 					uit.inject();
 				}).toThrow(new Error("The test page has not yet loaded. Please call ready first"));
 			});
-			it('should use the testframe for dependency injection', function() {
+			it('should use the injector for dependency injection', function() {
+				var inject = jasmine.createSpy('inject');
 				uit._runModules = {
-					"run/testframe": {
-						someGlobal: 'someValue'
+					"run/injector": {
+						inject: inject
 					}
 				};
-				var callbackArgs;
-				var callback = function(someGlobal) {
-						callbackArgs = arguments;
-					};
+				var callback = function() {};
 				uit.inject(callback);
-				expect(callbackArgs).toEqual(['someValue']);
+				expect(inject).toHaveBeenCalledWith(callback, null, []);
 			});
 		});
 	});

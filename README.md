@@ -119,8 +119,8 @@ The callback is called using dependency injection, using the argument names
 of the original function and all global variables. The argument with the special name `$delegate` will
 contain the following data: `{fn: ..., name: 'someFnName, self: ..., args: ...}`, allowing access to the original function, the original `this` and `arguments` properties. The original function can be called by calling the given `fn` function.
 
-* `readySensors(['xhr', '...'])`
-Sets the ready sensors to be used. For every sensor name used here a sensor module needs to be registered first. Details see below.
+* `feature('feature1', 'feature2', ...)`
+Enables the given features. 
 
 
 #### Running the test page
@@ -130,9 +130,9 @@ may be called.
 
 Please note that the iframe is shared between all uitest instances.
 
-* `ready(callback)`: Waits until all sensors say the test page is ready. On the first call, this will also
+* `ready(callback)`: Waits until all ready sensors say the test page is ready. On the first call, this will also
   load the test page into the iframe.
-  The callback is called using dependency injection, see below.
+  The callback is called using dependency injection. See below for details about ready sensors.
 
 * `reloaded(callback)`: Waits until the testpage has been reloaded and is ready again.
   This is useful for testing pages that do a form submit or link to other pages.
@@ -152,18 +152,20 @@ E.g. a callback that would have access to the jQuery object of the test frame: `
 #### Ready sensors
 
 For every ready sensor a sensor module needs to be registered first. 
-The following sensors are built-in and already registered:
+The following sensors are built-in and can be used as features:
 
-* `xhr`: Waits for the end of all xhr calls
-* `timeout`: Waits for the end of all `setTimeout` calls
-* `interval`: Waits for the end of all `setInterval` calls (via `clearInterval`).
-* `$animation`: waits for the end calls to `$.fn.animationComplete` (jQuery mobile 
+* `xhrSensor`: Waits for the end of all xhr calls
+* `timeoutSensor`: Waits for the end of all `setTimeout` calls
+* `intervalSensor`: Waits for the end of all `setInterval` calls (via `clearInterval`).
+* `jqmAnimationSensor`: waits for the end calls to `$.fn.animationComplete` (jQuery mobile 
    event listener for css3 animations).
 
 Create a custom ready sensor by defining a module that follows this template:
 
-     uitest.define('run/readySensors/yourSensorName', ['run/config'], function(runConfig) {
+     uitest.define('run/feature/yourSensorName', ['run/config', 'run/ready'], function(runConfig, ready) {
 
+        ready.addSensor('yourSensorName', state);
+        
         return state;
 
         function state() {
@@ -176,9 +178,10 @@ Create a custom ready sensor by defining a module that follows this template:
 
 Explanation:
 
-* Module base path `run/readySensors/`: This is required for uitest to detect
-  your sensor automatically.
+* Module base path `run/feature/`: This is required for uitest to detect
+  your sensor automatically as feature.
 * `runConfig`: Is the merged configuration of the uitest instance.
+* `ready`: Is the internal module that handles waiting.
 
 
 Syntactic sugar for Jasmine-BDD

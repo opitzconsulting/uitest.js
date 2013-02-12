@@ -1,4 +1,4 @@
-describe('run/readySensors/timeout', function() {
+describe('run/feature/timeoutSensor', function() {
     var readyModule, config, injectorModule, sensorInstance, handle, setTimeout, clearTimeout, win, otherCallback;
     beforeEach(function() {
         otherCallback = jasmine.createSpy('someOtherCallback');
@@ -11,9 +11,9 @@ describe('run/readySensors/timeout', function() {
         var modules = uitest.require({
             "run/ready": readyModule,
             "run/config": config
-        }, ["run/readySensors/timeout", "injector"]);
-        injectorModule = modules.injector;
-        sensorInstance = modules["run/readySensors/timeout"];
+        }, ["run/feature/timeoutSensor", "run/injector"]);
+        injectorModule = modules["run/injector"];
+        sensorInstance = modules["run/feature/timeoutSensor"];
         handle = 1;
         setTimeout = jasmine.createSpy('setTimeout').andReturn(handle);
         clearTimeout = jasmine.createSpy('clearTimout');
@@ -26,6 +26,9 @@ describe('run/readySensors/timeout', function() {
         injectorModule.inject(config.prepends[0], win, [win]);
     });
 
+    it('should add itself to the ready-module', function() {
+        expect(readyModule.addSensor).toHaveBeenCalledWith('timeout', sensorInstance);
+    });
     it('should add itself before all other config.prepends', function() {
         expect(config.prepends.length).toBe(2);
         expect(config.prepends[1]).toBe(otherCallback);

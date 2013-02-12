@@ -1,4 +1,4 @@
-describe('run/readySensors/jqmAnimationSensor', function() {
+describe('run/feature/jqmAnimationSensor', function() {
     var readyModule, config, injectorModule, win, sensorInstance, animationComplete, otherCallback;
     beforeEach(function() {
         otherCallback = jasmine.createSpy('someOtherCallback');
@@ -11,10 +11,10 @@ describe('run/readySensors/jqmAnimationSensor', function() {
         var modules = uitest.require({
             "run/ready": readyModule,
             "run/config": config
-        }, ["run/readySensors/$animation", "injector"]);
+        }, ["run/feature/jqmAnimationSensor", "run/injector"]);
 
-        sensorInstance = modules["run/readySensors/$animation"];
-        injectorModule = modules.injector;
+        sensorInstance = modules["run/feature/jqmAnimationSensor"];
+        injectorModule = modules["run/injector"];
         animationComplete = jasmine.createSpy(animationComplete);
         win = {
             window: {
@@ -28,6 +28,9 @@ describe('run/readySensors/jqmAnimationSensor', function() {
         injectorModule.inject(config.appends[0], null, [win]);
     });
 
+    it('should add itself to the ready-module', function() {
+        expect(readyModule.addSensor).toHaveBeenCalledWith('jqmAnimationSensor', sensorInstance);
+    });
     it('should add itself before all other config.appends', function() {
         expect(config.appends.length).toBe(2);
         expect(config.appends[1]).toBe(otherCallback);

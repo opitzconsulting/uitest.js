@@ -1,9 +1,11 @@
-uitest.define('run/readySensors/$animation', ['run/config'], function(runConfig) {
+uitest.define('run/feature/jqmAnimationSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
 
     var ready = true,
         startCounter = 0;
 
     runConfig.appends.unshift(install);
+
+    readyModule.addSensor('jqmAnimationSensor', state);
 
     return state;
 

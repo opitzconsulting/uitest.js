@@ -1,4 +1,4 @@
-uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], function(injector, docUtils, runConfig) {
+uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config', 'annotate'], function(injector, docUtils, runConfig, annotate) {
 
     var exports,
         NO_SCRIPT_TAG = "noscript",
@@ -199,7 +199,7 @@ uitest.define('run/instrumentor', ['injector', 'documentUtils', 'run/config'], f
                     return all;
 
                     function fnCallback(win, fn, self, args) {
-                        var originalArgNames = injector.annotate(fn),
+                        var originalArgNames = annotate(fn),
                             originalArgsByName = {},
                             $delegate = {fn:fn, name: fnName, self: self, args: args},
                             i;

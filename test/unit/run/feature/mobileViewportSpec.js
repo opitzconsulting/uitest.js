@@ -1,4 +1,4 @@
-describe('run/mobileViewport', function() {
+describe('run/feature/mobileViewport', function() {
     var testframe, runConfig, win, newMetaElement, metaTags = [], topMetaTags = [];
     beforeEach(function() {
         newMetaElement = {
@@ -17,14 +17,14 @@ describe('run/mobileViewport', function() {
             document: {
                 getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn(metaTags)
             }
-        };        
+        };
 
         runConfig = {
             appends: []
         };
         uitest.require({
             "run/config": runConfig
-        },["run/mobileViewport"]);
+        },["run/feature/mobileViewport"]);
     });
     function createElementSpy(attrs) {
         return {
