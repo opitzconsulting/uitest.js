@@ -1,6 +1,6 @@
 describe('basic', function() {
     var uit = uitest.current;
-    uit.url("/base/test/ui/fixtures/basic.html");
+    uit.url("../test/ui/fixtures/basic.html");
 
     it('should load the page with the right location set', function() {
         function endsWith(string, end) {

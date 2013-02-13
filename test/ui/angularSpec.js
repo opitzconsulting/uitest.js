@@ -2,7 +2,7 @@ describe('angular-xhrmock', function() {
     var uit = uitest.current,
         btnEl, resultEl;
 
-    uit.url("/base/test/ui/fixtures/angular.html");
+    uit.url("../test/ui/fixtures/angular.html");
     uit.feature("angularIntegration");
     uit.append("../../lib/angular-mocks.js");
 

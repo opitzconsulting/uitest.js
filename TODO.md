@@ -1,15 +1,5 @@
 TODO
 ----
-Allow runs with file:// protocol!
-- in documentUtils.loadScript: xhr.status===0 ok for file urls!
-- relative paths in uit.url:
-  * if not absolute, use url of uitest.js as base path!
-    --> how to determine url of uitest.js? -> see jasmine-ui.js!!
-  * Then: change all paths in uispecs to relative paths!
-- Note: Does not work in Chrome, but in Firefox and Safari!
-
---> Complete UiSpecrunner.html and add to Readme.md"
-
 Unit-Tests for angular-integration!
 * especiall for adapting the Array-Prototype!
 
@@ -21,8 +11,6 @@ test on different browsers:
   * Safari, Chrome, FF: OK
   * Mobile Safari: OK
   * IE?
-
-Travis-CI: is it working?  
 
 Later
 ---------

@@ -32,6 +32,7 @@ test frameworks.
     * Testframeworks: Use any test framework and test runner, can also run standalone.
     * Supports applications that use requirejs 2.x.
     * Browsers: Chrome, Firefox, IE9+, Safari, Mobile Safari, Android Browser.
+    * Supports running tests from `file://` urls (except for Chrome...)
 * Dependencies:
     * No additional JS libs required
     * Does not need any additional test server, only a browser to execute the tests
@@ -86,7 +87,8 @@ methods are available
   after calling this also affects the child.
 
 * `url(someUrl)`:
-Sets the url of the page ot be loaded
+Sets the url of the page ot be loaded. If the url is relative, it will be resolved relative to the
+path of the `uitest.js` in the current page.
 
 * `trace(boolean)`:
 Enables debug logging for several features.
@@ -157,6 +159,9 @@ The following additional functions exist for Jasmine-BDD:
   whose functions delegate to the current uitest instance of the spec/suite.  
 - `uitest.current.runs(callback[,timeout])`: First, this executes a `waitsFor` call using `uitest.current.ready`.
 Then it executes the the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
+- `uitest.current.runsAfterReload(callback[,timeout])`: First, this executes a `waitsFor` call using `uitest.current.reloaded`.
+Then it executes the the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
+
 
 ## Angular-Js Support
 The `feature('angularIntegration')` enables angular.js support in uitest:

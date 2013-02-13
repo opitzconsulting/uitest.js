@@ -1,7 +1,16 @@
 describe('documentUtils', function() {
-    var documentUtils;
+    var documentUtils, global;
     beforeEach(function() {
-        documentUtils = uitest.require(["documentUtils"]).documentUtils;
+        global = {
+            document: {
+                getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn([{
+                    src: 'uitest.js'
+                }])
+            }
+        };
+        documentUtils = uitest.require({
+            global: global
+        }, ["documentUtils"]).documentUtils;
     });
 
     describe('serializeDocType', function() {
@@ -89,6 +98,12 @@ describe('documentUtils', function() {
             xhr.responseText = response;
             xhr.onreadystatechange();
         }
+        function simulateFileXhrResponse(response) {
+            xhr.readyState = 4;
+            xhr.status = 0;
+            xhr.responseText = response;
+            xhr.onreadystatechange();
+        }
         it('should use a sync xhr', function() {
             documentUtils.loadAndEvalScriptSync(win, 'someUrl');
             expect(xhr.open).toHaveBeenCalledWith('GET', 'someUrl', false);
@@ -100,6 +115,12 @@ describe('documentUtils', function() {
             simulateXhrResponse('someResponse');
             expect(win['eval']).toHaveBeenCalledWith('someResponse//@ sourceURL=someUrl');
         });
+        it('should work with file based xhr', function() {
+            /*jshint evil:true */
+            documentUtils.loadAndEvalScriptSync(win, 'someUrl');
+            simulateFileXhrResponse('someResponse');
+            expect(win['eval']).toHaveBeenCalled();
+        });
         it('should allow the preProcessCalback to change the xhr result', function() {
             /*jshint evil:true */
             var preProcessCalback = jasmine.createSpy('preProcessCalback');
@@ -107,6 +128,47 @@ describe('documentUtils', function() {
             documentUtils.loadAndEvalScriptSync(win, 'someUrl', preProcessCalback);
             simulateXhrResponse('someResponse');
             expect(win['eval']).toHaveBeenCalledWith('someProcessedResponse');
+        });
+    });
+
+    describe('makeAbsoluteUrl', function() {
+        it('should not change urls with a leading slash', function() {
+            expect(documentUtils.makeAbsoluteUrl('/someUrl', 'base')).toBe('/someUrl');
+        });
+        it('should not change urls with a protocol', function() {
+            expect(documentUtils.makeAbsoluteUrl('http://someUrl', 'base')).toBe('http://someUrl');
+        });
+        it('should change relative change urls with a base that contains no slash', function() {
+            expect(documentUtils.makeAbsoluteUrl('someUrl', 'base')).toBe('/someUrl');
+        });
+        it('should change relative change urls with a base that contains a single slash', function() {
+            expect(documentUtils.makeAbsoluteUrl('someUrl', '/base')).toBe('/someUrl');
+        });
+        it('should change relative change urls with a base that contains two or more slashes', function() {
+            expect(documentUtils.makeAbsoluteUrl('someUrl', '/base/file')).toBe('/base/someUrl');
+        });
+    });
+
+    describe('uitestUrl', function() {
+        function test(someUrl, shouldMatch) {
+            global.document.getElementsByTagName.andReturn([{src: someUrl}]);
+            if (shouldMatch) {
+                expect(documentUtils.uitestUrl()).toBe(someUrl);
+            } else {
+                expect(function() {
+                    documentUtils.uitestUrl();
+                }).toThrow();
+            }
+        }
+
+        it('should use the right regex', function() {
+            test('uitest.js', true);
+            test('uitest-v1.0.js', true);
+            test('uitestutils.js', false);
+            test('uitest/some.js', false);
+            test('uitest.js/some.js', false);
+            // Note: This test is required for our CI, as we load every file of uitest.js individually!
+            test('simpleRequire.js', true);
         });
     });
 });

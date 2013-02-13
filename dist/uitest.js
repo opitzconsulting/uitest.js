@@ -315,13 +315,14 @@ uitest.define('config', [], function() {
 		create: create
 	};
 });
-uitest.define('documentUtils', [], function() {
+uitest.define('documentUtils', ['global'], function(global) {
 
     var // Groups:
         // 1. opening script tag
         // 2. content of src attribute
         // 3. text content of script element.
-        SCRIPT_RE = /(<script(?:[^>]*src=\s*"([^"]+))?[^>]*>)([\s\S]*?)<\/script>/g;
+        SCRIPT_RE = /(<script(?:[^>]*src=\s*"([^"]+))?[^>]*>)([\s\S]*?)<\/script>/g,
+        UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/;
 
     function serializeDocType(doc) {
         var node = doc.doctype;
@@ -364,7 +365,7 @@ uitest.define('documentUtils', [], function() {
         var xhr = new win.XMLHttpRequest();
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
+                if (xhr.status === 200 || xhr.status === 0) {
                     resultCallback(null, xhr.responseText + "//@ sourceURL=" + url);
                 } else {
                     resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
@@ -411,6 +412,33 @@ uitest.define('documentUtils', [], function() {
         win.newContent = '';
     }
 
+    function uitestUrl() {
+        var scriptNodes = global.document.getElementsByTagName("script"),
+            i, src;
+        for(i = 0; i < scriptNodes.length; i++) {
+            src = scriptNodes[i].src;
+            if (src && src.match(UI_TEST_RE)) {
+                return src;
+            }
+        }
+        throw new Error("Could not locate uitest.js in the script tags of the browser");
+    }
+
+    function basePath(url) {
+        var lastSlash = url.lastIndexOf('/');
+        if (lastSlash===-1) {
+            return '';
+        }
+        return url.substring(0, lastSlash);
+    }
+
+    function makeAbsoluteUrl(url, baseUrl) {
+        if (url.charAt(0)==='/' || url.indexOf('://')!==-1) {
+            return url;
+        }
+        return basePath(baseUrl)+'/'+url;
+    }
+
     return {
         serializeDocType: serializeDocType,
         serializeHtmlTag: serializeHtmlTag,
@@ -419,7 +447,9 @@ uitest.define('documentUtils', [], function() {
         urlScriptHtml: urlScriptHtml,
         loadAndEvalScriptSync: loadAndEvalScriptSync,
         replaceScripts: replaceScripts,
-        rewriteDocument: rewriteDocument
+        rewriteDocument: rewriteDocument,
+        makeAbsoluteUrl: makeAbsoluteUrl,
+        uitestUrl: uitestUrl
     };
 });
 uitest.define('facade', ['config', 'global'], function(config, global) {
@@ -1320,7 +1350,7 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 		ready: ready
 	};
 });
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger'], function(urlParser, global, runConfig, injector, logger) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils'], function(urlParser, global, runConfig, injector, logger, docUtils) {
     var REFRESH_URL_ATTRIBUTE = 'uitr',
         WINDOW_ID = 'uitestwindow',
         REFRESH_COUNTER = WINDOW_ID+'RefreshCounter',
@@ -1375,7 +1405,8 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 
     function navigateWithReloadTo(win, url) {
-        logger.log("opening url "+runConfig.url);
+        url = makeAbsolute(url);
+        logger.log("opening url "+url);
         var parsedUrl = urlParser.parseUrl(url);
         var openCounter = global.top[REFRESH_COUNTER] || 0;
         openCounter++;
@@ -1383,6 +1414,10 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
         urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, openCounter);
         win.location.href = urlParser.serializeUrl(parsedUrl);
+    }
+
+    function makeAbsolute(url) {
+        return docUtils.makeAbsoluteUrl(url, docUtils.uitestUrl());
     }
 });
 
