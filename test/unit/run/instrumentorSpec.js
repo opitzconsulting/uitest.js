@@ -112,11 +112,23 @@ describe('run/instrumentor', function() {
                     });
                     expect(receivedArgs).toEqual([1]);
                 });
+                it('should insert only one script tag if multiple callbacks follow each other', function() {
+                    var callback = jasmine.createSpy('callback');
+                    config.prepends = [callback, callback];
+                    html = instrumentor.internal.modifyHtmlWithConfig(html);
+                    expect(html).toBe('<head>' + '<script type="text/javascript">parent.uitest.instrument.callbacks[0](window);</script>something');
+                });
             });
             it('should add a script tag for every config.prepend script-url after <head>', function() {
                 config.prepends = ['someUrlScript'];
                 html = instrumentor.internal.modifyHtmlWithConfig(html);
                 expect(html).toBe('<head>' + '<script type="text/javascript" src="someUrlScript"></script>something');
+            });
+            it('should work for callback, script-url, callback', function() {
+                config.prepends = ['someUrlScript', jasmine.createSpy('a'), 'someScriptUrl2'];
+                html = instrumentor.internal.modifyHtmlWithConfig(html);
+                expect(html).toBe('<head>' + '<script type="text/javascript" src="someUrlScript"></script><script type="text/javascript">parent.uitest.instrument.callbacks[0](window);</script><script type="text/javascript" src="someScriptUrl2"></script>something');
+
             });
         });
         describe('with requirejs', function() {
@@ -335,6 +347,13 @@ describe('run/instrumentor', function() {
                             a: 1
                         });
                         expect(receivedArgs).toEqual([1]);
+                    });
+                    it('should insert only one script tag if multiple callbacks follow each other', function() {
+                        var html = 'something</body>',
+                            callback = jasmine.createSpy('callback');
+                        config.appends = [callback, callback];
+                        html = instrumentor.internal.modifyHtmlWithConfig(html);
+                        expect(html).toBe('something' + '<script type="text/javascript">parent.uitest.instrument.callbacks[0](window);</script></body>');
                     });
                 });
                 it('should add a script tag for every config.append script-url', function() {

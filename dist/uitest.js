@@ -1025,32 +1025,40 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
 
         function handlePrepends(html, prepends) {
             var htmlArr = ['<head>'], i;
-            for (i=0; i<prepends.length; i++) {
-                createScriptTagForPrependOrAppend(htmlArr, prepends[i]);
-            }
+            createScriptTagForPrependsOrAppends(htmlArr, prepends);
             return html.replace(/<head>/, htmlArr.join(''));
         }
 
         function handleAppends(html, appends) {
             var htmlArr = [], i;
-            for (i=0; i<appends.length; i++) {
-                createScriptTagForPrependOrAppend(htmlArr, appends[i]);
-            }
+            createScriptTagForPrependsOrAppends(htmlArr, appends);
             htmlArr.push('</body>');
             return html.replace(/<\/body>/, htmlArr.join(''));
         }
 
-        function createScriptTagForPrependOrAppend(html, prependOrAppend) {
-            if (isString(prependOrAppend)) {
-                html.push(docUtils.urlScriptHtml(prependOrAppend));
-            } else {
-                html.push(docUtils.contentScriptHtml(createRemoteCallExpression(injectedCallback(prependOrAppend), 'window')));
+        function createScriptTagForPrependsOrAppends(html, prependsOrAppends) {
+            var i, prependOrAppend, lastCallbackArr;
+            for (i=0; i<prependsOrAppends.length; i++) {
+                prependOrAppend = prependsOrAppends[i];
+                if (isString(prependOrAppend)) {
+                    html.push(docUtils.urlScriptHtml(prependOrAppend));
+                    lastCallbackArr = null;
+                } else {
+                    if (!lastCallbackArr) {
+                        lastCallbackArr = [];
+                        html.push(docUtils.contentScriptHtml(createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')));
+                    }
+                    lastCallbackArr.push(prependOrAppend);
+                }
             }
         }
 
-        function injectedCallback(prepend) {
+        function injectedCallbacks(callbacks) {
             return function(win) {
-                return injector.inject(prepend, win, [win]);
+                var i;
+                for (i=0; i<callbacks.length; i++) {
+                    injector.inject(callbacks[i], win, [win]);
+                }
             };
         }
 
