@@ -25,5 +25,8 @@
         "type": "MIT",
         "url": "https://github.com/tigbro/uitest.js/blob/master/LICENSE-MIT"
     }],
-    "keywords": []
+    "keywords": [],
+    "scripts": {
+        "test": "grunt travis --verbose"
+    }
 }

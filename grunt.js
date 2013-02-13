@@ -104,5 +104,7 @@ module.exports = function(grunt) {
 
   grunt.registerTask('default', 'lint server testacular:ci concat');
 
+  grunt.registerTask('travis', 'lint server testacular:ci');
+
   grunt.loadNpmTasks('gruntacular');
 };
