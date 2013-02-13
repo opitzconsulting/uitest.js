@@ -183,7 +183,6 @@ uitest.define('annotate', [], function() {
         if(acceptArrayAnnotation && isArray(arg)) {
             arg = arg[arg.length - 1];
         }
-
         assertArg(isFunction(arg), name, 'not a function, got ' + (arg && typeof arg === 'object' ? arg.constructor.name || 'Object' : typeof arg));
         return arg;
     }
@@ -193,8 +192,7 @@ uitest.define('annotate', [], function() {
     }
 
     function isArray(value) {
-        /*global toString:true*/
-        return toString.apply(value) === '[object Array]';
+        return Object.prototype.toString.apply(value) === '[object Array]';
     }
 
     return annotate;
@@ -395,7 +393,7 @@ uitest.define('documentUtils', ['global'], function(global) {
 
     function replaceScripts(html, callback) {
         return html.replace(SCRIPT_RE, function (match, scriptOpenTag, srcAttribute, textContent) {
-            var result = callback(scriptOpenTag, srcAttribute, textContent);
+            var result = callback(scriptOpenTag, srcAttribute||'', textContent);
             if (result===undefined) {
                 return match;
             }
@@ -963,8 +961,7 @@ uitest.define('run/injector', ['annotate'], function(annotate) {
     }
 
 	function isArray(value) {
-		/*global toString:true*/
-		return toString.apply(value) === '[object Array]';
+		return Object.prototype.toString.apply(value) === '[object Array]';
 	}
 
 	function addDefaultResolver(resolver) {
@@ -980,7 +977,7 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
 
     var exports,
         NO_SCRIPT_TAG = "noscript",
-        REQUIRE_JS_RE = /require[^a-z]/,
+        REQUIRE_JS_RE = /require[\W]/,
         // group 1: name of function
         NAMED_FUNCTION_RE = /function\s*(\w+)[^\{]*\{/g;
 
@@ -1482,6 +1479,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
     return {
         currentIdAccessor: currentIdAccessor,
         runs: runs,
+        runsAfterReload: runsAfterReload,
         global: {
             uitest: {
                 current: {

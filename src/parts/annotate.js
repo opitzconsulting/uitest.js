@@ -48,7 +48,6 @@ uitest.define('annotate', [], function() {
         if(acceptArrayAnnotation && isArray(arg)) {
             arg = arg[arg.length - 1];
         }
-
         assertArg(isFunction(arg), name, 'not a function, got ' + (arg && typeof arg === 'object' ? arg.constructor.name || 'Object' : typeof arg));
         return arg;
     }
@@ -58,8 +57,7 @@ uitest.define('annotate', [], function() {
     }
 
     function isArray(value) {
-        /*global toString:true*/
-        return toString.apply(value) === '[object Array]';
+        return Object.prototype.toString.apply(value) === '[object Array]';
     }
 
     return annotate;

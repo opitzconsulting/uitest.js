@@ -6,6 +6,23 @@ describe('angular-xhrmock', function() {
     uit.feature("angularIntegration");
     uit.append("../../lib/angular-mocks.js");
 
+    it('should integrate angulars dependency injection', function() {
+        var someData = "someData";
+        uit.runs(function(document, $browser) {
+            expect(document.createElement).toBeDefined();
+            expect($browser.url).toBeDefined();
+        });
+    });
+
+    it('should allow filters to work with arrays created in tests (i.e. with different prototypes)', function() {
+        uit.runs(function(filterFilter, limitToFilter, orderByFilter) {
+            expect(filterFilter([1,2],1)).toEqual([1]);
+            expect(limitToFilter([1,2],1)).toEqual([1]);
+            expect(orderByFilter([{a:2},{a:1}], 'a')).toEqual([{a:1},{a:2}]);
+        });
+
+    });
+
     it('should mock backend calls', function() {
         var someData = "someData";
         uit.runs(function(document, angular, $httpBackend) {

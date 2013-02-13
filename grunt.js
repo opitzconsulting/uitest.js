@@ -90,7 +90,7 @@ module.exports = function(grunt) {
       dev: {
         configFile: 'testacular.conf.js',
         singleRun: false,
-        browsers: ['Chrome']
+        browsers: []
       },
       ci: {
         configFile: 'testacular.conf.js',

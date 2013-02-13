@@ -78,7 +78,7 @@ uitest.define('documentUtils', ['global'], function(global) {
 
     function replaceScripts(html, callback) {
         return html.replace(SCRIPT_RE, function (match, scriptOpenTag, srcAttribute, textContent) {
-            var result = callback(scriptOpenTag, srcAttribute, textContent);
+            var result = callback(scriptOpenTag, srcAttribute||'', textContent);
             if (result===undefined) {
                 return match;
             }

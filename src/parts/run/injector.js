@@ -40,8 +40,7 @@ uitest.define('run/injector', ['annotate'], function(annotate) {
     }
 
 	function isArray(value) {
-		/*global toString:true*/
-		return toString.apply(value) === '[object Array]';
+		return Object.prototype.toString.apply(value) === '[object Array]';
 	}
 
 	function addDefaultResolver(resolver) {

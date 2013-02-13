@@ -50,12 +50,19 @@ describe('documentUtils', function() {
         beforeEach(function() {
             callback = jasmine.createSpy('callback');
         });
+        it('should replace url scripts', function() {
+            var someReplacement = 'someReplacement';
+            callback.andReturn(someReplacement);
+            var result = documentUtils.replaceScripts('<script src="a"></script>', callback);
+            expect(callback.callCount).toBe(1);
+            expect(callback).toHaveBeenCalledWith('<script src="a">', 'a', '');
+        });
         it('should replace inline scripts', function() {
             var someReplacement = 'someReplacement';
             callback.andReturn(someReplacement);
             var result = documentUtils.replaceScripts('<script>a</script>', callback);
             expect(callback.callCount).toBe(1);
-            expect(callback).toHaveBeenCalledWith('<script>', undefined, 'a');
+            expect(callback).toHaveBeenCalledWith('<script>', '', 'a');
         });
         it('should replace scripts if the result is not undefined', function() {
             var someReplacement = 'someReplacement';
@@ -69,13 +76,13 @@ describe('documentUtils', function() {
         it('should replace multiple inline scripts', function() {
             documentUtils.replaceScripts('<script>a</script><script>b</script>', callback);
             expect(callback.callCount).toBe(2);
-            expect(callback.argsForCall[0]).toEqual(['<script>', undefined, 'a']);
-            expect(callback.argsForCall[1]).toEqual(['<script>', undefined, 'b']);
+            expect(callback.argsForCall[0]).toEqual(['<script>', '', 'a']);
+            expect(callback.argsForCall[1]).toEqual(['<script>', '', 'b']);
         });
         it('should replace multi line inline scripts', function() {
             var content = 'a\r\nb';
             documentUtils.replaceScripts('<script>' + content + '</script>', callback);
-            expect(callback).toHaveBeenCalledWith('<script>', undefined, content);
+            expect(callback).toHaveBeenCalledWith('<script>', '', content);
         });
     });
 

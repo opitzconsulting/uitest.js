@@ -11,6 +11,20 @@ describe('basic', function() {
             expect(endsWith(window.location.pathname, 'ui/fixtures/basic.html')).toBe(true);
         });
     });
+    describe('inject', function() {
+        it('should inject variables from the iframe', function() {
+            var win = window;
+            uit.runs(function(window) {
+                window.test = true;
+            });
+            runs(function() {
+                uit.inject(function(test) {
+                    expect(test).toBe(true);
+                    expect(win.test).toBeUndefined();
+                });
+            });
+        });
+    });
     describe('append', function() {
         it('function should be called before DOMContentLoaded but after any other script', function() {
             var savedExecState;

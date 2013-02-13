@@ -3,6 +3,7 @@ describe('jasmineSugar', function() {
     beforeEach(function() {
         currentUitest = {
             ready: jasmine.createSpy('ready'),
+            reloaded: jasmine.createSpy('reloaded'),
             inject: jasmine.createSpy('inject')
         };
         jasmineEnv = {
@@ -119,6 +120,37 @@ describe('jasmineSugar', function() {
             });
             it('should register a global', function() {
                 expect(global.uitest.current.runs).toBe(jasmineSugar.runs);
+            });
+        });
+        describe('runsAfterReload', function() {
+            it('should wait with jasmine.waitsFor and uitest.current.reloaded', function() {
+                var callback = jasmine.createSpy('callback');
+                jasmineSugar.runsAfterReload(callback);
+                expect(global.runs.callCount).toBe(2);
+                expect(global.waitsFor).toHaveBeenCalled();
+                expect(currentUitest.reloaded).not.toHaveBeenCalled();
+                global.runs.argsForCall[0][0]();
+                expect(currentUitest.reloaded).toHaveBeenCalled();
+                expect(global.waitsFor.mostRecentCall.args[0]()).toBe(false);
+                currentUitest.reloaded.mostRecentCall.args[0]();
+                expect(global.waitsFor.mostRecentCall.args[0]()).toBe(true);
+            });
+            it('should forward a timeout to jasmine.waitsFor', function() {
+                var callback = jasmine.createSpy('callback');
+                var someTimeout = 1234;
+                jasmineSugar.runsAfterReload(callback, someTimeout);
+                expect(global.waitsFor.mostRecentCall.args[1]).toBe("uitest.reloaded");
+                expect(global.waitsFor.mostRecentCall.args[2]).toBe(someTimeout);
+            });
+            it('should execute the given callback using uitest.current.inject after waiting', function() {
+                var callback = jasmine.createSpy('callback');
+                jasmineSugar.runs(callback);
+                expect(currentUitest.inject).not.toHaveBeenCalled();
+                global.runs.argsForCall[1][0]();
+                expect(currentUitest.inject).toHaveBeenCalledWith(callback);
+            });
+            it('should register a global', function() {
+                expect(global.uitest.current.runsAfterReload).toBe(jasmineSugar.runsAfterReload);
             });
         });
     });

@@ -52,6 +52,8 @@ describe('run/instrumentor', function() {
         var html;
 
         function init(prefix, suffix) {
+            html = '';
+
             runs(function() {
                 window.tmp = function() {
                     instrumentor.internal.deactivateAndCaptureHtml(testutils.frame.win, function(_html) {
