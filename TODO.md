@@ -22,6 +22,8 @@ test on different browsers:
   * Mobile Safari: OK
   * IE?
 
+Travis-CI: is it working?  
+
 Later
 ---------
 - syntactic sugar for other testfkws:
@@ -35,6 +37,3 @@ Later
 * Better error handling:
   - error event listener for general errors in iframes/popups
   - how to report? On the next call to ready/inject/...?
-
-- Update build system to grunt.js, without ejs templates,
-  and Travis-CI Build!
