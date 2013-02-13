@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/tigbro/uitest.js.png)](https://travis-ci.org/tigbro/uitest.js)
 #uitest.js
 
 ## Description

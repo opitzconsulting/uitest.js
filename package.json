@@ -11,7 +11,9 @@
     "devDependencies": {
         "phantomjs": "latest",
         "grunt": "latest",
-        "gruntacular": "latest"
+        "gruntacular": "latest",
+        "mocha": "latest",
+        "qunit": "latest"
     },
     "engine": "node *",
     "repository": {
