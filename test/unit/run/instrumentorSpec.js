@@ -117,6 +117,8 @@ describe('run/instrumentor', function() {
                     config.prepends = [callback, callback];
                     html = instrumentor.internal.modifyHtmlWithConfig(html);
                     expect(html).toBe('<head>' + '<script type="text/javascript">parent.uitest.instrument.callbacks[0](window);</script>something');
+                    instrumentor.internal.instrument.callbacks[0]({});
+                    expect(callback.callCount).toBe(2);
                 });
             });
             it('should add a script tag for every config.prepend script-url after <head>', function() {
@@ -354,6 +356,8 @@ describe('run/instrumentor', function() {
                         config.appends = [callback, callback];
                         html = instrumentor.internal.modifyHtmlWithConfig(html);
                         expect(html).toBe('something' + '<script type="text/javascript">parent.uitest.instrument.callbacks[0](window);</script></body>');
+                        instrumentor.internal.instrument.callbacks[0]({});
+                        expect(callback.callCount).toBe(2);
                     });
                 });
                 it('should add a script tag for every config.append script-url', function() {
