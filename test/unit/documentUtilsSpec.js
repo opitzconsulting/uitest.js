@@ -95,11 +95,13 @@ describe('documentUtils', function() {
             expect(xhr.send).toHaveBeenCalled();
         });
         it('should call eval with the xhr result', function() {
+            /*jshint evil:true */
             documentUtils.loadAndEvalScriptSync(win, 'someUrl');
             simulateXhrResponse('someResponse');
             expect(win['eval']).toHaveBeenCalledWith('someResponse//@ sourceURL=someUrl');
         });
         it('should allow the preProcessCalback to change the xhr result', function() {
+            /*jshint evil:true */
             var preProcessCalback = jasmine.createSpy('preProcessCalback');
             preProcessCalback.andReturn('someProcessedResponse');
             documentUtils.loadAndEvalScriptSync(win, 'someUrl', preProcessCalback);

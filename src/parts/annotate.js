@@ -9,7 +9,7 @@ uitest.define('annotate', [], function() {
     function annotate(fn) {
         var $inject, fnText, argDecl, last, args, i;
 
-        if(typeof fn == 'function') {
+        if(typeof fn === 'function') {
             if(!($inject = fn.$inject)) {
                 $inject = [];
                 fnText = fn.toString().replace(STRIP_COMMENTS, '');
@@ -49,16 +49,17 @@ uitest.define('annotate', [], function() {
             arg = arg[arg.length - 1];
         }
 
-        assertArg(isFunction(arg), name, 'not a function, got ' + (arg && typeof arg == 'object' ? arg.constructor.name || 'Object' : typeof arg));
+        assertArg(isFunction(arg), name, 'not a function, got ' + (arg && typeof arg === 'object' ? arg.constructor.name || 'Object' : typeof arg));
         return arg;
     }
 
     function isFunction(value) {
-        return typeof value == 'function';
+        return typeof value === 'function';
     }
 
     function isArray(value) {
-        return toString.apply(value) == '[object Array]';
+        /*global toString:true*/
+        return toString.apply(value) === '[object Array]';
     }
 
     return annotate;

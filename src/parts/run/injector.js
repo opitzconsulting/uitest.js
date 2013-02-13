@@ -36,11 +36,12 @@ uitest.define('run/injector', ['annotate'], function(annotate) {
 	}
 
     function isFunction(value) {
-        return typeof value == 'function';
+        return typeof value === 'function';
     }
 
 	function isArray(value) {
-		return toString.apply(value) == '[object Array]';
+		/*global toString:true*/
+		return toString.apply(value) === '[object Array]';
 	}
 
 	function addDefaultResolver(resolver) {

@@ -1,8 +1,6 @@
-uitest.js
-=====================
+#uitest.js
 
-Description
--------------
+## Description
 
 uitest.js is able to load a webpage into a frame,
 instrument that page and the javascript in that page (e.g. add additional scripts at the end
@@ -12,8 +10,7 @@ uitest.js can be used standalone or with any testframework.
 However, there is also some syntactic sugar so that it integrates more easily into
 test frameworks.
 
-Features
----------
+## Features
 
 * Layout Debugging during test runs:
     - Uses an 100% width/height iframe to see the real layout of the application.
@@ -39,8 +36,7 @@ Features
     * Does not need any additional test server, only a browser to execute the tests
 
 
-Usage
-----------
+## Usage
 
 1. include uitest.js as library into your test-code.
 2. In the pages that should be tested, include the following line as first line in the header:
@@ -54,40 +50,24 @@ Preconditions:
 * The page to be tested must be loaded from the same domain as the test code.
 
 
-Samples
-------------
+## Samples
 See the ui tests under `test/ui/*Spec.js`.
 
-Build
---------------
-Install the dependencies: `npm install`.
-
-Run the tests:
-
-* Unit-tests:
-    1. run testacular: ./node_modules/.bin/testacular start testacular.ui.conf.js
-    2. open `http://localhost:9876` with a browser to test in
-* Ui-Tests:
-    1. Run `node server.js` from a command line
-    2. Run testacular: ./node_modules/.bin/testacular start testacular.ui.conf.
-    3. open `http://localhost:9876` with a browser to test in
-
-Create a new version:
-
-* set the version in the package.json
-* execute node build.js
-
+## Build
 Directory structure
-----------------
 
 - compiled: The created versions of uitest.js
 - src: The main files of uitest.js
 - test/ui: The ui self tests for uitest.js
 - test/unit: The unit tests of uitest.js
 
+Install the dependencies: `npm install`.
 
-API
------------
+Build it: `./node_modules/.bin/grunt`.
+
+Auto-Run tests when file change: `./node_modules/.bin/grunt dev`
+
+## API
 
 #### Factories
 * `uitest.create()`: Creates a new uitest instance.
@@ -145,8 +125,7 @@ Please note that the iframe is shared between all uitest instances.
 
 * `inject(callback)`: Calls the given callback using dependency injection.
 
-Dependency Injection
---------------------
+## Dependency Injection
 
 Many methods in the API take a callback whose arguments can use dependency injection. For this,
 the names of the arguments of the callback are inspected. The values for the callback arguments 
@@ -155,8 +134,7 @@ then are the globals of the test frame with the same name as the arguments.
 E.g. a callback that would have access to the jQuery object of the test frame: `function($) { ... }`.
 
 
-Ready sensors
---------------
+## Ready sensors
 
 The following ready sensors are built-in. To enable them, they have to be enabled as feature:
 
@@ -167,8 +145,7 @@ The following ready sensors are built-in. To enable them, they have to be enable
    event listener for css3 animations).
 
 
-Jasmine-BDD syntactic sugar
--------------------------------
+## Jasmine-BDD syntactic sugar
 To make it easier to use uitest together with jasmine, a separate uitest instance
 is created for every suite and every spec. The uitest instance for a spec/suite
 inherits from the uitest instance of the parent suite using the `parent` instance. 
@@ -180,8 +157,7 @@ The following additional functions exist for Jasmine-BDD:
 - `uitest.current.runs(callback[,timeout])`: First, this executes a `waitsFor` call using `uitest.current.ready`.
 Then it executes the the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
 
-Angular-Js Support
-------------------
+## Angular-Js Support
 The `feature('angularIntegration')` enables angular.js support in uitest:
 
 #### Mocking the backend using `angular-mocks.js`:
@@ -211,15 +187,13 @@ now you can use angular services for dependency injection at all places, e.g. in
     });
 
 
-Mobile Viewport Support
---------
+## Mobile Viewport Support
 Mobile applications usually control the viewport of an application using a `<meta name="viewport">` tag to adjust the zoom level of the browser.
 
 The `feature('mobileViewport')` automatically copies this `<meta>` tag form the iframe to the top window so that the zoom level is correct, although the app is loaded in an iframe.
 
 
-Supporting libraries
-----------------------------
+## Supporting libraries
 
 Triggering events:
 
@@ -231,4 +205,7 @@ Mocking the backend:
 
 - Use [https://github.com/philikon/MockHttpRequest/blob/master/lib/mock.js](https://github.com/philikon/MockHttpRequest/blob/master/lib/mock.js) with the `prepend` function. 
 
+## License
+Copyright (c) 2013 Tobias Bosch  
+Licensed under the MIT license.
 

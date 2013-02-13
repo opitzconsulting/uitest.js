@@ -1,10 +1,14 @@
 describe('basic', function() {
     var uit = uitest.current;
-    uit.url("/test/ui/fixtures/basic.html");
+    uit.url("/base/test/ui/fixtures/basic.html");
 
     it('should load the page with the right location set', function() {
+        function endsWith(string, end) {
+            return string.substring(string.length-end.length) === end;
+        }
+
         uit.runs(function(window) {
-            expect(window.location.pathname).toBe('/test/ui/fixtures/basic.html');
+            expect(endsWith(window.location.pathname, 'ui/fixtures/basic.html')).toBe(true);
         });
     });
     describe('append', function() {
@@ -81,6 +85,16 @@ describe('basic', function() {
         uit.runs(function(Date) {
             var endDate = new Date();
             expect(endDate.getTime() - startDate.getTime()).toBeGreaterThan(200);
+        });
+    });
+
+    it('should wait for page reload', function() {
+        uit.runs(function(window, location) {
+            window.flag = true;
+            location.reload();
+        });
+        uit.runsAfterReload(function(window) {
+            expect(window.flag).toBeUndefined();
         });
     });
 

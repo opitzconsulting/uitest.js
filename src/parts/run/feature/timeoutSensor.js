@@ -13,8 +13,9 @@ uitest.define('run/feature/timeoutSensor', ['run/config', 'run/ready'], function
             var handle;
             var callback = function () {
                 delete timeouts[handle];
-                if (typeof fn == 'string') {
-                    window.eval(fn);
+                if (typeof fn === 'string') {
+                    /*jshint evil:true*/
+                    window['eval'](fn);
                 } else {
                     fn();
                 }
@@ -26,7 +27,7 @@ uitest.define('run/feature/timeoutSensor', ['run/config', 'run/ready'], function
         };
 
         var oldClearTimeout = window.clearTimeout;
-        window.clearTimeout = function (code) {                
+        window.clearTimeout = function (code) {
             oldClearTimeout(code);
             delete timeouts[code];
         };
@@ -45,5 +46,5 @@ uitest.define('run/feature/timeoutSensor', ['run/config', 'run/ready'], function
             count: timoutStartCounter,
             ready: isReady()
         };
-    }        
+    }
 });

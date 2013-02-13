@@ -2,12 +2,12 @@ describe('requirejs', function() {
     var uit = uitest.current;
     
     describe('without data-main', function() {
-        uit.url("/test/ui/fixtures/requirejs.html");
+        uit.url("/base/test/ui/fixtures/requirejs.html");
         createSpecs();
     });
 
     describe('with data-main', function() {
-        uit.url("/test/ui/fixtures/requirejsDataMain.html");
+        uit.url("/base/test/ui/fixtures/requirejsDataMain.html");
         createSpecs();
     });
 

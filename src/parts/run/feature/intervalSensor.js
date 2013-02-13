@@ -35,5 +35,5 @@ uitest.define('run/feature/intervalSensor', ['run/config', 'run/ready'], functio
             count: intervalStartCounter,
             ready: isReady()
         };
-    }        
+    }
 });

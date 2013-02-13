@@ -139,7 +139,7 @@ describe('run/instrumentor', function() {
                 };
             });
             it('should append an inline script after requirejs', function() {
-                html = instrumentor.internal.modifyHtmlWithConfig(HTML);
+                var html = instrumentor.internal.modifyHtmlWithConfig(HTML);
                 expect(html).toBe('before'+REQUIREJS_SCRIPT+'<script type="text/javascript">parent.uitest.instrument.callbacks[0](window);</script>after</body>');
             });
             it('should call the original require-callback with the original args', function() {
@@ -171,7 +171,7 @@ describe('run/instrumentor', function() {
             describe('append', function() {
                 it('should not add a script tag before </body>', function() {
                     config.appends = [jasmine.createSpy('callback')];
-                    html = instrumentor.internal.modifyHtmlWithConfig(HTML);
+                    var html = instrumentor.internal.modifyHtmlWithConfig(HTML);
                     expect(html).toBe('before'+REQUIREJS_SCRIPT+'<script type="text/javascript">parent.uitest.instrument.callbacks[0](window);</script>after</body>');
                 });
                 it('should call callbacks with dep.inj. before calling the original callback', function() {

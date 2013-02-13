@@ -16,6 +16,7 @@ describe('annotate', function() {
 
 
     it('should create $inject', function() {
+      /*global extraParans:true */
       // keep the multi-line to make sure we can handle it
       function $f_n0 /*
           */(
@@ -32,7 +33,7 @@ describe('annotate', function() {
 
 
     it('should strip leading and trailing underscores from arg name during inference', function() {
-      function beforeEachFn(_foo_) { /* foo = _foo_ */ };
+      function beforeEachFn(_foo_) { /* foo = _foo_ */ }
       expect(annotate(beforeEachFn)).toEqual(['foo']);
     });
 

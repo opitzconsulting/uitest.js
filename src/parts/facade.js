@@ -138,7 +138,7 @@ uitest.define('facade', ['config', 'global'], function(config, global) {
 
     function reloaded(callback) {
         checkRunning(this);
-        this._runModules["run/feature/loadSensor"].reloaded(callback);
+        this._runModules["run/loadSensor"].reloaded(callback);
     }
 
     function inject(callback) {

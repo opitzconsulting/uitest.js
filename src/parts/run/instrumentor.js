@@ -4,7 +4,7 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         NO_SCRIPT_TAG = "noscript",
         REQUIRE_JS_RE = /require[^a-z]/,
         // group 1: name of function
-        NAMED_FUNCTION_RE = /function\s*(\w+)[^{]*{/g;
+        NAMED_FUNCTION_RE = /function\s*(\w+)[^\{]*\{/g;
 
     instrument.callbacks = [];
 
@@ -82,7 +82,9 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         function handleScripts(html, config) {
             var requirejs = false;
             html = docUtils.replaceScripts(html, function(scriptTag, scriptUrl, textContent) {
-                if (!scriptUrl) return;
+                if (!scriptUrl) {
+                    return;
+                }
                 
                 if (scriptUrl.match(REQUIRE_JS_RE)) {
                     requirejs = true;
@@ -116,7 +118,7 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
             patchRequire();
             patchLoad();
             
-            function patchRequire() {                
+            function patchRequire() {
                 _require = win.require;
                 win.require = function(deps, originalCallback) {
                     _require(deps, function () {

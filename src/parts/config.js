@@ -1,14 +1,13 @@
 uitest.define('config', [], function() {
-	var exports;
-
 	function create() {
-		if (this === exports) {
-			return new create();
-		}
+		return new Create();
+	}
+
+	function Create() {
 		this._data = {};
 	}
 
-	create.prototype = {
+	Create.prototype = {
 		parent: simpleProp("_parent"),
 		sealed: simpleProp("_sealed"),
 		url: dataProp("url"),
@@ -46,7 +45,9 @@ uitest.define('config', [], function() {
 			return this._data[name];
 		}, function(newValue) {
 			checkNotSealed(this);
-			if (checkFn) checkFn(newValue);
+			if (checkFn) {
+				checkFn(newValue);
+			}
 			this._data[name] = newValue;
 		});
 	}
@@ -58,7 +59,9 @@ uitest.define('config', [], function() {
 			var values = Array.prototype.slice.call(arguments),
 				arr = this._data[name];
 			checkNotSealed(this);
-			if (checkFn) checkFn(values);
+			if (checkFn) {
+				checkFn(values);
+			}
 			if (!arr) {
 				arr = this._data[name] = [];
 			}
@@ -107,8 +110,7 @@ uitest.define('config', [], function() {
 		return obj && obj.push;
 	}
 
-	exports = {
+	return {
 		create: create
 	};
-	return exports;
 });

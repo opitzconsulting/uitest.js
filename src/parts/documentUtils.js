@@ -59,6 +59,7 @@ uitest.define('documentUtils', [], function() {
     }
 
     function evalScript(win, scriptContent) {
+        /*jshint evil:true*/
         win["eval"].call(win, scriptContent);
     }
 
@@ -88,7 +89,8 @@ uitest.define('documentUtils', [], function() {
         // eval is required here so that the window keeps
         // it's current location.href!
         win.newContent = html;
-        win.eval('document.open();document.write(newContent);document.close();');
+        /*jshint evil:true*/
+        evalScript(win, 'document.open();document.write(newContent);document.close();');
         win.newContent = '';
     }
 

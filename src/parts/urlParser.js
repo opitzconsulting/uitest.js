@@ -3,12 +3,12 @@ uitest.define('urlParser', [], function () {
         var hashIndex = url.indexOf('#');
         var hash;
         var query = '';
-        if (hashIndex != -1) {
+        if (hashIndex !== -1) {
             hash = url.substring(hashIndex + 1);
             url = url.substring(0, hashIndex);
         }
         var queryIndex = url.indexOf('?');
-        if (queryIndex != -1) {
+        if (queryIndex !== -1) {
             query = url.substring(queryIndex + 1);
             url = url.substring(0, queryIndex);
         }

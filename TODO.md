@@ -1,10 +1,21 @@
 TODO
 ----
+Allow runs with file:// protocol!
+- in documentUtils.loadScript: xhr.status===0 ok for file urls!
+- relative paths in uit.url:
+  * if not absolute, use url of uitest.js as base path!
+    --> how to determine url of uitest.js? -> see jasmine-ui.js!!
+  * Then: change all paths in uispecs to relative paths!
+- Note: Does not work in Chrome, but in Firefox and Safari!
+
+--> Complete UiSpecrunner.html and add to Readme.md"
+
 Unit-Tests for angular-integration!
+* especiall for adapting the Array-Prototype!
 
-UI-Test für inject und reloaded
+UI-Test für inject
 
-Add jasmine sugar for reloaded
+Unit-Test for runsAfterReload in jasmineSugar.js
 
 test on different browsers:
   * Safari, Chrome, FF: OK
@@ -25,4 +36,5 @@ Later
   - error event listener for general errors in iframes/popups
   - how to report? On the next call to ready/inject/...?
 
-- Update build system to grunt.js, without ejs templates!
+- Update build system to grunt.js, without ejs templates,
+  and Travis-CI Build!

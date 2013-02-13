@@ -9,7 +9,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
             env = global.jasmine.getEnv(),
             spec = env.currentSpec,
             suite = env.currentSuite;
-        // Note for the check of spec.queue.running: 
+        // Note for the check of spec.queue.running:
         // Jasmine leaves env.currentSpec filled even if outside
         // of any spec from the last run!
         if (spec && spec.queue.running) {
@@ -34,19 +34,36 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         });
         global.waitsFor(function() {
             return ready;
-        }, "waiting for uitest.ready", timeout);
+        }, "uitest.ready", timeout);
         global.runs(function() {
             facade.current.inject(callback);
         });
     }
 
+    function runsAfterReload(callback, timeout) {
+        var ready = false;
+        global.runs(function() {
+            facade.current.reloaded(function() {
+                ready = true;
+            });
+        });
+        global.waitsFor(function() {
+            return ready;
+        }, "uitest.reloaded", timeout);
+        global.runs(function() {
+            facade.current.inject(callback);
+        });
+
+    }
+ 
     return {
         currentIdAccessor: currentIdAccessor,
         runs: runs,
         global: {
             uitest: {
                 current: {
-                    runs: runs
+                    runs: runs,
+                    runsAfterReload: runsAfterReload
                 }
             }
         }

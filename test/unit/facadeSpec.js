@@ -176,12 +176,12 @@ describe('facade', function() {
 				var callback = jasmine.createSpy('callback');
 				var uit = facade.create();
 				uit._runModules = {
-					"run/feature/loadSensor": {
+					"run/loadSensor": {
 						reloaded: jasmine.createSpy('reloaded')
 					}
 				};
 				uit.reloaded(callback);
-				expect(uit._runModules["run/feature/loadSensor"].reloaded).toHaveBeenCalledWith(callback);
+				expect(uit._runModules["run/loadSensor"].reloaded).toHaveBeenCalledWith(callback);
 			});
 			it('should throw an error if ready was not called before', function() {
 				var uit = facade.create();

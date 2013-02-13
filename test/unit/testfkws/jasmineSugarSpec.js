@@ -107,7 +107,7 @@ describe('jasmineSugar', function() {
                 var callback = jasmine.createSpy('callback');
                 var someTimeout = 1234;
                 jasmineSugar.runs(callback, someTimeout);
-                expect(global.waitsFor.mostRecentCall.args[1]).toBe("waiting for uitest.ready");
+                expect(global.waitsFor.mostRecentCall.args[1]).toBe("uitest.ready");
                 expect(global.waitsFor.mostRecentCall.args[2]).toBe(someTimeout);
             });
             it('should execute the given callback using uitest.current.inject after waiting', function() {

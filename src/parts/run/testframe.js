@@ -27,7 +27,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         frameElement.setAttribute("id", WINDOW_ID);
         frameElement.setAttribute("width", "100%");
         frameElement.setAttribute("height", "100%");
-        frameElement.setAttribute("style", "position: absolute; bottom: 0; left: 0;background-color:white");
+        frameElement.setAttribute("style", "position: absolute; bottom: 0; left: 0;background-color:white; border: 0px");
         frameElement.style.zIndex = 100;
         doc.body.appendChild(frameElement);
 

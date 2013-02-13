@@ -12,11 +12,11 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
         var copyStateFields = ['readyState', 'responseText', 'responseXML', 'status', 'statusText'];
         var proxyMethods = ['abort', 'getAllResponseHeaders', 'getResponseHeader', 'open', 'send', 'setRequestHeader'];
 
-        var oldXHR = window.XMLHttpRequest;
+        var OldXHR = window.XMLHttpRequest;
         var DONE = 4;
         var newXhr = function() {
                 var self = this;
-                this.origin = new oldXHR();
+                this.origin = new OldXHR();
 
                 function copyState() {
                     for(var i = 0; i < copyStateFields.length; i++) {
@@ -29,10 +29,10 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
 
                 function proxyMethod(name) {
                     self[name] = function() {
-                        if(name == 'send') {
+                        if(name === 'send') {
                             ready = false;
                             startCounter++;
-                        } else if(name == 'abort') {
+                        } else if(name === 'abort') {
                             ready = true;
                         }
                         var res = self.origin[name].apply(self.origin, arguments);
@@ -45,7 +45,7 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
                     proxyMethod(proxyMethods[i]);
                 }
                 this.origin.onreadystatechange = function() {
-                    if(self.origin.readyState == DONE) {
+                    if(self.origin.readyState === DONE) {
                         ready = true;
                     }
                     copyState();
