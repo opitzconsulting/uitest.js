@@ -1,8 +1,13 @@
 TODO
 ----
 - test on more browsers:
-  * Safari, Chrome, FF, Mobile Safari: OK
-  * IE?
+  * Safari, Chrome, FF, Mobile Safari, IE10: OK
+  * IE 9? -> not working yet. Somehow, document.open();document.write();document.close() does not work.
+    - IE9: testacular has wrong console.log implementation (calls .apply on it, which IE9 does not like...)
+      --> maybe I use an old version?!
+    - IE9: UiSpecRunner.html works now for ui/basicSpec.js!
+    - IE9: but not with testacular!
+  * Android browser?
 
 - syntactic sugar for other testfkws:
   * Mocha

@@ -32,7 +32,7 @@ test frameworks.
     * Testframeworks: Use any test framework and test runner, can also run standalone.
     * Supports applications that use requirejs 2.x.
     * Browsers: Chrome, Firefox, IE9+, Safari, Mobile Safari, Android Browser.
-    * Supports running tests from `file://` urls (except for Chrome...)
+    * Supports running tests from `file://` urls (Safari and chrome with command line argument `--disable-web-security`)
 * Dependencies:
     * No additional JS libs required
     * Does not need any additional test server, only a browser to execute the tests

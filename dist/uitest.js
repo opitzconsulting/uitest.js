@@ -402,12 +402,14 @@ uitest.define('documentUtils', ['global'], function(global) {
     }
 
     function rewriteDocument(win, html) {
-        // eval is required here so that the window keeps
-        // it's current location.href!
         win.newContent = html;
-        /*jshint evil:true*/
-        evalScript(win, 'document.open();document.write(newContent);document.close();');
-        win.newContent = '';
+        // This trick is needed for IE10 and IE9
+        // so that the window keeps it's original url although we replace it's content!
+        // (setTimeout only needed for IE9!)
+        var sn = win.document.createElement("script");
+        sn.setAttribute("type", "text/javascript");
+        sn.textContent = 'function rewrite() { document.open();document.write(newContent);document.close();} window.setTimeout(rewrite,0);';
+        win.document.body.appendChild(sn);
     }
 
     function uitestUrl() {

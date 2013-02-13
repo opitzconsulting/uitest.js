@@ -32,9 +32,15 @@ describe('documentUtils', function() {
             return frame.document;
         }
         it('should replace the document, including the root element and doctype', function() {
-            var doc = rewrite('<!DOCTYPE html><html test="true"></html>');
-            expect(doc.documentElement.getAttribute("test")).toBe("true");
-            expect(doc.doctype.name).toBe('html');
+            var doc;
+            runs(function() {
+                doc = rewrite('<!DOCTYPE html><html test="true"></html>');
+            });
+            waits(20);
+            runs(function() {
+                expect(doc.documentElement.getAttribute("test")).toBe("true");
+                expect(doc.doctype.name).toBe('html');
+            });
         });
     });
 

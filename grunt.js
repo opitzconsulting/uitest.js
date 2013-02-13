@@ -52,6 +52,7 @@ module.exports = function(grunt) {
         iit: true,
         runs: true,
         waitsFor: true,
+        waits: true,
         spyOn: true,
         expect: true,
         jasmine: true,
