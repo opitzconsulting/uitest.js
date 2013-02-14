@@ -1,10 +1,11 @@
 uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModule, runConfig) {
 
 	var count = 0,
-		ready, doc, waitForDocComplete;
+		ready, win, doc, waitForDocComplete;
 
 	init();
-	runConfig.appends.push(function(document) {
+	runConfig.appends.push(function(window, document) {
+		win = window;
 		doc = document;
 		waitForDocComplete = true;
 	});
@@ -22,7 +23,11 @@ uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModul
 	function loadSensor() {
 		if (waitForDocComplete && docReady(doc)) {
 			waitForDocComplete = false;
-			ready = true;
+			// this timeout is required for IE, as it sets the
+			// readyState to "interactive" before the DOMContentLoaded event.
+			win.setTimeout(function() {
+				ready = true;
+			},1);
 		}
 		return {
 			count: count,

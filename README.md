@@ -31,7 +31,7 @@ test frameworks.
 * Compatibility:  
     * Testframeworks: Use any test framework and test runner, can also run standalone.
     * Supports applications that use requirejs 2.x.
-    * Browsers: Chrome, Firefox, IE9+, Safari, Mobile Safari, Android Browser.
+    * Browsers: Chrome, Firefox, IE9+, Safari, Mobile Safari, Android Browser 2.3+.
     * Supports running tests from `file://` urls (Safari and chrome with command line argument `--disable-web-security`)
 * Dependencies:
     * No additional JS libs required
@@ -50,6 +50,7 @@ test frameworks.
 Preconditions:
 
 * The page to be tested must be loaded from the same domain as the test code.
+* The page to be tested must not contain an `<noscript>` tag.
 
 
 ## Samples

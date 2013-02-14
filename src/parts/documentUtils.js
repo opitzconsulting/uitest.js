@@ -1,10 +1,10 @@
 uitest.define('documentUtils', ['global'], function(global) {
 
     var // Groups:
-        // 1. opening script tag
-        // 2. content of src attribute
-        // 3. text content of script element.
-        SCRIPT_RE = /(<script(?:[^>]*src=\s*"([^"]+))?[^>]*>)([\s\S]*?)<\/script>/g,
+    // 1. opening script tag
+    // 2. content of src attribute
+    // 3. text content of script element.
+    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/g,
         UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/;
 
     function serializeDocType(doc) {
@@ -37,19 +37,19 @@ uitest.define('documentUtils', ['global'], function(global) {
     }
 
     function contentScriptHtml(content) {
-        return '<script type="text/javascript">'+content+'</script>';
+        return '<script type="text/javascript">' + content + '</script>';
     }
 
     function urlScriptHtml(url) {
-        return '<script type="text/javascript" src="'+url+'"></script>';
+        return '<script type="text/javascript" src="' + url + '"></script>';
     }
 
-    function loadScript(win, url, async, resultCallback) {
+    function loadFile(win, url, async, resultCallback) {
         var xhr = new win.XMLHttpRequest();
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200 || xhr.status === 0) {
-                    resultCallback(null, xhr.responseText + "//@ sourceURL=" + url);
+        xhr.onreadystatechange = function() {
+            if(xhr.readyState === 4) {
+                if(xhr.status === 200 || xhr.status === 0) {
+                    resultCallback(null, xhr.responseText);
                 } else {
                     resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
                 }
@@ -59,17 +59,26 @@ uitest.define('documentUtils', ['global'], function(global) {
         xhr.send();
     }
 
-    function evalScript(win, scriptContent) {
-        /*jshint evil:true*/
+    function loadScript(win, url, async, resultCallback) {
+        loadFile(win, url, async, function(error, data) {
+            if (!error) {
+                resultCallback(error, data+"//@ sourceURL=" + url);
+            } else {
+                resultCallback(error, data);
+            }
+        });
+    }
+
+    function evalScript(win, scriptContent) { /*jshint evil:true*/
         win["eval"].call(win, scriptContent);
     }
 
     function loadAndEvalScriptSync(win, url, preProcessCallback) {
         loadScript(win, url, false, function(error, data) {
-            if (error) {
+            if(error) {
                 throw error;
             }
-            if (preProcessCallback) {
+            if(preProcessCallback) {
                 data = preProcessCallback(data);
             }
             evalScript(win, data);
@@ -77,9 +86,15 @@ uitest.define('documentUtils', ['global'], function(global) {
     }
 
     function replaceScripts(html, callback) {
-        return html.replace(SCRIPT_RE, function (match, scriptOpenTag, srcAttribute, textContent) {
-            var result = callback(scriptOpenTag, srcAttribute||'', textContent);
-            if (result===undefined) {
+        return html.replace(SCRIPT_RE, function(match, scriptOpenTag, srcAttribute, scriptUrl, textContent) {
+            var result = callback({
+                match: match,
+                scriptOpenTag: scriptOpenTag,
+                srcAttribute: srcAttribute||'',
+                scriptUrl: scriptUrl||'',
+                textContent: textContent
+            });
+            if(result === undefined) {
                 return match;
             }
             return result;
@@ -102,7 +117,7 @@ uitest.define('documentUtils', ['global'], function(global) {
             i, src;
         for(i = 0; i < scriptNodes.length; i++) {
             src = scriptNodes[i].src;
-            if (src && src.match(UI_TEST_RE)) {
+            if(src && src.match(UI_TEST_RE)) {
                 return src;
             }
         }
@@ -111,18 +126,20 @@ uitest.define('documentUtils', ['global'], function(global) {
 
     function basePath(url) {
         var lastSlash = url.lastIndexOf('/');
-        if (lastSlash===-1) {
+        if(lastSlash === -1) {
             return '';
         }
         return url.substring(0, lastSlash);
     }
 
     function makeAbsoluteUrl(url, baseUrl) {
-        if (url.charAt(0)==='/' || url.indexOf('://')!==-1) {
+        if(url.charAt(0) === '/' || url.indexOf('://') !== -1) {
             return url;
         }
-        return basePath(baseUrl)+'/'+url;
+        return basePath(baseUrl) + '/' + url;
     }
+
+
 
     return {
         serializeDocType: serializeDocType,
@@ -131,6 +148,7 @@ uitest.define('documentUtils', ['global'], function(global) {
         contentScriptHtml: contentScriptHtml,
         urlScriptHtml: urlScriptHtml,
         loadAndEvalScriptSync: loadAndEvalScriptSync,
+        loadFile: loadFile,
         replaceScripts: replaceScripts,
         rewriteDocument: rewriteDocument,
         makeAbsoluteUrl: makeAbsoluteUrl,

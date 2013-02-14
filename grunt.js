@@ -17,7 +17,6 @@ module.exports = function(grunt) {
       }
     },
     test: {
-      // TODO include testacular here!
       files: ['test/**/*Spec.js']
     },
     lint: {
@@ -25,7 +24,7 @@ module.exports = function(grunt) {
     },
     watch: {
       files: '<config:lint.files>',
-      tasks: 'lint concat'
+      tasks: 'concat'
     },
     jshint: {
       options: {

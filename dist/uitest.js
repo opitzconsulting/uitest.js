@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.0 - 2013-02-13
+/*! uitest.js - v0.9.0 - 2013-02-14
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 
@@ -316,10 +316,10 @@ uitest.define('config', [], function() {
 uitest.define('documentUtils', ['global'], function(global) {
 
     var // Groups:
-        // 1. opening script tag
-        // 2. content of src attribute
-        // 3. text content of script element.
-        SCRIPT_RE = /(<script(?:[^>]*src=\s*"([^"]+))?[^>]*>)([\s\S]*?)<\/script>/g,
+    // 1. opening script tag
+    // 2. content of src attribute
+    // 3. text content of script element.
+    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/g,
         UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/;
 
     function serializeDocType(doc) {
@@ -352,19 +352,19 @@ uitest.define('documentUtils', ['global'], function(global) {
     }
 
     function contentScriptHtml(content) {
-        return '<script type="text/javascript">'+content+'</script>';
+        return '<script type="text/javascript">' + content + '</script>';
     }
 
     function urlScriptHtml(url) {
-        return '<script type="text/javascript" src="'+url+'"></script>';
+        return '<script type="text/javascript" src="' + url + '"></script>';
     }
 
-    function loadScript(win, url, async, resultCallback) {
+    function loadFile(win, url, async, resultCallback) {
         var xhr = new win.XMLHttpRequest();
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200 || xhr.status === 0) {
-                    resultCallback(null, xhr.responseText + "//@ sourceURL=" + url);
+        xhr.onreadystatechange = function() {
+            if(xhr.readyState === 4) {
+                if(xhr.status === 200 || xhr.status === 0) {
+                    resultCallback(null, xhr.responseText);
                 } else {
                     resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
                 }
@@ -374,17 +374,26 @@ uitest.define('documentUtils', ['global'], function(global) {
         xhr.send();
     }
 
-    function evalScript(win, scriptContent) {
-        /*jshint evil:true*/
+    function loadScript(win, url, async, resultCallback) {
+        loadFile(win, url, async, function(error, data) {
+            if (!error) {
+                resultCallback(error, data+"//@ sourceURL=" + url);
+            } else {
+                resultCallback(error, data);
+            }
+        });
+    }
+
+    function evalScript(win, scriptContent) { /*jshint evil:true*/
         win["eval"].call(win, scriptContent);
     }
 
     function loadAndEvalScriptSync(win, url, preProcessCallback) {
         loadScript(win, url, false, function(error, data) {
-            if (error) {
+            if(error) {
                 throw error;
             }
-            if (preProcessCallback) {
+            if(preProcessCallback) {
                 data = preProcessCallback(data);
             }
             evalScript(win, data);
@@ -392,9 +401,15 @@ uitest.define('documentUtils', ['global'], function(global) {
     }
 
     function replaceScripts(html, callback) {
-        return html.replace(SCRIPT_RE, function (match, scriptOpenTag, srcAttribute, textContent) {
-            var result = callback(scriptOpenTag, srcAttribute||'', textContent);
-            if (result===undefined) {
+        return html.replace(SCRIPT_RE, function(match, scriptOpenTag, srcAttribute, scriptUrl, textContent) {
+            var result = callback({
+                match: match,
+                scriptOpenTag: scriptOpenTag,
+                srcAttribute: srcAttribute||'',
+                scriptUrl: scriptUrl||'',
+                textContent: textContent
+            });
+            if(result === undefined) {
                 return match;
             }
             return result;
@@ -417,7 +432,7 @@ uitest.define('documentUtils', ['global'], function(global) {
             i, src;
         for(i = 0; i < scriptNodes.length; i++) {
             src = scriptNodes[i].src;
-            if (src && src.match(UI_TEST_RE)) {
+            if(src && src.match(UI_TEST_RE)) {
                 return src;
             }
         }
@@ -426,18 +441,20 @@ uitest.define('documentUtils', ['global'], function(global) {
 
     function basePath(url) {
         var lastSlash = url.lastIndexOf('/');
-        if (lastSlash===-1) {
+        if(lastSlash === -1) {
             return '';
         }
         return url.substring(0, lastSlash);
     }
 
     function makeAbsoluteUrl(url, baseUrl) {
-        if (url.charAt(0)==='/' || url.indexOf('://')!==-1) {
+        if(url.charAt(0) === '/' || url.indexOf('://') !== -1) {
             return url;
         }
-        return basePath(baseUrl)+'/'+url;
+        return basePath(baseUrl) + '/' + url;
     }
+
+
 
     return {
         serializeDocType: serializeDocType,
@@ -446,6 +463,7 @@ uitest.define('documentUtils', ['global'], function(global) {
         contentScriptHtml: contentScriptHtml,
         urlScriptHtml: urlScriptHtml,
         loadAndEvalScriptSync: loadAndEvalScriptSync,
+        loadFile: loadFile,
         replaceScripts: replaceScripts,
         rewriteDocument: rewriteDocument,
         makeAbsoluteUrl: makeAbsoluteUrl,
@@ -628,16 +646,15 @@ uitest.define('global', [], function() {
 uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], function(injector, runConfig) {
     runConfig.appends.push(install);
 
-    function install(angular, Array) {
+    function install(angular, window) {
         if(!angular) {
             throw new Error("Angular is not loaded!");
         }
 
-        var ng = angular.module("ng"),
-            LocalArray = Array;
+        var ng = angular.module("ng");
 
         installE2eMock(angular, ng);
-        adaptPrototypes(ng, LocalArray);
+        adaptPrototypes(ng, window);
         addAngularInjector(ng);
     }
 
@@ -670,10 +687,17 @@ uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], 
     // -----
     // Angular uses "instanceof Array" only at 3 places,
     // which can generically be decorated.
-    function adaptPrototypes(ng, LocalArray) {
+    function adaptPrototypes(ng, win) {
         function convertArr(inArr) {
-            var outArr = new LocalArray();
-            outArr.push.apply(outArr, inArr);
+            // On Android 2.3, just calling new win.Array() is not enough
+            // to yield outArr instanceof win.Array.
+            // Also, every call to "push" will also change the prototype somehow...
+            /*jshint evil:true*/
+            var outArr = win["eval"]("new Array("+inArr.length+")"),
+                i;
+            for (i=0; i<inArr.length; i++) {
+                outArr[i] = inArr[i];
+            }
             return outArr;
         }
 
@@ -977,8 +1001,7 @@ uitest.define('run/injector', ['annotate'], function(annotate) {
 });
 uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config', 'annotate', 'run/logger'], function(injector, docUtils, runConfig, annotate, logger) {
 
-    var exports,
-        NO_SCRIPT_TAG = "noscript",
+    var exports, NO_SCRIPT_TAG = "noscript",
         REQUIRE_JS_RE = /require[\W]/,
         // group 1: name of function
         NAMED_FUNCTION_RE = /function\s*(\w+)[^\{]*\{/g;
@@ -987,8 +1010,13 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
 
     function instrument(win) {
         logger.log("starting instrumentation");
-        exports.internal.deactivateAndCaptureHtml(win, function(html) {
+        exports.internal.deactivateAndCaptureHtml(win, function(html, browserFlags) {
+            logger.log("captured html");
             html = exports.internal.modifyHtmlWithConfig(html);
+            if(browserFlags.ieLt10) {
+                logger.log("applying ie<10 bugfix");
+                html = exports.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite(html);
+            }
             docUtils.rewriteDocument(win, html);
         });
     }
@@ -997,10 +1025,29 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         // This will wrap the rest of the document into a noscript tag.
         // By this, that content will not be executed!
         var htmlPrefix = docUtils.serializeHtmlBeforeLastScript(win.document);
+        win.document.write('<!--[if lt IE 10]>' + docUtils.contentScriptHtml('window.ieLt10=true;') + '<![endif]-->');
         win.document.write('</head><body><' + NO_SCRIPT_TAG + '>');
         win.addEventListener('load', function() {
             var noscriptEl = win.document.getElementsByTagName(NO_SCRIPT_TAG)[0];
-            callback(htmlPrefix + noscriptEl.textContent);
+            var noscriptElContent = noscriptEl.textContent;
+            var browserFlags = {
+                ieLt10: !! win.ieLt10
+            };
+            if(noscriptElContent) {
+                callback(htmlPrefix + noscriptElContent, browserFlags);
+            } else {
+                logger.log("couldn't retrive the document html using the noscript hack, doing another xhr request...");
+                // Android 2.3 browsers don't wrap the rest of the document
+                // into the noscript tag, but leave it empty :-(
+                // At least it stops the document from loading...
+                docUtils.loadFile(win, win.document.location.href, true, function(error, data) {
+                    if(error) {
+                        throw error;
+                    }
+                    data = data.replace("parent.uitest.instrument(window)", "");
+                    callback(data, browserFlags);
+                });
+            }
         }, false);
     }
 
@@ -1008,31 +1055,32 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         var argExpressions = Array.prototype.slice.call(arguments, 1) || [],
             callbackId = instrument.callbacks.length;
         instrument.callbacks.push(callback);
-        return "parent.uitest.instrument.callbacks["+callbackId+"]("+argExpressions.join(",")+");";
+        return "parent.uitest.instrument.callbacks[" + callbackId + "](" + argExpressions.join(",") + ");";
     }
 
     function modifyHtmlWithConfig(html) {
-        if (runConfig.prepends) {
+        if(runConfig.prepends) {
             html = handlePrepends(html, runConfig.prepends);
         }
         var scripts = handleScripts(html, runConfig);
         html = scripts.html;
-        if (!scripts.requirejs) {
-            if (runConfig.appends) {
+        if(!scripts.requirejs) {
+            if(runConfig.appends) {
                 html = handleAppends(html, runConfig.appends);
             }
         }
-
         return html;
 
         function handlePrepends(html, prepends) {
-            var htmlArr = ['<head>'], i;
+            var htmlArr = ['<head>'],
+                i;
             createScriptTagForPrependsOrAppends(htmlArr, prepends);
             return html.replace(/<head>/, htmlArr.join(''));
         }
 
         function handleAppends(html, appends) {
-            var htmlArr = [], i;
+            var htmlArr = [],
+                i;
             createScriptTagForPrependsOrAppends(htmlArr, appends);
             htmlArr.push('</body>');
             return html.replace(/<\/body>/, htmlArr.join(''));
@@ -1040,13 +1088,13 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
 
         function createScriptTagForPrependsOrAppends(html, prependsOrAppends) {
             var i, prependOrAppend, lastCallbackArr;
-            for (i=0; i<prependsOrAppends.length; i++) {
+            for(i = 0; i < prependsOrAppends.length; i++) {
                 prependOrAppend = prependsOrAppends[i];
-                if (isString(prependOrAppend)) {
+                if(isString(prependOrAppend)) {
                     html.push(docUtils.urlScriptHtml(prependOrAppend));
                     lastCallbackArr = null;
                 } else {
-                    if (!lastCallbackArr) {
+                    if(!lastCallbackArr) {
                         lastCallbackArr = [];
                         html.push(docUtils.contentScriptHtml(createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')));
                     }
@@ -1058,7 +1106,7 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         function injectedCallbacks(callbacks) {
             return function(win) {
                 var i;
-                for (i=0; i<callbacks.length; i++) {
+                for(i = 0; i < callbacks.length; i++) {
                     injector.inject(callbacks[i], win, [win]);
                 }
             };
@@ -1066,24 +1114,24 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
 
         function handleScripts(html, config) {
             var requirejs = false;
-            html = docUtils.replaceScripts(html, function(scriptTag, scriptUrl, textContent) {
-                if (!scriptUrl) {
-                    return;
+            html = docUtils.replaceScripts(html, function(parsedScript) {
+                if(!parsedScript.scriptUrl) {
+                    return undefined;
                 }
-                
-                if (scriptUrl.match(REQUIRE_JS_RE)) {
+                if(parsedScript.scriptUrl.match(REQUIRE_JS_RE)) {
                     requirejs = true;
-                    return scriptTag+"</script>"+
-                        docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
+                    return parsedScript.match + docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
                         handleRequireJsScript(win, config);
                     }, "window"));
                 }
 
-                var matchingIntercepts = findMatchingIntercepts(scriptUrl, config.intercepts);
-                if (!matchingIntercepts.empty) {
+                var matchingIntercepts = findMatchingIntercepts(parsedScript.scriptUrl, config.intercepts);
+                if(!matchingIntercepts.empty) {
                     return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
-                        handleInterceptScript(win, matchingIntercepts, scriptUrl);
+                        handleInterceptScript(win, matchingIntercepts, parsedScript.scriptUrl);
                     }, "window"));
+                } else {
+                    return undefined;
                 }
             });
 
@@ -1096,17 +1144,17 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         function handleRequireJsScript(win, config) {
             var _require, _load;
 
-            if (!win.require) {
+            if(!win.require) {
                 throw new Error("requirejs script was detected by url matching, but no global require function found!");
             }
 
             patchRequire();
             patchLoad();
-            
+
             function patchRequire() {
                 _require = win.require;
                 win.require = function(deps, originalCallback) {
-                    _require(deps, function () {
+                    _require(deps, function() {
                         var args = arguments,
                             self = this;
                         execAppends(function() {
@@ -1121,17 +1169,16 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
                 var appends = config.appends,
                     i = 0;
                 execNext();
-                
+
                 function execNext() {
                     var append;
-                    if (i>=config.appends.length) {
+                    if(i >= config.appends.length) {
                         finishedCallback();
                     } else {
                         append = config.appends[i++];
-                        if (isString(append)) {
+                        if(isString(append)) {
                             _require([append], execNext);
                         } else {
-                            // TODO error handling!
                             injector.inject(append, win, [win]);
                             execNext();
                         }
@@ -1142,35 +1189,21 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
 
             function patchLoad() {
                 _load = _require.load;
-                _require.load = function (context, moduleName, url) {
+                _require.load = function(context, moduleName, url) {
                     var matchingIntercepts = findMatchingIntercepts(url, config.intercepts);
-                    if (matchingIntercepts.empty) {
+                    if(matchingIntercepts.empty) {
                         return _load.apply(this, arguments);
                     }
                     try {
                         handleInterceptScript(win, matchingIntercepts, url);
                         context.completeLoad(moduleName);
-                    } catch (error) {
+                    } catch(error) {
                         //Set error on module, so it skips timeout checks.
                         context.registry[moduleName].error = true;
                         throw error;
                     }
                 };
             }
-        }
-
-        function findMatchingIntercepts(url, intercepts) {
-            var i, matchingIntercepts = { empty: true },
-                urlFilename = filenameFor(url);
-            if (intercepts) {
-                for (i=0; i<intercepts.length; i++) {
-                    if (intercepts[i].script===urlFilename) {
-                        matchingIntercepts[intercepts[i].fn] = intercepts[i];
-                        matchingIntercepts.empty = false;
-                    }
-                }
-            }
-            return matchingIntercepts;
         }
 
         function handleInterceptScript(win, matchingInterceptsByName, scriptUrl) {
@@ -1180,24 +1213,31 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
 
             function preProcessCallback(data) {
                 return data.replace(NAMED_FUNCTION_RE, function(all, fnName) {
-                    if (matchingInterceptsByName[fnName]) {
-                        return all+'if (!'+fnName+'.delegate)return '+
-                            createRemoteCallExpression(fnCallback, "window", fnName, "this", "arguments");
+                    if(matchingInterceptsByName[fnName]) {
+                        return all + 'if (!' + fnName + '.delegate)return ' + createRemoteCallExpression(fnCallback, "window", fnName, "this", "arguments");
                     }
                     return all;
 
                     function fnCallback(win, fn, self, args) {
                         var originalArgNames = annotate(fn),
                             originalArgsByName = {},
-                            $delegate = {fn:fn, name: fnName, self: self, args: args},
+                            $delegate = {
+                                fn: fn,
+                                name: fnName,
+                                self: self,
+                                args: args
+                            },
                             i;
-                        for (i=0; i<args.length; i++) {
+                        for(i = 0; i < args.length; i++) {
                             originalArgsByName[originalArgNames[i]] = args[i];
                         }
                         fn.delegate = true;
                         try {
-                            return injector.inject(matchingInterceptsByName[fnName].callback,
-                                self, [originalArgsByName, {$delegate: $delegate}, win]);
+                            return injector.inject(matchingInterceptsByName[fnName].callback, self, [originalArgsByName,
+                            {
+                                $delegate: $delegate
+                            },
+                            win]);
                         } finally {
                             fn.delegate = false;
                         }
@@ -1208,10 +1248,42 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
 
     }
 
+    function findMatchingIntercepts(url, intercepts) {
+        var i, matchingIntercepts = {
+            empty: true
+        },
+            urlFilename = filenameFor(url);
+        if(intercepts) {
+            for(i = 0; i < intercepts.length; i++) {
+                if(intercepts[i].script === urlFilename) {
+                    matchingIntercepts[intercepts[i].fn] = intercepts[i];
+                    matchingIntercepts.empty = false;
+                }
+            }
+        }
+        return matchingIntercepts;
+    }
+
+    function fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite(html) {
+        return docUtils.replaceScripts(html, function(parsedTag) {
+            if(!parsedTag.scriptUrl) {
+                return undefined;
+            }
+            // IE<=9 executes scripts with src urls when doing a document.write
+            // out of the normal order. Because of this, we are
+            // replacing them by an inline script that executes those
+            // scripts using eval at the right place.
+            var scriptOpenTag = parsedTag.scriptOpenTag.replace(parsedTag.srcAttribute, '');
+            return scriptOpenTag + createRemoteCallExpression(function(win) {
+                docUtils.loadAndEvalScriptSync(win, parsedTag.scriptUrl);
+            }, "window") + '</script>';
+        });
+    }
+
     function filenameFor(url) {
         var lastSlash = url.lastIndexOf('/');
-        if (lastSlash!==-1) {
-            return url.substring(lastSlash+1);
+        if(lastSlash !== -1) {
+            return url.substring(lastSlash + 1);
         }
         return url;
     }
@@ -1224,7 +1296,8 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         internal: {
             instrument: instrument,
             deactivateAndCaptureHtml: deactivateAndCaptureHtml,
-            modifyHtmlWithConfig: modifyHtmlWithConfig
+            modifyHtmlWithConfig: modifyHtmlWithConfig,
+            fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite: fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite
         },
         global: {
             uitest: {
@@ -1237,10 +1310,11 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
 uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModule, runConfig) {
 
 	var count = 0,
-		ready, doc, waitForDocComplete;
+		ready, win, doc, waitForDocComplete;
 
 	init();
-	runConfig.appends.push(function(document) {
+	runConfig.appends.push(function(window, document) {
+		win = window;
 		doc = document;
 		waitForDocComplete = true;
 	});
@@ -1258,7 +1332,11 @@ uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModul
 	function loadSensor() {
 		if (waitForDocComplete && docReady(doc)) {
 			waitForDocComplete = false;
-			ready = true;
+			// this timeout is required for IE, as it sets the
+			// readyState to "interactive" before the DOMContentLoaded event.
+			win.setTimeout(function() {
+				ready = true;
+			},1);
 		}
 		return {
 			count: count,

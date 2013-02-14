@@ -17,6 +17,7 @@ describe('run/instrumentor', function() {
         instrumentor = modules["run/instrumentor"];
         spyOn(documentUtils, 'rewriteDocument');
         spyOn(documentUtils, 'loadAndEvalScriptSync');
+        spyOn(documentUtils, 'loadFile');
     });
 
     describe('instrument', function() {
@@ -27,12 +28,13 @@ describe('run/instrumentor', function() {
             config.b = 2;
             spyOn(instrumentor.internal, 'deactivateAndCaptureHtml');
             spyOn(instrumentor.internal, 'modifyHtmlWithConfig');
+            spyOn(instrumentor.internal, 'fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite');
         });
         it('should deactivateAndCaptureHtml then modifyHtmlWithConfig, then rewriteHtml', function() {
             var someHtml = 'someHtml';
             var someModifiedHtml = 'someModifiedHtml';
             instrumentor.internal.deactivateAndCaptureHtml.andCallFake(function(win, callback) {
-                callback(someHtml);
+                callback(someHtml, {});
             });
             instrumentor.internal.modifyHtmlWithConfig.andReturn(someModifiedHtml);
 
@@ -43,13 +45,32 @@ describe('run/instrumentor', function() {
             expect(instrumentor.internal.modifyHtmlWithConfig).toHaveBeenCalledWith(someHtml);
             expect(documentUtils.rewriteDocument).toHaveBeenCalledWith(win, someModifiedHtml);
         });
+        it('should fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite if ie<10', function() {
+            var someHtml = 'someHtml';
+            var someModifiedHtml = 'someModifiedHtml';
+            var someIeFixedHtml = 'someIeFixedHtml';
+            instrumentor.internal.deactivateAndCaptureHtml.andCallFake(function(win, callback) {
+                callback(someHtml, {ieLt10: true});
+            });
+            instrumentor.internal.modifyHtmlWithConfig.andReturn(someModifiedHtml);
+            instrumentor.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite.andReturn(someIeFixedHtml);
+            instrumentor.internal.instrument(win);
+            expect(instrumentor.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite).toHaveBeenCalledWith(someModifiedHtml);
+            expect(documentUtils.rewriteDocument).toHaveBeenCalledWith(win, someIeFixedHtml);
+        });
         it('should make it global', function() {
             expect(global.uitest.instrument).toBe(instrumentor.internal.instrument);
         });
     });
-
+    
     describe('deactivateAndCaptureHtml', function() {
         var html;
+
+        beforeEach(function() {
+            documentUtils.loadFile.andCallFake(function(win, url, async, callback) {
+                callback(null, 'someHtmlLoadedViaXhr');
+            });
+        });
 
         function init(prefix, suffix) {
             html = '';
@@ -67,12 +88,30 @@ describe('run/instrumentor', function() {
             }, 200);
         }
 
-        it('should give the html without the calling script to the callback', function() {
+        var android = /android/i.test(window.navigator.userAgent.toLowerCase());
+        if (!android) {
+            describe('not on android', function() {
+                // Here we want to enforce that the <noscript> tag works at least
+                // on some browsers!
+                // That deactivateAndCaptureHtml also works on android devices
+                // is proofed by the ui tests!
+                it('should give the html without the calling script to the callback', function() {
+                    var prefix = '<html><head>',
+                        suffix = '</head></html>';
+                    init(prefix, suffix);
+                    runs(function() {
+                        expect(html).toBe(prefix + suffix);
+                    });
+                });
+            });
+        }
+
+        it('should load the html using the noscript hack or xhr if the noscript hack did not work', function() {
             var prefix = '<html><head>',
                 suffix = '</head></html>';
             init(prefix, suffix);
             runs(function() {
-                expect(html).toBe(prefix + suffix);
+                expect(html===prefix+suffix || html==='someHtmlLoadedViaXhr').toBe(true);
             });
         });
 
@@ -81,7 +120,6 @@ describe('run/instrumentor', function() {
                 suffix = '<script>window.test=true;</script></head></html>';
             init(prefix, suffix);
             runs(function() {
-                expect(html).toBe(prefix + suffix);
                 expect(testutils.frame.win.test).toBeUndefined();
             });
         });

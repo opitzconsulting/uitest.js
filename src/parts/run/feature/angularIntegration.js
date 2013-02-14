@@ -1,16 +1,15 @@
 uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], function(injector, runConfig) {
     runConfig.appends.push(install);
 
-    function install(angular, Array) {
+    function install(angular, window) {
         if(!angular) {
             throw new Error("Angular is not loaded!");
         }
 
-        var ng = angular.module("ng"),
-            LocalArray = Array;
+        var ng = angular.module("ng");
 
         installE2eMock(angular, ng);
-        adaptPrototypes(ng, LocalArray);
+        adaptPrototypes(ng, window);
         addAngularInjector(ng);
     }
 
@@ -43,10 +42,17 @@ uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], 
     // -----
     // Angular uses "instanceof Array" only at 3 places,
     // which can generically be decorated.
-    function adaptPrototypes(ng, LocalArray) {
+    function adaptPrototypes(ng, win) {
         function convertArr(inArr) {
-            var outArr = new LocalArray();
-            outArr.push.apply(outArr, inArr);
+            // On Android 2.3, just calling new win.Array() is not enough
+            // to yield outArr instanceof win.Array.
+            // Also, every call to "push" will also change the prototype somehow...
+            /*jshint evil:true*/
+            var outArr = win["eval"]("new Array("+inArr.length+")"),
+                i;
+            for (i=0; i<inArr.length; i++) {
+                outArr[i] = inArr[i];
+            }
             return outArr;
         }
 

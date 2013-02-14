@@ -50,9 +50,12 @@ describe('run/loadSensor', function() {
         it('should wait for the append function to be called and document.readyState==="complete"', function() {
             var doc = {
                 readyState: ''
-            };
+            }, setTimeout = jasmine.createSpy('setTimeout');
             injectorModule.inject(config.appends[config.appends.length-1], null, [{
-                document: doc
+                document: doc,
+                window: {
+                    setTimeout: setTimeout
+                }
             }]);
             expect(sensorInstance()).toEqual({
                 count: 0,
@@ -61,21 +64,34 @@ describe('run/loadSensor', function() {
             doc.readyState = 'complete';
             expect(sensorInstance()).toEqual({
                 count: 0,
+                ready: false
+            });
+            setTimeout.mostRecentCall.args[0]();
+            expect(sensorInstance()).toEqual({
+                count: 0,
                 ready: true
             });
         });
         it('should wait for the append function to be called and document.readyState==="interactive"', function() {
             var doc = {
                 readyState: ''
-            };
+            }, setTimeout = jasmine.createSpy('setTimeout');
             injectorModule.inject(config.appends[config.appends.length-1], null, [{
-                document: doc
+                document: doc,
+                window: {
+                    setTimeout: setTimeout
+                }
             }]);
             expect(sensorInstance()).toEqual({
                 count: 0,
                 ready: false
             });
             doc.readyState = 'interactive';
+            expect(sensorInstance()).toEqual({
+                count: 0,
+                ready: false
+            });
+            setTimeout.mostRecentCall.args[0]();
             expect(sensorInstance()).toEqual({
                 count: 0,
                 ready: true
