@@ -16,6 +16,7 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
                 logger.log("applying ie<10 bugfix");
                 html = exports.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite(html);
             }
+            html = exports.internal.forceScriptRefresh(win, html);
             docUtils.rewriteDocument(win, html);
         });
     }
@@ -279,6 +280,16 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         });
     }
 
+    function forceScriptRefresh(win, html) {
+        var now = win.Date.now();
+        return docUtils.replaceScripts(html, function(parsedTag) {
+            if(!parsedTag.scriptUrl) {
+                return undefined;
+            }
+            return parsedTag.scriptOpenTag.replace(parsedTag.scriptUrl, parsedTag.scriptUrl+'?'+now)+"</script>";
+        });
+    }
+
     function filenameFor(url) {
         var lastSlash = url.lastIndexOf('/');
         if(lastSlash !== -1) {
@@ -296,7 +307,8 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
             instrument: instrument,
             deactivateAndCaptureHtml: deactivateAndCaptureHtml,
             modifyHtmlWithConfig: modifyHtmlWithConfig,
-            fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite: fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite
+            fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite: fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite,
+            forceScriptRefresh: forceScriptRefresh
         },
         global: {
             uitest: {

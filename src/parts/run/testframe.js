@@ -1,7 +1,6 @@
 uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils'], function(urlParser, global, runConfig, injector, logger, docUtils) {
     var REFRESH_URL_ATTRIBUTE = 'uitr',
         WINDOW_ID = 'uitestwindow',
-        REFRESH_COUNTER = WINDOW_ID+'RefreshCounter',
         frameElement, frameWindow;
 
     global.top.uitest = global.uitest;
@@ -56,11 +55,8 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         url = makeAbsolute(url);
         logger.log("opening url "+url);
         var parsedUrl = urlParser.parseUrl(url);
-        var openCounter = global.top[REFRESH_COUNTER] || 0;
-        openCounter++;
-        global.top[REFRESH_COUNTER] = openCounter;
 
-        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, openCounter);
+        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, global.Date.now());
         win.location.href = urlParser.serializeUrl(parsedUrl);
     }
 

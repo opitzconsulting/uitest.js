@@ -12,7 +12,7 @@ describe('run/instrumentor', function() {
         var modules = uitest.require({
             "run/config": config,
             global: global
-        }, ["run/instrumentor", "documentUtils"]);
+     }, ["run/instrumentor", "documentUtils"]);
         documentUtils = modules.documentUtils;
         instrumentor = modules["run/instrumentor"];
         spyOn(documentUtils, 'rewriteDocument');
@@ -28,22 +28,27 @@ describe('run/instrumentor', function() {
             config.b = 2;
             spyOn(instrumentor.internal, 'deactivateAndCaptureHtml');
             spyOn(instrumentor.internal, 'modifyHtmlWithConfig');
+            spyOn(instrumentor.internal, 'forceScriptRefresh');
             spyOn(instrumentor.internal, 'fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite');
         });
-        it('should deactivateAndCaptureHtml then modifyHtmlWithConfig, then rewriteHtml', function() {
+        it('should deactivateAndCaptureHtml then modifyHtmlWithConfig, then forceScriptRefresh then rewriteHtml', function() {
             var someHtml = 'someHtml';
             var someModifiedHtml = 'someModifiedHtml';
+            var someForcedHtml = 'someForcedHtml';
             instrumentor.internal.deactivateAndCaptureHtml.andCallFake(function(win, callback) {
                 callback(someHtml, {});
             });
             instrumentor.internal.modifyHtmlWithConfig.andReturn(someModifiedHtml);
+            instrumentor.internal.forceScriptRefresh.andReturn(someForcedHtml);
+
 
             instrumentor.internal.instrument(win);
 
             expect(instrumentor.internal.deactivateAndCaptureHtml).toHaveBeenCalled();
             expect(instrumentor.internal.deactivateAndCaptureHtml.mostRecentCall.args[0]).toBe(win);
             expect(instrumentor.internal.modifyHtmlWithConfig).toHaveBeenCalledWith(someHtml);
-            expect(documentUtils.rewriteDocument).toHaveBeenCalledWith(win, someModifiedHtml);
+            expect(instrumentor.internal.forceScriptRefresh).toHaveBeenCalledWith(win, someModifiedHtml);
+            expect(documentUtils.rewriteDocument).toHaveBeenCalledWith(win, someForcedHtml);
         });
         it('should fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite if ie<10', function() {
             var someHtml = 'someHtml';
@@ -56,7 +61,7 @@ describe('run/instrumentor', function() {
             instrumentor.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite.andReturn(someIeFixedHtml);
             instrumentor.internal.instrument(win);
             expect(instrumentor.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite).toHaveBeenCalledWith(someModifiedHtml);
-            expect(documentUtils.rewriteDocument).toHaveBeenCalledWith(win, someIeFixedHtml);
+            expect(instrumentor.internal.forceScriptRefresh).toHaveBeenCalledWith(win, someIeFixedHtml);
         });
         it('should make it global', function() {
             expect(global.uitest.instrument).toBe(instrumentor.internal.instrument);
@@ -122,6 +127,43 @@ describe('run/instrumentor', function() {
             runs(function() {
                 expect(testutils.frame.win.test).toBeUndefined();
             });
+        });
+    });
+
+    describe('fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite',function() {
+        var win;
+        beforeEach(function() {
+            win = {
+                a:1
+            };
+        });
+        it('should remove the src attribute from script tags, add an inline call and leave the other attributes ok', function() {
+            var html = instrumentor.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite('<script src="someUrl" data="test"></script>');
+            expect(html).toBe('<script  data="test">parent.uitest.instrument.callbacks[0](window);</script>');
+        });
+        it('should load and eval the script using xhr on callback', function() {
+            instrumentor.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite('<script src="someUrl"></script>');
+            instrumentor.internal.instrument.callbacks[0](win);
+            expect(documentUtils.loadAndEvalScriptSync).toHaveBeenCalledWith(win, "someUrl");
+        });
+    });
+
+    describe('forceScriptRefresh', function() {
+        var win;
+        beforeEach(function() {
+            win = {
+                Date: {
+                    now: jasmine.createSpy('now').andReturn(123)
+                }
+            };
+        });
+        it('should add Date.now() to every script with a url', function() {
+            var html = instrumentor.internal.forceScriptRefresh(win, '<script src="someUrl"></script>');
+            expect(html).toBe('<script src="someUrl?123"></script>');
+        });
+        it('should not modify scripts without src', function() {
+            var html = instrumentor.internal.forceScriptRefresh(win, '<script>some</script>');
+            expect(html).toBe('<script>some</script>');
         });
     });
 

@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.0 - 2013-02-14
+/*! uitest.js - v0.9.1-SNAPSHOT - 2013-02-15
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 
@@ -1017,6 +1017,7 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
                 logger.log("applying ie<10 bugfix");
                 html = exports.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite(html);
             }
+            html = exports.internal.forceScriptRefresh(win, html);
             docUtils.rewriteDocument(win, html);
         });
     }
@@ -1280,6 +1281,16 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         });
     }
 
+    function forceScriptRefresh(win, html) {
+        var now = win.Date.now();
+        return docUtils.replaceScripts(html, function(parsedTag) {
+            if(!parsedTag.scriptUrl) {
+                return undefined;
+            }
+            return parsedTag.scriptOpenTag.replace(parsedTag.scriptUrl, parsedTag.scriptUrl+'?'+now)+"</script>";
+        });
+    }
+
     function filenameFor(url) {
         var lastSlash = url.lastIndexOf('/');
         if(lastSlash !== -1) {
@@ -1297,7 +1308,8 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
             instrument: instrument,
             deactivateAndCaptureHtml: deactivateAndCaptureHtml,
             modifyHtmlWithConfig: modifyHtmlWithConfig,
-            fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite: fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite
+            fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite: fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite,
+            forceScriptRefresh: forceScriptRefresh
         },
         global: {
             uitest: {
@@ -1438,7 +1450,6 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils'], function(urlParser, global, runConfig, injector, logger, docUtils) {
     var REFRESH_URL_ATTRIBUTE = 'uitr',
         WINDOW_ID = 'uitestwindow',
-        REFRESH_COUNTER = WINDOW_ID+'RefreshCounter',
         frameElement, frameWindow;
 
     global.top.uitest = global.uitest;
@@ -1493,11 +1504,8 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         url = makeAbsolute(url);
         logger.log("opening url "+url);
         var parsedUrl = urlParser.parseUrl(url);
-        var openCounter = global.top[REFRESH_COUNTER] || 0;
-        openCounter++;
-        global.top[REFRESH_COUNTER] = openCounter;
 
-        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, openCounter);
+        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, global.Date.now());
         win.location.href = urlParser.serializeUrl(parsedUrl);
     }
 

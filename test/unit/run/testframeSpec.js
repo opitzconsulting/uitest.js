@@ -1,5 +1,5 @@
 describe('run/testframe', function() {
-    var global, body, topFrame, iframeElement, uitestwindow, buttonElement, injector;
+    var global, body, topFrame, iframeElement, uitestwindow, buttonElement, injector, someNow;
     beforeEach(function() {
         uitestwindow = {
             location: {},
@@ -20,6 +20,7 @@ describe('run/testframe', function() {
             contentWindow: uitestwindow,
             style: {}
         };
+        someNow = 1234;
         topFrame = {
             document: {
                 body: body,
@@ -36,6 +37,9 @@ describe('run/testframe', function() {
         global = {
             top: topFrame,
             uitest: {},
+            Date: {
+                now:jasmine.createSpy("now").andReturn(someNow)
+            },
             document: {
                 getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn([{
                     src: 'uitest.js'
@@ -81,20 +85,17 @@ describe('run/testframe', function() {
     describe('set the location.href on the first call', function() {
         it('works for absolute urls', function() {
             createTestframe('/someUrl');
-            expect(uitestwindow.location.href).toBe("/someUrl?uitr=1");
-            expect(topFrame.uitestwindowRefreshCounter).toBe(1);
+            expect(uitestwindow.location.href).toBe("/someUrl?uitr="+someNow);
         });
         it('adds the url of uitest.js for relative urls', function() {
             global.document.getElementsByTagName.andReturn([{src: 'someScript.js'}, {src:'/base/uitest.js'}]);
             createTestframe('someUrl');
-            expect(uitestwindow.location.href).toBe("/base/someUrl?uitr=1");
-            expect(topFrame.uitestwindowRefreshCounter).toBe(1);
+            expect(uitestwindow.location.href).toBe("/base/someUrl?uitr="+someNow);
         });
     });
     it('should set the location.href on further calls', function() {
-        topFrame.uitestwindowRefreshCounter = 10;
         createTestframe();
-        expect(uitestwindow.location.href).toBe("/someUrl?uitr=11");
+        expect(uitestwindow.location.href).toBe("/someUrl?uitr="+someNow);
     });
     describe('toggleButton', function() {
         it('should create a button', function() {

@@ -21,6 +21,8 @@ test frameworks.
 * Instrumentations for a page:
     - add a script or function at the beginning/end of the page
     - intercept calls to any named function on the page, no matter if the function is global or not
+* Force script reload: Adds a query parameter to all scripts within a page
+  to force those scripts to be reloaded.
 * Wait for the end of asynchronous work, e.g. xhr, setTimeout, setInterval, page loading, ...
   This can be easily extended.
 * Easy access to global variables of the app to be tested in the test case using dependency injection.
