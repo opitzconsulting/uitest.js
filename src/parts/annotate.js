@@ -1,4 +1,4 @@
-uitest.define('annotate', [], function() {
+uitest.define('annotate', ['utils'], function(utils) {
 
     // Copied from https://github.com/angular
     var FN_ARGS = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
@@ -20,7 +20,7 @@ uitest.define('annotate', [], function() {
                 }
                 fn.$inject = $inject;
             }
-        } else if(isArray(fn)) {
+        } else if(utils.isArray(fn)) {
             last = fn.length - 1;
             assertArgFn(fn[last], 'fn');
             $inject = fn.slice(0, last);
@@ -45,19 +45,11 @@ uitest.define('annotate', [], function() {
     }
 
     function assertArgFn(arg, name, acceptArrayAnnotation) {
-        if(acceptArrayAnnotation && isArray(arg)) {
+        if(acceptArrayAnnotation && utils.isArray(arg)) {
             arg = arg[arg.length - 1];
         }
-        assertArg(isFunction(arg), name, 'not a function, got ' + (arg && typeof arg === 'object' ? arg.constructor.name || 'Object' : typeof arg));
+        assertArg(utils.isFunction(arg), name, 'not a function, got ' + (arg && typeof arg === 'object' ? arg.constructor.name || 'Object' : typeof arg));
         return arg;
-    }
-
-    function isFunction(value) {
-        return typeof value === 'function';
-    }
-
-    function isArray(value) {
-        return Object.prototype.toString.apply(value) === '[object Array]';
     }
 
     return annotate;

@@ -53,7 +53,7 @@ Preconditions:
 
 * The page to be tested must be loaded from the same domain as the test code.
 * The page to be tested must not contain an `<noscript>` tag.
-
+* Does not support xhtml pages (they cannot be rewritten using `document.write`).
 
 ## Samples
 See the ui tests under `test/ui/*Spec.js`.

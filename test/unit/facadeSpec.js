@@ -2,7 +2,11 @@ describe('facade', function() {
 
 	var facade, readyModule, loadSensorModule, instrumentorModule, frame, global;
 	beforeEach(function() {
-		global = {};
+		global = {
+			Date: {
+				now: jasmine.createSpy('now').andReturn(123)
+			}
+		};
 		frame = {};
 		readyModule = {
 			ready: jasmine.createSpy('ready'),
@@ -147,6 +151,12 @@ describe('facade', function() {
 					uit.ready();
 					var args = uitest.require.mostRecentCall.args;
 					expect(args[0]["run/config"]).toBe(someRunConfig);
+				});
+				it('should add Date.now to the run/config module', function() {
+					var someRunConfig = {a: 2, features: []};
+					spyOn(uit._config, 'buildConfig').andReturn(someRunConfig);
+					uit.ready();
+					expect(someRunConfig.now).toBe(123);
 				});
 				it('should call readyModule.ready with the given callback', function() {
 					var someCallback = jasmine.createSpy('callback');

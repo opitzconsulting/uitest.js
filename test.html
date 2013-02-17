@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title> Strict DTD XHTML Example </title>
+<script>
+var d2 = document.documentElement.cloneNode(false);
+
+var de = document.documentElement;
+document.removeChild(de);
+document.appendChild(d2);
+
+function log() {    
+    console.log(de.innerHTML);
+    console.log("-------");
+    console.log(document.documentElement.innerHTML);
+
+    console.log(document.documentElement.childNodes.length);
+    console.log("found body: "+document.getElementsByTagName("p").length);
+}
+
+if (window.attachEvent) {
+    window.attachEvent("onload", log);    
+} else {
+    window.addEventListener("load", log, false);
+}
+</script>
+</head>
+<body>
+<p>
+Please Choose a Day:
+<br /><br />
+<select name="day">
+<option selected="selected">Monday</option>
+<option>Tuesday</option>
+<option>Wednesday</option>
+</select>
+</p>
+<script>
+    alert("test");
+</script>
+</body>
+</html>

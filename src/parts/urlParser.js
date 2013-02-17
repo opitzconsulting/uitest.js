@@ -1,4 +1,7 @@
-uitest.define('urlParser', [], function () {
+uitest.define('urlParser', ['global'], function (global) {
+    var UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/;
+
+
     function parseUrl(url) {
         var hashIndex = url.indexOf('#');
         var hash;
@@ -42,9 +45,52 @@ uitest.define('urlParser', [], function () {
         query.push(newQueryEntry);
     }
 
+    function uitestUrl() {
+        var scriptNodes = global.document.getElementsByTagName("script"),
+            i, src;
+        for(i = 0; i < scriptNodes.length; i++) {
+            src = scriptNodes[i].src;
+            if(src && src.match(UI_TEST_RE)) {
+                return src;
+            }
+        }
+        throw new Error("Could not locate uitest.js in the script tags of the browser");
+    }
+
+    function basePath(url) {
+        var lastSlash = url.lastIndexOf('/');
+        if(lastSlash === -1) {
+            return '';
+        }
+        return url.substring(0, lastSlash);
+    }
+
+    function makeAbsoluteUrl(url, baseUrl) {
+        if(url.charAt(0) === '/' || url.indexOf('://') !== -1) {
+            return url;
+        }
+        return basePath(baseUrl) + '/' + url;
+    }
+
+    function filenameFor(url) {
+        var lastSlash = url.lastIndexOf('/');
+        var urlWithoutSlash = url;
+        if(lastSlash !== -1) {
+            urlWithoutSlash = url.substring(lastSlash + 1);
+        }
+        var query = urlWithoutSlash.indexOf('?');
+        if (query !== -1) {
+            return urlWithoutSlash.substring(0, query);
+        }
+        return urlWithoutSlash;
+    }
+
     return {
         setOrReplaceQueryAttr:setOrReplaceQueryAttr,
         parseUrl:parseUrl,
-        serializeUrl:serializeUrl
+        serializeUrl:serializeUrl,
+        makeAbsoluteUrl: makeAbsoluteUrl,
+        filenameFor: filenameFor,
+        uitestUrl: uitestUrl
     };
 });

@@ -1,4 +1,4 @@
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils'], function(urlParser, global, runConfig, injector, logger, docUtils) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger'], function(urlParser, global, runConfig, injector, logger) {
     var REFRESH_URL_ATTRIBUTE = 'uitr',
         WINDOW_ID = 'uitestwindow',
         frameElement, frameWindow;
@@ -56,11 +56,11 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         logger.log("opening url "+url);
         var parsedUrl = urlParser.parseUrl(url);
 
-        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, global.Date.now());
+        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, runConfig.now);
         win.location.href = urlParser.serializeUrl(parsedUrl);
     }
 
     function makeAbsolute(url) {
-        return docUtils.makeAbsoluteUrl(url, docUtils.uitestUrl());
+        return urlParser.makeAbsoluteUrl(url, urlParser.uitestUrl());
     }
 });

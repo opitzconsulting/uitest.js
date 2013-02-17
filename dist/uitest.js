@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.1-SNAPSHOT - 2013-02-15
+/*! uitest.js - v0.9.1-SNAPSHOT - 2013-02-17
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 
@@ -133,7 +133,7 @@
 
 })(window);
 
-uitest.define('annotate', [], function() {
+uitest.define('annotate', ['utils'], function(utils) {
 
     // Copied from https://github.com/angular
     var FN_ARGS = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
@@ -155,7 +155,7 @@ uitest.define('annotate', [], function() {
                 }
                 fn.$inject = $inject;
             }
-        } else if(isArray(fn)) {
+        } else if(utils.isArray(fn)) {
             last = fn.length - 1;
             assertArgFn(fn[last], 'fn');
             $inject = fn.slice(0, last);
@@ -180,19 +180,11 @@ uitest.define('annotate', [], function() {
     }
 
     function assertArgFn(arg, name, acceptArrayAnnotation) {
-        if(acceptArrayAnnotation && isArray(arg)) {
+        if(acceptArrayAnnotation && utils.isArray(arg)) {
             arg = arg[arg.length - 1];
         }
-        assertArg(isFunction(arg), name, 'not a function, got ' + (arg && typeof arg === 'object' ? arg.constructor.name || 'Object' : typeof arg));
+        assertArg(utils.isFunction(arg), name, 'not a function, got ' + (arg && typeof arg === 'object' ? arg.constructor.name || 'Object' : typeof arg));
         return arg;
-    }
-
-    function isFunction(value) {
-        return typeof value === 'function';
-    }
-
-    function isArray(value) {
-        return Object.prototype.toString.apply(value) === '[object Array]';
     }
 
     return annotate;
@@ -319,8 +311,7 @@ uitest.define('documentUtils', ['global'], function(global) {
     // 1. opening script tag
     // 2. content of src attribute
     // 3. text content of script element.
-    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/g,
-        UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/;
+    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/g;
 
     function serializeDocType(doc) {
         var node = doc.doctype;
@@ -416,46 +407,6 @@ uitest.define('documentUtils', ['global'], function(global) {
         });
     }
 
-    function rewriteDocument(win, html) {
-        win.newContent = html;
-        // This trick is needed for IE10 and IE9
-        // so that the window keeps it's original url although we replace it's content!
-        // (setTimeout only needed for IE9!)
-        var sn = win.document.createElement("script");
-        sn.setAttribute("type", "text/javascript");
-        sn.textContent = 'function rewrite() { document.open();document.write(newContent);document.close();} window.setTimeout(rewrite,0);';
-        win.document.body.appendChild(sn);
-    }
-
-    function uitestUrl() {
-        var scriptNodes = global.document.getElementsByTagName("script"),
-            i, src;
-        for(i = 0; i < scriptNodes.length; i++) {
-            src = scriptNodes[i].src;
-            if(src && src.match(UI_TEST_RE)) {
-                return src;
-            }
-        }
-        throw new Error("Could not locate uitest.js in the script tags of the browser");
-    }
-
-    function basePath(url) {
-        var lastSlash = url.lastIndexOf('/');
-        if(lastSlash === -1) {
-            return '';
-        }
-        return url.substring(0, lastSlash);
-    }
-
-    function makeAbsoluteUrl(url, baseUrl) {
-        if(url.charAt(0) === '/' || url.indexOf('://') !== -1) {
-            return url;
-        }
-        return basePath(baseUrl) + '/' + url;
-    }
-
-
-
     return {
         serializeDocType: serializeDocType,
         serializeHtmlTag: serializeHtmlTag,
@@ -464,10 +415,7 @@ uitest.define('documentUtils', ['global'], function(global) {
         urlScriptHtml: urlScriptHtml,
         loadAndEvalScriptSync: loadAndEvalScriptSync,
         loadFile: loadFile,
-        replaceScripts: replaceScripts,
-        rewriteDocument: rewriteDocument,
-        makeAbsoluteUrl: makeAbsoluteUrl,
-        uitestUrl: uitestUrl
+        replaceScripts: replaceScripts
     };
 });
 uitest.define('facade', ['config', 'global'], function(config, global) {
@@ -586,6 +534,7 @@ uitest.define('facade', ['config', 'global'], function(config, global) {
 
         self._config.sealed(true);
         config = self._config.buildConfig();
+        config.now = global.Date.now();
         self._runModules = {"run/config": config};
         uitest.require(self._runModules, function(moduleName) {
             if (moduleName.indexOf('run/')!==0) {
@@ -643,6 +592,162 @@ uitest.define('global', [], function() {
 	return window;
 });
 
+uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'documentUtils', 'run/injector', 'run/testframe', 'annotate', 'run/logger', 'urlParser', 'utils'], function(runConfig, instrumentor, docUtils, injector, testframe, annotate, logger, urlParser, utils) {
+    // group 1: name of function
+    var NAMED_FUNCTION_RE = /function\s*(\w+)[^\{]*\{/g;
+
+    instrumentor.addPreprocessor(10, preprocess);
+
+    function preprocess(html) {
+        if (runConfig.prepends.length) {
+            html = handlePrepends(html, runConfig.prepends);
+        }
+        if (runConfig.intercepts.length) {
+            html = handleIntercepts(html, runConfig.intercepts);
+        }
+        if (runConfig.appends.length) {
+            html = handleAppends(html, runConfig.appends);
+        }
+        return html;
+    }
+
+    function handlePrepends(html, prepends) {
+        var htmlArr = ['<head>'],
+            i;
+        logger.log("adding prepends after <head>");
+        createScriptTagForPrependsOrAppends(htmlArr, prepends);
+        return html.replace(/<head>/, htmlArr.join(''));
+    }
+
+    function handleAppends(html, appends) {
+        var htmlArr = [],
+            i;
+        logger.log("adding appends at </body>");
+        createScriptTagForPrependsOrAppends(htmlArr, appends);
+        htmlArr.push('</body>');
+        return html.replace(/<\/body>/, htmlArr.join(''));
+    }
+
+    function createScriptTagForPrependsOrAppends(html, prependsOrAppends) {
+        var i, prependOrAppend, lastCallbackArr;
+        for(i = 0; i < prependsOrAppends.length; i++) {
+            prependOrAppend = prependsOrAppends[i];
+            if(utils.isString(prependOrAppend)) {
+                html.push(docUtils.urlScriptHtml(prependOrAppend));
+                lastCallbackArr = null;
+            } else {
+                if(!lastCallbackArr) {
+                    lastCallbackArr = [];
+                    html.push(docUtils.contentScriptHtml(instrumentor.createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')));
+                }
+                lastCallbackArr.push(prependOrAppend);
+            }
+        }
+    }
+
+    function injectedCallbacks(callbacks) {
+        return function(win) {
+            var i;
+            for(i = 0; i < callbacks.length; i++) {
+                injector.inject(callbacks[i], win, [win]);
+            }
+        };
+    }
+
+    function handleIntercepts(html, intercepts) {
+        return docUtils.replaceScripts(html, function(parsedScript) {
+            if(!parsedScript.scriptUrl) {
+                return undefined;
+            }
+            
+            var scriptExecutor = createInterceptingScriptExecutor(parsedScript.scriptUrl, intercepts);
+            if(scriptExecutor) {
+                return docUtils.contentScriptHtml(instrumentor.createRemoteCallExpression(function(win) {
+                    scriptExecutor();
+                }, "window"));
+            } else {
+                return undefined;
+            }
+        });
+    }
+
+    function createInterceptingScriptExecutor(scriptUrl, intercepts) {
+        var matchingIntercepts = findMatchingIntercepts(scriptUrl, intercepts);
+        if (matchingIntercepts.empty) {
+            return undefined;
+        }
+        logger.log("intercepting "+scriptUrl);
+        return function() {
+            execInterceptScript(matchingIntercepts, scriptUrl);
+        };
+    }
+
+    function findMatchingIntercepts(url, intercepts) {
+        var i,
+            matchingIntercepts = {
+                empty: true
+            },
+            urlFilename = urlParser.filenameFor(url);
+
+        if(intercepts) {
+            for(i = 0; i < intercepts.length; i++) {
+                if(intercepts[i].script === urlFilename) {
+                    matchingIntercepts[intercepts[i].fn] = intercepts[i];
+                    matchingIntercepts.empty = false;
+                }
+            }
+        }
+        return matchingIntercepts;
+    }
+
+    function execInterceptScript(matchingInterceptsByName, scriptUrl) {
+        // Need to do the xhr in sync here so the script execution order in the document
+        // stays the same!
+        docUtils.loadAndEvalScriptSync(testframe, scriptUrl, preProcessCallback);
+
+        function preProcessCallback(data) {
+            return data.replace(NAMED_FUNCTION_RE, function(all, fnName) {
+                if(matchingInterceptsByName[fnName]) {
+                    return all + 'if (!' + fnName + '.delegate)return ' + instrumentor.createRemoteCallExpression(fnCallback, "window", fnName, "this", "arguments");
+                }
+                return all;
+
+                function fnCallback(win, fn, self, args) {
+                    var originalArgNames = annotate(fn),
+                        originalArgsByName = {},
+                        $delegate = {
+                            fn: fn,
+                            name: fnName,
+                            self: self,
+                            args: args
+                        },
+                        i;
+                    for(i = 0; i < args.length; i++) {
+                        originalArgsByName[originalArgNames[i]] = args[i];
+                    }
+                    fn.delegate = true;
+                    try {
+                        return injector.inject(matchingInterceptsByName[fnName].callback, self, [originalArgsByName,
+                        {
+                            $delegate: $delegate
+                        },
+                        win]);
+                    } finally {
+                        fn.delegate = false;
+                    }
+                }
+            });
+        }
+    }
+
+    return {
+        preprocess: preprocess,
+        handlePrepends: handlePrepends,
+        handleAppends: handleAppends,
+        handleIntercepts: handleIntercepts,
+        createInterceptingScriptExecutor: createInterceptingScriptExecutor
+    };
+});
 uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], function(injector, runConfig) {
     runConfig.appends.push(install);
 
@@ -945,7 +1050,25 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
         };
     }
 });
-uitest.define('run/injector', ['annotate'], function(annotate) {
+uitest.define('run/forceScriptRefreshPreprocessor', ['documentUtils', 'run/config', 'run/instrumentor', 'run/logger'], function(docUtils, runConfig, instrumentor, logger) {
+    
+    instrumentor.addPreprocessor(9999, forceScriptRefresh);
+
+    function forceScriptRefresh(html) {
+        var now = runConfig.now;
+        logger.log("forcing script refresh with timestamp "+runConfig.now);
+        return docUtils.replaceScripts(html, function(parsedTag) {
+            if(!parsedTag.scriptUrl) {
+                return undefined;
+            }
+            return parsedTag.scriptOpenTag.replace(parsedTag.scriptUrl, parsedTag.scriptUrl+'?'+now)+"</script>";
+        });
+    }
+
+});
+
+
+uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 
 	var defaultResolvers = [];
 
@@ -953,7 +1076,7 @@ uitest.define('run/injector', ['annotate'], function(annotate) {
 		var argNames = annotate(fn),
 			argValues = [],
 			i;
-		fn = isArray(fn)?fn[fn.length-1]:fn;
+		fn = utils.isArray(fn)?fn[fn.length-1]:fn;
 		for (i=0; i<argNames.length; i++) {
 			
 			argValues.push(resolveArgIncludingDefaultResolvers(argNames[i], values));
@@ -973,21 +1096,13 @@ uitest.define('run/injector', ['annotate'], function(annotate) {
 		var i, resolver, resolved;
 		for (i=0; i<resolvers.length && !resolved; i++) {
 			resolver = resolvers[i];
-			if (isFunction(resolver)) {
+			if (utils.isFunction(resolver)) {
 				resolved = resolver(argName);
 			} else {
 				resolved = resolver[argName];
 			}
 		}
 		return resolved;
-	}
-
-    function isFunction(value) {
-        return typeof value === 'function';
-    }
-
-	function isArray(value) {
-		return Object.prototype.toString.apply(value) === '[object Array]';
 	}
 
 	function addDefaultResolver(resolver) {
@@ -999,26 +1114,33 @@ uitest.define('run/injector', ['annotate'], function(annotate) {
 		addDefaultResolver: addDefaultResolver
 	};
 });
-uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config', 'annotate', 'run/logger'], function(injector, docUtils, runConfig, annotate, logger) {
+uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger'], function(docUtils, runConfig, logger) {
 
-    var exports, NO_SCRIPT_TAG = "noscript",
-        REQUIRE_JS_RE = /require[\W]/,
-        // group 1: name of function
-        NAMED_FUNCTION_RE = /function\s*(\w+)[^\{]*\{/g;
+    var exports,
+        NO_SCRIPT_TAG = "noscript",
+        preprocessors = [],
+        COMPARE_BY_PRIO = function(entry1, entry2) {
+            return entry2.prio - entry1.prio;
+        };
+
+    function addPreprocessor(priority, preprocessor) {
+        preprocessors.push({prio: priority, processor: preprocessor});
+    }
 
     instrument.callbacks = [];
 
     function instrument(win) {
+        preprocessors.sort(COMPARE_BY_PRIO);
         logger.log("starting instrumentation");
         exports.internal.deactivateAndCaptureHtml(win, function(html, browserFlags) {
+            var i;
             logger.log("captured html");
-            html = exports.internal.modifyHtmlWithConfig(html);
-            if(browserFlags.ieLt10) {
-                logger.log("applying ie<10 bugfix");
-                html = exports.internal.fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite(html);
+            
+            for (i=0; i<preprocessors.length; i++) {
+                html = preprocessors[i].processor(html, browserFlags);
             }
-            html = exports.internal.forceScriptRefresh(win, html);
-            docUtils.rewriteDocument(win, html);
+
+            exports.internal.rewriteDocument(win, html);
         });
     }
 
@@ -1052,6 +1174,17 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         }, false);
     }
 
+    function rewriteDocument(win, html) {
+        win.newContent = html;
+        // This trick is needed for IE10 and IE9
+        // so that the window keeps it's original url although we replace it's content!
+        // (setTimeout only needed for IE9!)
+        var sn = win.document.createElement("script");
+        sn.setAttribute("type", "text/javascript");
+        sn.textContent = 'function rewrite() { document.open();document.write(newContent);document.close();} window.setTimeout(rewrite,0);';
+        win.document.body.appendChild(sn);
+    }
+
     function createRemoteCallExpression(callback) {
         var argExpressions = Array.prototype.slice.call(arguments, 1) || [],
             callbackId = instrument.callbacks.length;
@@ -1059,258 +1192,14 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
         return "parent.uitest.instrument.callbacks[" + callbackId + "](" + argExpressions.join(",") + ");";
     }
 
-    function modifyHtmlWithConfig(html) {
-        if(runConfig.prepends) {
-            html = handlePrepends(html, runConfig.prepends);
-        }
-        var scripts = handleScripts(html, runConfig);
-        html = scripts.html;
-        if(!scripts.requirejs) {
-            if(runConfig.appends) {
-                html = handleAppends(html, runConfig.appends);
-            }
-        }
-        return html;
-
-        function handlePrepends(html, prepends) {
-            var htmlArr = ['<head>'],
-                i;
-            createScriptTagForPrependsOrAppends(htmlArr, prepends);
-            return html.replace(/<head>/, htmlArr.join(''));
-        }
-
-        function handleAppends(html, appends) {
-            var htmlArr = [],
-                i;
-            createScriptTagForPrependsOrAppends(htmlArr, appends);
-            htmlArr.push('</body>');
-            return html.replace(/<\/body>/, htmlArr.join(''));
-        }
-
-        function createScriptTagForPrependsOrAppends(html, prependsOrAppends) {
-            var i, prependOrAppend, lastCallbackArr;
-            for(i = 0; i < prependsOrAppends.length; i++) {
-                prependOrAppend = prependsOrAppends[i];
-                if(isString(prependOrAppend)) {
-                    html.push(docUtils.urlScriptHtml(prependOrAppend));
-                    lastCallbackArr = null;
-                } else {
-                    if(!lastCallbackArr) {
-                        lastCallbackArr = [];
-                        html.push(docUtils.contentScriptHtml(createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')));
-                    }
-                    lastCallbackArr.push(prependOrAppend);
-                }
-            }
-        }
-
-        function injectedCallbacks(callbacks) {
-            return function(win) {
-                var i;
-                for(i = 0; i < callbacks.length; i++) {
-                    injector.inject(callbacks[i], win, [win]);
-                }
-            };
-        }
-
-        function handleScripts(html, config) {
-            var requirejs = false;
-            html = docUtils.replaceScripts(html, function(parsedScript) {
-                if(!parsedScript.scriptUrl) {
-                    return undefined;
-                }
-                if(parsedScript.scriptUrl.match(REQUIRE_JS_RE)) {
-                    requirejs = true;
-                    return parsedScript.match + docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
-                        handleRequireJsScript(win, config);
-                    }, "window"));
-                }
-
-                var matchingIntercepts = findMatchingIntercepts(parsedScript.scriptUrl, config.intercepts);
-                if(!matchingIntercepts.empty) {
-                    return docUtils.contentScriptHtml(createRemoteCallExpression(function(win) {
-                        handleInterceptScript(win, matchingIntercepts, parsedScript.scriptUrl);
-                    }, "window"));
-                } else {
-                    return undefined;
-                }
-            });
-
-            return {
-                requirejs: requirejs,
-                html: html
-            };
-        }
-
-        function handleRequireJsScript(win, config) {
-            var _require, _load;
-
-            if(!win.require) {
-                throw new Error("requirejs script was detected by url matching, but no global require function found!");
-            }
-
-            patchRequire();
-            patchLoad();
-
-            function patchRequire() {
-                _require = win.require;
-                win.require = function(deps, originalCallback) {
-                    _require(deps, function() {
-                        var args = arguments,
-                            self = this;
-                        execAppends(function() {
-                            originalCallback.apply(self, args);
-                        });
-                    });
-                };
-                win.require.config = _require.config;
-            }
-
-            function execAppends(finishedCallback) {
-                var appends = config.appends,
-                    i = 0;
-                execNext();
-
-                function execNext() {
-                    var append;
-                    if(i >= config.appends.length) {
-                        finishedCallback();
-                    } else {
-                        append = config.appends[i++];
-                        if(isString(append)) {
-                            _require([append], execNext);
-                        } else {
-                            injector.inject(append, win, [win]);
-                            execNext();
-                        }
-                    }
-                }
-
-            }
-
-            function patchLoad() {
-                _load = _require.load;
-                _require.load = function(context, moduleName, url) {
-                    var matchingIntercepts = findMatchingIntercepts(url, config.intercepts);
-                    if(matchingIntercepts.empty) {
-                        return _load.apply(this, arguments);
-                    }
-                    try {
-                        handleInterceptScript(win, matchingIntercepts, url);
-                        context.completeLoad(moduleName);
-                    } catch(error) {
-                        //Set error on module, so it skips timeout checks.
-                        context.registry[moduleName].error = true;
-                        throw error;
-                    }
-                };
-            }
-        }
-
-        function handleInterceptScript(win, matchingInterceptsByName, scriptUrl) {
-            // Need to do the xhr in sync here so the script execution order in the document
-            // stays the same!
-            docUtils.loadAndEvalScriptSync(win, scriptUrl, preProcessCallback);
-
-            function preProcessCallback(data) {
-                return data.replace(NAMED_FUNCTION_RE, function(all, fnName) {
-                    if(matchingInterceptsByName[fnName]) {
-                        return all + 'if (!' + fnName + '.delegate)return ' + createRemoteCallExpression(fnCallback, "window", fnName, "this", "arguments");
-                    }
-                    return all;
-
-                    function fnCallback(win, fn, self, args) {
-                        var originalArgNames = annotate(fn),
-                            originalArgsByName = {},
-                            $delegate = {
-                                fn: fn,
-                                name: fnName,
-                                self: self,
-                                args: args
-                            },
-                            i;
-                        for(i = 0; i < args.length; i++) {
-                            originalArgsByName[originalArgNames[i]] = args[i];
-                        }
-                        fn.delegate = true;
-                        try {
-                            return injector.inject(matchingInterceptsByName[fnName].callback, self, [originalArgsByName,
-                            {
-                                $delegate: $delegate
-                            },
-                            win]);
-                        } finally {
-                            fn.delegate = false;
-                        }
-                    }
-                });
-            }
-        }
-
-    }
-
-    function findMatchingIntercepts(url, intercepts) {
-        var i, matchingIntercepts = {
-            empty: true
-        },
-            urlFilename = filenameFor(url);
-        if(intercepts) {
-            for(i = 0; i < intercepts.length; i++) {
-                if(intercepts[i].script === urlFilename) {
-                    matchingIntercepts[intercepts[i].fn] = intercepts[i];
-                    matchingIntercepts.empty = false;
-                }
-            }
-        }
-        return matchingIntercepts;
-    }
-
-    function fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite(html) {
-        return docUtils.replaceScripts(html, function(parsedTag) {
-            if(!parsedTag.scriptUrl) {
-                return undefined;
-            }
-            // IE<=9 executes scripts with src urls when doing a document.write
-            // out of the normal order. Because of this, we are
-            // replacing them by an inline script that executes those
-            // scripts using eval at the right place.
-            var scriptOpenTag = parsedTag.scriptOpenTag.replace(parsedTag.srcAttribute, '');
-            return scriptOpenTag + createRemoteCallExpression(function(win) {
-                docUtils.loadAndEvalScriptSync(win, parsedTag.scriptUrl);
-            }, "window") + '</script>';
-        });
-    }
-
-    function forceScriptRefresh(win, html) {
-        var now = win.Date.now();
-        return docUtils.replaceScripts(html, function(parsedTag) {
-            if(!parsedTag.scriptUrl) {
-                return undefined;
-            }
-            return parsedTag.scriptOpenTag.replace(parsedTag.scriptUrl, parsedTag.scriptUrl+'?'+now)+"</script>";
-        });
-    }
-
-    function filenameFor(url) {
-        var lastSlash = url.lastIndexOf('/');
-        if(lastSlash !== -1) {
-            return url.substring(lastSlash + 1);
-        }
-        return url;
-    }
-
-    function isString(obj) {
-        return obj && obj.slice;
-    }
-
     exports = {
         internal: {
             instrument: instrument,
             deactivateAndCaptureHtml: deactivateAndCaptureHtml,
-            modifyHtmlWithConfig: modifyHtmlWithConfig,
-            fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite: fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite,
-            forceScriptRefresh: forceScriptRefresh
+            rewriteDocument: rewriteDocument
         },
+        createRemoteCallExpression: createRemoteCallExpression,
+        addPreprocessor: addPreprocessor,
         global: {
             uitest: {
                 instrument: instrument
@@ -1319,6 +1208,31 @@ uitest.define('run/instrumentor', ['run/injector', 'documentUtils', 'run/config'
     };
     return exports;
 });
+uitest.define('run/lesserThanIe10Preprocessor', ['run/instrumentor', 'run/logger', 'documentUtils'], function(instrumentor, logger, docUtils) {
+    instrumentor.addPreprocessor(-9999, fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite);
+
+    // IE<=9 executes scripts with src urls when doing a document.write
+    // out of the normal order. Because of this, we are
+    // replacing them by an inline script that executes those
+    // scripts using eval at the right place.
+    function fixIeLesserThan10ScriptExecutionOrderWithDocumentWrite(html, browserFlags) {
+        if (!browserFlags.ieLt10) {
+            return html;
+        }
+        logger.log("applying ie<10 bugfix");
+        return docUtils.replaceScripts(html, function(parsedTag) {
+            if(!parsedTag.scriptUrl) {
+                return undefined;
+            }
+            var scriptOpenTag = parsedTag.scriptOpenTag.replace(parsedTag.srcAttribute, '');
+            return scriptOpenTag + instrumentor.createRemoteCallExpression(function(win) {
+                docUtils.loadAndEvalScriptSync(win, parsedTag.scriptUrl);
+            }, "window") + '</script>';
+        });
+    }
+    
+});
+
 uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModule, runConfig) {
 
 	var count = 0,
@@ -1447,7 +1361,103 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 		ready: ready
 	};
 });
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils'], function(urlParser, global, runConfig, injector, logger, docUtils) {
+uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'run/defaultScriptAdder', 'documentUtils', 'run/injector', 'run/logger', 'utils'], function(runConfig, instrumentor, defaultScriptAdder, docUtils, injector, logger, utils) {
+    var REQUIRE_JS_RE = /require[\W]/;
+
+    instrumentor.addPreprocessor(11, preprocess);
+
+    function preprocess(html) {
+        return docUtils.replaceScripts(html, function(parsedScript) {
+            var appends = runConfig.appends,
+                intercepts = runConfig.intercepts;
+
+            if(!parsedScript.scriptUrl) {
+                return undefined;
+            }
+            if(parsedScript.scriptUrl.match(REQUIRE_JS_RE)) {
+                // Empty the appends array in the config,
+                // so the defaultScriptAdder does nothing for them.
+                logger.log("detected requirejs with script url "+parsedScript.scriptUrl);
+                runConfig.appends = [];
+                return parsedScript.match + docUtils.contentScriptHtml(instrumentor.createRemoteCallExpression(function(win) {
+                    afterRequireJsScript(win, appends, intercepts);
+                }, "window"));
+            }
+
+            return undefined;
+        });
+    }
+
+    function afterRequireJsScript(win, appends, intercepts) {
+        if(!win.require) {
+            throw new Error("requirejs script was detected by url matching, but no global require function found!");
+        }
+
+        var _require = patchRequire(win, appends);
+        patchLoad(_require, intercepts);
+    }
+
+    function patchRequire(win, appends) {
+        var _require = win.require;
+        win.require = function(deps, originalCallback) {
+            _require(deps, function() {
+                var args = arguments,
+                    self = this;
+                execAppends(win, _require, appends, function() {
+                    originalCallback.apply(self, args);
+                });
+            });
+        };
+        win.require.config = _require.config;
+        return _require;
+    }
+
+    function execAppends(win, _require, appends, finishedCallback) {
+        var i = 0;
+        logger.log("adding appends using requirejs");
+        execNext();
+
+        function execNext() {
+            var append;
+            if(i >= appends.length) {
+                finishedCallback();
+            } else {
+                append = appends[i++];
+                if(utils.isString(append)) {
+                    _require([append], execNext);
+                } else {
+                    injector.inject(append, win, [win]);
+                    execNext();
+                }
+            }
+        }
+    }
+
+    function patchLoad(_require, intercepts) {
+        var _load = _require.load;
+        _require.load = function(context, moduleName, url) {
+            
+            var scriptExecutor = defaultScriptAdder.createInterceptingScriptExecutor(url, intercepts);
+            if(!scriptExecutor) {
+                return _load.apply(this, arguments);
+            }
+            try {
+                scriptExecutor();
+                context.completeLoad(moduleName);
+            } catch(error) {
+                //Set error on module, so it skips timeout checks.
+                context.registry[moduleName].error = true;
+                throw error;
+            }
+        };
+    }
+
+    return {
+        preprocess: preprocess
+    };
+
+});
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger'], function(urlParser, global, runConfig, injector, logger) {
     var REFRESH_URL_ATTRIBUTE = 'uitr',
         WINDOW_ID = 'uitestwindow',
         frameElement, frameWindow;
@@ -1505,12 +1515,12 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         logger.log("opening url "+url);
         var parsedUrl = urlParser.parseUrl(url);
 
-        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, global.Date.now());
+        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, runConfig.now);
         win.location.href = urlParser.serializeUrl(parsedUrl);
     }
 
     function makeAbsolute(url) {
-        return docUtils.makeAbsoluteUrl(url, docUtils.uitestUrl());
+        return urlParser.makeAbsoluteUrl(url, urlParser.uitestUrl());
     }
 });
 
@@ -1586,7 +1596,10 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         }
     };
 });
-uitest.define('urlParser', [], function () {
+uitest.define('urlParser', ['global'], function (global) {
+    var UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/;
+
+
     function parseUrl(url) {
         var hashIndex = url.indexOf('#');
         var hash;
@@ -1630,11 +1643,75 @@ uitest.define('urlParser', [], function () {
         query.push(newQueryEntry);
     }
 
+    function uitestUrl() {
+        var scriptNodes = global.document.getElementsByTagName("script"),
+            i, src;
+        for(i = 0; i < scriptNodes.length; i++) {
+            src = scriptNodes[i].src;
+            if(src && src.match(UI_TEST_RE)) {
+                return src;
+            }
+        }
+        throw new Error("Could not locate uitest.js in the script tags of the browser");
+    }
+
+    function basePath(url) {
+        var lastSlash = url.lastIndexOf('/');
+        if(lastSlash === -1) {
+            return '';
+        }
+        return url.substring(0, lastSlash);
+    }
+
+    function makeAbsoluteUrl(url, baseUrl) {
+        if(url.charAt(0) === '/' || url.indexOf('://') !== -1) {
+            return url;
+        }
+        return basePath(baseUrl) + '/' + url;
+    }
+
+    function filenameFor(url) {
+        var lastSlash = url.lastIndexOf('/');
+        var urlWithoutSlash = url;
+        if(lastSlash !== -1) {
+            urlWithoutSlash = url.substring(lastSlash + 1);
+        }
+        var query = urlWithoutSlash.indexOf('?');
+        if (query !== -1) {
+            return urlWithoutSlash.substring(0, query);
+        }
+        return urlWithoutSlash;
+    }
+
     return {
         setOrReplaceQueryAttr:setOrReplaceQueryAttr,
         parseUrl:parseUrl,
-        serializeUrl:serializeUrl
+        serializeUrl:serializeUrl,
+        makeAbsoluteUrl: makeAbsoluteUrl,
+        filenameFor: filenameFor,
+        uitestUrl: uitestUrl
     };
+});
+uitest.define('utils', ['global'], function(global) {
+    function isString(obj) {
+        return obj && obj.slice;
+    }
+
+    function isFunction(value) {
+        return typeof value === 'function';
+    }
+
+    function isArray(value) {
+        return global.Object.prototype.toString.apply(value) === '[object Array]';
+    }
+
+    return {
+        isString: isString,
+        isFunction: isFunction,
+        isArray: isArray
+
+    };
+
 });
 (function () {
     uitest.require(["facade", "jasmineSugar"]);

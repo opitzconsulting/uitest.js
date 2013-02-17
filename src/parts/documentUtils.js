@@ -4,8 +4,7 @@ uitest.define('documentUtils', ['global'], function(global) {
     // 1. opening script tag
     // 2. content of src attribute
     // 3. text content of script element.
-    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/g,
-        UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/;
+    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/g;
 
     function serializeDocType(doc) {
         var node = doc.doctype;
@@ -101,46 +100,6 @@ uitest.define('documentUtils', ['global'], function(global) {
         });
     }
 
-    function rewriteDocument(win, html) {
-        win.newContent = html;
-        // This trick is needed for IE10 and IE9
-        // so that the window keeps it's original url although we replace it's content!
-        // (setTimeout only needed for IE9!)
-        var sn = win.document.createElement("script");
-        sn.setAttribute("type", "text/javascript");
-        sn.textContent = 'function rewrite() { document.open();document.write(newContent);document.close();} window.setTimeout(rewrite,0);';
-        win.document.body.appendChild(sn);
-    }
-
-    function uitestUrl() {
-        var scriptNodes = global.document.getElementsByTagName("script"),
-            i, src;
-        for(i = 0; i < scriptNodes.length; i++) {
-            src = scriptNodes[i].src;
-            if(src && src.match(UI_TEST_RE)) {
-                return src;
-            }
-        }
-        throw new Error("Could not locate uitest.js in the script tags of the browser");
-    }
-
-    function basePath(url) {
-        var lastSlash = url.lastIndexOf('/');
-        if(lastSlash === -1) {
-            return '';
-        }
-        return url.substring(0, lastSlash);
-    }
-
-    function makeAbsoluteUrl(url, baseUrl) {
-        if(url.charAt(0) === '/' || url.indexOf('://') !== -1) {
-            return url;
-        }
-        return basePath(baseUrl) + '/' + url;
-    }
-
-
-
     return {
         serializeDocType: serializeDocType,
         serializeHtmlTag: serializeHtmlTag,
@@ -149,9 +108,6 @@ uitest.define('documentUtils', ['global'], function(global) {
         urlScriptHtml: urlScriptHtml,
         loadAndEvalScriptSync: loadAndEvalScriptSync,
         loadFile: loadFile,
-        replaceScripts: replaceScripts,
-        rewriteDocument: rewriteDocument,
-        makeAbsoluteUrl: makeAbsoluteUrl,
-        uitestUrl: uitestUrl
+        replaceScripts: replaceScripts
     };
 });

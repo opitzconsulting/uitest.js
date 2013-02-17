@@ -37,9 +37,6 @@ describe('run/testframe', function() {
         global = {
             top: topFrame,
             uitest: {},
-            Date: {
-                now:jasmine.createSpy("now").andReturn(someNow)
-            },
             document: {
                 getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn([{
                     src: 'uitest.js'
@@ -56,6 +53,7 @@ describe('run/testframe', function() {
         return uitest.require({
             global: global,
             "run/config": {
+                now: someNow,
                 url: url
             },
             "run/injector": injector

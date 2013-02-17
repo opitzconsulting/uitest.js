@@ -2,11 +2,6 @@ describe('documentUtils', function() {
     var documentUtils, global;
     beforeEach(function() {
         global = {
-            document: {
-                getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn([{
-                    src: 'uitest.js'
-                }])
-            }
         };
         documentUtils = uitest.require({
             global: global
@@ -22,25 +17,6 @@ describe('documentUtils', function() {
         });
         it('should serialize html5 doctype', function() {
             expect(doctype('<!DOCTYPE html><html></html>')).toBe('<!DOCTYPE html>');
-        });
-    });
-
-    describe('rewriteDocument', function() {
-        function rewrite(html) {
-            var frame = testutils.createFrame('<html></html>').win;
-            documentUtils.rewriteDocument(frame, html);
-            return frame.document;
-        }
-        it('should replace the document, including the root element and doctype', function() {
-            var doc;
-            runs(function() {
-                doc = rewrite('<!DOCTYPE html><html test="true"></html>');
-            });
-            waits(20);
-            runs(function() {
-                expect(doc.documentElement.getAttribute("test")).toBe("true");
-                expect(doc.doctype.name).toBe('html');
-            });
         });
     });
 
@@ -141,47 +117,6 @@ describe('documentUtils', function() {
             documentUtils.loadAndEvalScriptSync(win, 'someUrl', preProcessCalback);
             simulateXhrResponse('someResponse');
             expect(win['eval']).toHaveBeenCalledWith('someProcessedResponse');
-        });
-    });
-
-    describe('makeAbsoluteUrl', function() {
-        it('should not change urls with a leading slash', function() {
-            expect(documentUtils.makeAbsoluteUrl('/someUrl', 'base')).toBe('/someUrl');
-        });
-        it('should not change urls with a protocol', function() {
-            expect(documentUtils.makeAbsoluteUrl('http://someUrl', 'base')).toBe('http://someUrl');
-        });
-        it('should change relative change urls with a base that contains no slash', function() {
-            expect(documentUtils.makeAbsoluteUrl('someUrl', 'base')).toBe('/someUrl');
-        });
-        it('should change relative change urls with a base that contains a single slash', function() {
-            expect(documentUtils.makeAbsoluteUrl('someUrl', '/base')).toBe('/someUrl');
-        });
-        it('should change relative change urls with a base that contains two or more slashes', function() {
-            expect(documentUtils.makeAbsoluteUrl('someUrl', '/base/file')).toBe('/base/someUrl');
-        });
-    });
-
-    describe('uitestUrl', function() {
-        function test(someUrl, shouldMatch) {
-            global.document.getElementsByTagName.andReturn([{src: someUrl}]);
-            if (shouldMatch) {
-                expect(documentUtils.uitestUrl()).toBe(someUrl);
-            } else {
-                expect(function() {
-                    documentUtils.uitestUrl();
-                }).toThrow();
-            }
-        }
-
-        it('should use the right regex', function() {
-            test('uitest.js', true);
-            test('uitest-v1.0.js', true);
-            test('uitestutils.js', false);
-            test('uitest/some.js', false);
-            test('uitest.js/some.js', false);
-            // Note: This test is required for our CI, as we load every file of uitest.js individually!
-            test('simpleRequire.js', true);
         });
     });
 });

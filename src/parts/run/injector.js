@@ -1,4 +1,4 @@
-uitest.define('run/injector', ['annotate'], function(annotate) {
+uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 
 	var defaultResolvers = [];
 
@@ -6,7 +6,7 @@ uitest.define('run/injector', ['annotate'], function(annotate) {
 		var argNames = annotate(fn),
 			argValues = [],
 			i;
-		fn = isArray(fn)?fn[fn.length-1]:fn;
+		fn = utils.isArray(fn)?fn[fn.length-1]:fn;
 		for (i=0; i<argNames.length; i++) {
 			
 			argValues.push(resolveArgIncludingDefaultResolvers(argNames[i], values));
@@ -26,21 +26,13 @@ uitest.define('run/injector', ['annotate'], function(annotate) {
 		var i, resolver, resolved;
 		for (i=0; i<resolvers.length && !resolved; i++) {
 			resolver = resolvers[i];
-			if (isFunction(resolver)) {
+			if (utils.isFunction(resolver)) {
 				resolved = resolver(argName);
 			} else {
 				resolved = resolver[argName];
 			}
 		}
 		return resolved;
-	}
-
-    function isFunction(value) {
-        return typeof value === 'function';
-    }
-
-	function isArray(value) {
-		return Object.prototype.toString.apply(value) === '[object Array]';
 	}
 
 	function addDefaultResolver(resolver) {
