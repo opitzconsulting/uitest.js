@@ -1,14 +1,18 @@
 describe('run/forceScriptRefreshPreprocessor', function() {
-    var preprocessor, instrumentor, config;
+    var preprocessor, instrumentor, config, utils;
     beforeEach(function() {
         config = {
-            now: 123
+        };
+        someNow = 123;
+        utils = {
+            testRunTimestamp: jasmine.createSpy('testRunTimestamp').andReturn(someNow)
         };
         instrumentor = {
             addPreprocessor: jasmine.createSpy('addPreprocessor')
         };
         var modules = uitest.require({
             "run/config": config,
+            "utils": utils,
             "run/instrumentor": instrumentor
         }, ["run/forceScriptRefreshPreprocessor"]);
         preprocessor = modules["run/forceScriptRefreshPreprocessor"];

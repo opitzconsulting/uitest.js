@@ -16,12 +16,12 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
     function instrument(win) {
         preprocessors.sort(COMPARE_BY_PRIO);
         logger.log("starting instrumentation");
-        exports.internal.deactivateAndCaptureHtml(win, function(html, browserFlags) {
+        exports.internal.deactivateAndCaptureHtml(win, function(html) {
             var i;
             logger.log("captured html");
             
             for (i=0; i<preprocessors.length; i++) {
-                html = preprocessors[i].processor(html, browserFlags);
+                html = preprocessors[i].processor(html);
             }
 
             exports.internal.rewriteDocument(win, html);
@@ -29,33 +29,121 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
     }
 
     function deactivateAndCaptureHtml(win, callback) {
-        // This will wrap the rest of the document into a noscript tag.
-        // By this, that content will not be executed!
-        var htmlPrefix = docUtils.serializeHtmlBeforeLastScript(win.document);
-        win.document.write('<!--[if lt IE 10]>' + docUtils.contentScriptHtml('window.ieLt10=true;') + '<![endif]-->');
-        win.document.write('</head><body><' + NO_SCRIPT_TAG + '>');
+        var doc = win.document;
+        removeCurrentScript(doc);
+
+        // We replace the documentElement into which the web browser
+        // currently adds all data from the server.
+        // In most browsers this will prevent any script on the page
+        // to get executed.
+
+        // However, in some browsers, the scripts are still executed
+        // and we need to prevent them from chaing the DOM
+        // (e.g. Android 2.3 browser and IE<10).
+
+        // No need to care for:
+        // - modification of the DOM using document.*: document.* access our always new document.
+        // - catch all event listeners, e.g. for DOMContentLoaded, win.load, ...:
+        //   we are doing a document.open() afterwards, which will unregister those listeners.
+
+        var oldDocEl = doc.documentElement;
+        var newDocEl = oldDocEl.cloneNode(false);
+        newDocEl.appendChild(doc.createElement("head"));
+        newDocEl.appendChild(doc.createElement("body"));
+        
+        doc.removeChild(oldDocEl);
+        doc.appendChild(newDocEl);
+        var restore = saveAndFreezeDoc(win);
+
         win.addEventListener('load', function() {
-            var noscriptEl = win.document.getElementsByTagName(NO_SCRIPT_TAG)[0];
-            var noscriptElContent = noscriptEl.textContent;
-            var browserFlags = {
-                ieLt10: !! win.ieLt10
-            };
-            if(noscriptElContent) {
-                callback(htmlPrefix + noscriptElContent, browserFlags);
-            } else {
-                logger.log("couldn't retrive the document html using the noscript hack, doing another xhr request...");
-                // Android 2.3 browsers don't wrap the rest of the document
-                // into the noscript tag, but leave it empty :-(
-                // At least it stops the document from loading...
-                docUtils.loadFile(win, win.document.location.href, true, function(error, data) {
-                    if(error) {
-                        throw error;
-                    }
-                    data = data.replace("parent.uitest.instrument(window)", "");
-                    callback(data, browserFlags);
-                });
-            }
+            restore();
+
+            var docType = docUtils.serializeDocType(win.document);
+            var htmlOpenTag = docUtils.serializeHtmlTag(oldDocEl);
+            var innerHtml = oldDocEl.innerHTML;
+            innerHtml = innerHtml.replace("parent.uitest.instrument(window)", "false");
+            callback(docType+htmlOpenTag+innerHtml+"</html>");
         }, false);
+    }
+
+    function saveAndFreezeDoc(win) {
+        var doc = win.document,
+            restoreFns = [];
+
+        saveGlobals();
+        replaceWinFn("setTimeout", noop);
+        replaceWinFn("setInterval", noop);
+        replaceWinFn("XMLHttpRequest", FakeXMLHttpRequest);
+
+        replaceDocFn("write", noop);
+        replaceDocFn("writeln", noop);
+
+        return function() {
+            var i;
+            for (i=0; i<restoreFns.length; i++) {
+                restoreFns[i]();
+            }
+        };
+
+        function saveGlobals() {
+            var prop,
+                oldGlobals = {};
+
+            for (prop in win) {
+                oldGlobals[prop] = win[prop];
+            }
+
+            restoreFns.push(restore);
+
+            function restore() {
+                var prop;
+                for (prop in win) {
+                    if (!(prop in oldGlobals)) {
+                        // Note: if the variable was defined using "var",
+                        // deleting it from the window object does not
+                        // really delete it. For this, we also always set it
+                        // to undefined!
+                        win[prop] = undefined;
+                        delete win[prop];
+                    }
+                }
+            }
+        }
+
+        function replaceWinFn(name, replaceFn) {
+            var _old = win[name];
+            win[name] = replaceFn;
+            restoreFns.push(restore);
+
+            function restore() {
+                win[name] = _old;
+            }
+        }
+        function replaceDocFn(name, replaceFn) {
+            var _old = doc[name];
+            doc[name] = replaceFn;
+            restoreFns.push(restore);
+
+            function restore() {
+                doc[name] = _old;
+            }
+        }
+
+        function noop() {
+        }
+
+        function FakeXMLHttpRequest() {
+            this.open = noop;
+            this.send = noop;
+            this.cancel = noop;
+            this.setRequestAttribute = noop;
+        }
+    }
+
+    function removeCurrentScript(doc) {
+        var scripts = doc.getElementsByTagName("script");
+        var lastScript = scripts[scripts.length-1];
+        lastScript.parentNode.removeChild(lastScript);
     }
 
     function rewriteDocument(win, html) {

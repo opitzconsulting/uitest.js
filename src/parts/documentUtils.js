@@ -14,12 +14,11 @@ uitest.define('documentUtils', ['global'], function(global) {
         return "<!DOCTYPE " + node.name + (node.publicId ? ' PUBLIC "' + node.publicId + '"' : '') + (!node.publicId && node.systemId ? ' SYSTEM' : '') + (node.systemId ? ' "' + node.systemId + '"' : '') + '>';
     }
 
-    function serializeHtmlTag(doc) {
-        var el = doc.documentElement,
-            i, attr;
+    function serializeHtmlTag(docEl) {
+        var i, attr;
         var parts = ['<html'];
-        for(i = 0; i < el.attributes.length; i++) {
-            attr = el.attributes[i];
+        for(i = 0; i < docEl.attributes.length; i++) {
+            attr = docEl.attributes[i];
             if(attr.value !== undefined) {
                 parts.push(attr.name + '="' + attr.value + '"');
             } else {
@@ -32,7 +31,7 @@ uitest.define('documentUtils', ['global'], function(global) {
     function serializeHtmlBeforeLastScript(doc) {
         var innerHtml = doc.documentElement.innerHTML;
         var lastScript = innerHtml.lastIndexOf('<script');
-        return serializeDocType(doc) + serializeHtmlTag(doc) + innerHtml.substring(0, lastScript);
+        return serializeDocType(doc) + serializeHtmlTag(doc.documentElement) + innerHtml.substring(0, lastScript);
     }
 
     function contentScriptHtml(content) {

@@ -1,5 +1,5 @@
 describe('run/testframe', function() {
-    var global, body, topFrame, iframeElement, uitestwindow, buttonElement, injector, someNow;
+    var global, body, topFrame, iframeElement, uitestwindow, buttonElement, injector, someNow, utils;
     beforeEach(function() {
         uitestwindow = {
             location: {},
@@ -21,6 +21,9 @@ describe('run/testframe', function() {
             style: {}
         };
         someNow = 1234;
+        utils = {
+            testRunTimestamp: jasmine.createSpy('testRunTimestamp').andReturn(someNow)
+        };
         topFrame = {
             document: {
                 body: body,
@@ -50,14 +53,16 @@ describe('run/testframe', function() {
 
     function createTestframe(url) {
         url = url || '/someUrl';
-        return uitest.require({
+
+        var modules = uitest.require({
             global: global,
             "run/config": {
-                now: someNow,
                 url: url
             },
+            utils: utils,
             "run/injector": injector
-        }, ["run/testframe"])["run/testframe"];
+        }, ["run/testframe", "utils"]);
+        return modules["run/testframe"];
     }
 
     it('should publish the uitest module to the top frame', function() {

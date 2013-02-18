@@ -1,4 +1,4 @@
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger'], function(urlParser, global, runConfig, injector, logger) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'utils'], function(urlParser, global, runConfig, injector, logger, utils) {
     var REFRESH_URL_ATTRIBUTE = 'uitr',
         WINDOW_ID = 'uitestwindow',
         frameElement, frameWindow;
@@ -53,11 +53,12 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function navigateWithReloadTo(win, url) {
         url = makeAbsolute(url);
-        logger.log("opening url "+url);
         var parsedUrl = urlParser.parseUrl(url);
 
-        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, runConfig.now);
-        win.location.href = urlParser.serializeUrl(parsedUrl);
+        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, utils.testRunTimestamp());
+        url = urlParser.serializeUrl(parsedUrl);
+        logger.log("opening url "+url);
+        win.location.href = url;
     }
 
     function makeAbsolute(url) {

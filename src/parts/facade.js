@@ -114,7 +114,6 @@ uitest.define('facade', ['config', 'global'], function(config, global) {
 
         self._config.sealed(true);
         config = self._config.buildConfig();
-        config.now = global.Date.now();
         self._runModules = {"run/config": config};
         uitest.require(self._runModules, function(moduleName) {
             if (moduleName.indexOf('run/')!==0) {

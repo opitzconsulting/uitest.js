@@ -28,9 +28,6 @@ describe('run/instrumentor', function() {
         });
         it('should call deactivateAndCaptureHtml, the preprocessors, and then rewriteDocument', function() {
             var someInitialHtml = 'someInitialHtml',
-                someBrowserFlags = {
-                    a: 1
-                },
                 preproc1 = jasmine.createSpy("preproc1").andReturn("preproc1Html"),
                 preproc2 = jasmine.createSpy("preproc1").andReturn("preproc2Html");
 
@@ -38,15 +35,15 @@ describe('run/instrumentor', function() {
             instrumentor.addPreprocessor(100, preproc1);
 
             instrumentor.internal.deactivateAndCaptureHtml.andCallFake(function(win, callback) {
-                callback(someInitialHtml, someBrowserFlags);
+                callback(someInitialHtml);
             });
 
             instrumentor.internal.instrument(win);
 
             expect(instrumentor.internal.deactivateAndCaptureHtml).toHaveBeenCalled();
             expect(instrumentor.internal.deactivateAndCaptureHtml.mostRecentCall.args[0]).toBe(win);
-            expect(preproc1).toHaveBeenCalledWith(someInitialHtml, someBrowserFlags);
-            expect(preproc2).toHaveBeenCalledWith("preproc1Html", someBrowserFlags);
+            expect(preproc1).toHaveBeenCalledWith(someInitialHtml);
+            expect(preproc2).toHaveBeenCalledWith("preproc1Html");
             expect(instrumentor.internal.rewriteDocument).toHaveBeenCalledWith(win, "preproc2Html");
         });
         it('should make it global', function() {
@@ -79,39 +76,90 @@ describe('run/instrumentor', function() {
             }, 200);
         }
 
+        it('should give the html without the calling script to the callback', function() {
+            var prefix = '<html><head><meta name="someHeadMeta">',
+                suffix = '</head><body>someBody</body></html>';
+            init(prefix, suffix);
+            runs(function() {
+                expect(html).toBe(prefix + suffix);
+            });
+        });
+
         var android = /android/i.test(window.navigator.userAgent.toLowerCase());
-        if (!android) {
-            describe('not on android', function() {
-                // Here we want to enforce that the <noscript> tag works at least
-                // on some browsers!
-                // That deactivateAndCaptureHtml also works on android devices
-                // is proofed by the ui tests!
-                it('should give the html without the calling script to the callback', function() {
+        var ie = /MSIE/i.test(window.navigator.userAgent.toLowerCase());
+
+        if (!android && !ie) {
+            describe('not on android and not on ie', function() {
+                // Here we want to enforce that our html capture and script deactivation
+                // works at least on some browsers without workarounds.
+                it('should not execute scripts', function() {
+                    window.someFlag = false;
                     var prefix = '<html><head>',
-                        suffix = '</head></html>';
+                        suffix = '<script>parent.someFlag = true;</script></head></html>';
                     init(prefix, suffix);
                     runs(function() {
-                        expect(html).toBe(prefix + suffix);
+                        expect(window.someFlag).toBe(false);
                     });
                 });
             });
         }
 
-        it('should load the html using the noscript hack or xhr if the noscript hack did not work', function() {
-            var prefix = '<html><head>',
-                suffix = '</head></html>';
-            init(prefix, suffix);
-            runs(function() {
-                expect(html===prefix+suffix || html==='someHtmlLoadedViaXhr').toBe(true);
+        describe('if scripts are executed', function() {
+            it('should not allow to create new globals', function() {
+                var prefix = '<html><head>',
+                    suffix = '<script>var someGlobalVar = true; window.someFlag = true;</script></head></html>';
+                init(prefix, suffix);
+                runs(function() {
+                    expect(testutils.frame.win.someFlag).toBeUndefined();
+                    expect(testutils.frame.win.someGlobalVar).toBeUndefined();
+                });
             });
-        });
+            it('should not be able to modify the DOM using document.write/writeln', function() {
+                var prefix = '<html><head></head><body>',
+                    suffix = '<script>document.write("test");document.writeln("test2");</script></body></html>';
+                init(prefix, suffix);
+                runs(function() {
+                    expect(html).toBe(prefix+suffix);
+                });
+            });
+            it('should not be able to modify the DOM using DOM-API', function() {
+                var prefix = '<html><head></head><body>',
+                    suffix = '<script>document.body.appendChild(document.createElement("DIV"));</script></body></html>';
+                init(prefix, suffix);
+                runs(function() {
+                    expect(html).toBe(prefix+suffix);
+                });
+            });
+            it('should not be able to install setTimeouts', function() {
+                window.someFlag = false;
+                var prefix = '<html><head></head><body>',
+                    suffix = '<script>setTimeout(function() { parent.someFlag = true; },0);</script></body></html>';
+                init(prefix, suffix);
+                waits(20);
+                runs(function() {
+                    expect(window.someFlag).toBe(false);
+                });
+            });
+            it('should not be able to install setIntervals', function() {
+                window.someFlag = false;
+                var prefix = '<html><head></head><body>',
+                    suffix = '<script>setInterval(function() { parent.someFlag = true; },2);</script></body></html>';
+                init(prefix, suffix);
+                waits(20);
+                runs(function() {
+                    expect(window.someFlag).toBe(false);
+                });
+            });
+            it('should not be able to execute xhrs', function() {
+                window.someFlag = false;
+                var prefix = '<html><head></head><body>',
+                    suffix = '<script>var xhr = new XMLHttpRequest();xhr.open("GET", "someUrl", false);xhr.onreadystatechange = function() { parent.someFlag = xhr; };xhr.send();</script></body></html>';
+                init(prefix, suffix);
+                waits(20);
+                runs(function() {
+                    expect(window.someFlag).toBe(false);
+                });
 
-        it('should not execute scripts after it', function() {
-            var prefix = '<html><head>',
-                suffix = '<script>window.test=true;</script></head></html>';
-            init(prefix, suffix);
-            runs(function() {
-                expect(testutils.frame.win.test).toBeUndefined();
             });
         });
     });

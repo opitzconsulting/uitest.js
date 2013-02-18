@@ -8,13 +8,12 @@
     });
 
     var FRAME_NAME = 'testframe',
-        frame,
         exports = {};
 
     afterEach(function() {
-        if(frame) {
-            frame.element.parentElement.removeChild(frame.element);
-            frame = null;
+        if(exports.frame) {
+            exports.frame.element.parentElement.removeChild(exports.frame.element);
+            exports.frame = null;
         }
     });
 
