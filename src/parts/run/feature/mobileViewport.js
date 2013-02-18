@@ -15,7 +15,7 @@ uitest.define('run/feature/mobileViewport', ['run/config'], function(runConfig) 
             newMeta = topDoc.createElement("meta");
             newMeta.setAttribute("name", "viewport");
             newMeta.setAttribute("content", viewportMeta.getAttribute("content"));
-            topDoc.head.appendChild(newMeta);
+            topDoc.getElementsByTagName("head")[0].appendChild(newMeta);
         }
     }
 

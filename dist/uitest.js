@@ -52,6 +52,9 @@
         if (!instanceCache) {
             instanceCache = {};
         }
+        if (name==="moduleCache") {
+            return instanceCache;
+        }
         if (instanceCache[name] === undefined) {
             var resolvedValue;
             var mod = findModuleDefinition(name);
@@ -311,7 +314,7 @@ uitest.define('documentUtils', ['global'], function(global) {
     // 1. opening script tag
     // 2. content of src attribute
     // 3. text content of script element.
-    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/g;
+    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/ig;
 
     function serializeDocType(doc) {
         var node = doc.doctype;
@@ -326,19 +329,15 @@ uitest.define('documentUtils', ['global'], function(global) {
         var parts = ['<html'];
         for(i = 0; i < docEl.attributes.length; i++) {
             attr = docEl.attributes[i];
-            if(attr.value !== undefined) {
-                parts.push(attr.name + '="' + attr.value + '"');
-            } else {
-                parts.push(attr.name);
+            if (attr.specified) {
+                if(attr.value) {
+                    parts.push(attr.name + '="' + attr.value + '"');
+                } else {
+                    parts.push(attr.name);
+                }
             }
         }
         return parts.join(" ") + ">";
-    }
-
-    function serializeHtmlBeforeLastScript(doc) {
-        var innerHtml = doc.documentElement.innerHTML;
-        var lastScript = innerHtml.lastIndexOf('<script');
-        return serializeDocType(doc) + serializeHtmlTag(doc.documentElement) + innerHtml.substring(0, lastScript);
     }
 
     function contentScriptHtml(content) {
@@ -406,15 +405,45 @@ uitest.define('documentUtils', ['global'], function(global) {
         });
     }
 
+    function addEventListener(target, type, callback) {
+        if (target.addEventListener) {
+            target.addEventListener(type, callback, false);
+        } else {
+            target.attachEvent("on"+type, callback);
+        }
+    }
+
+    function textContent(el, val) {
+        if ("text" in el) {
+            el.text = val;
+        } else {
+            if ("innerText" in el) {
+                el.innerHTML = val;
+            } else {
+                el.textContent = val;
+            }
+        }
+    }
+
+    function setStyle(el, val) {
+        if (el.style.setAttribute) {
+            el.style.setAttribute("cssText", val);
+        } else {
+            el.setAttribute("style", val);
+        }
+    }
+
     return {
         serializeDocType: serializeDocType,
         serializeHtmlTag: serializeHtmlTag,
-        serializeHtmlBeforeLastScript: serializeHtmlBeforeLastScript,
         contentScriptHtml: contentScriptHtml,
         urlScriptHtml: urlScriptHtml,
         loadAndEvalScriptSync: loadAndEvalScriptSync,
         loadFile: loadFile,
-        replaceScripts: replaceScripts
+        replaceScripts: replaceScripts,
+        addEventListener: addEventListener,
+        textContent: textContent,
+        setStyle: setStyle
     };
 });
 uitest.define('facade', ['config', 'global'], function(config, global) {
@@ -614,7 +643,7 @@ uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'docu
             i;
         logger.log("adding prepends after <head>");
         createScriptTagForPrependsOrAppends(htmlArr, prepends);
-        return html.replace(/<head>/, htmlArr.join(''));
+        return html.replace(/<head>/i, htmlArr.join(''));
     }
 
     function handleAppends(html, appends) {
@@ -623,7 +652,8 @@ uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'docu
         logger.log("adding appends at </body>");
         createScriptTagForPrependsOrAppends(htmlArr, appends);
         htmlArr.push('</body>');
-        return html.replace(/<\/body>/, htmlArr.join(''));
+        var newHtml = html.replace(/<\/body>/i, htmlArr.join(''));
+        return newHtml;
     }
 
     function createScriptTagForPrependsOrAppends(html, prependsOrAppends) {
@@ -796,6 +826,9 @@ uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], 
             // to yield outArr instanceof win.Array.
             // Also, every call to "push" will also change the prototype somehow...
             /*jshint evil:true*/
+            if (!inArr) {
+                return inArr;
+            }
             var outArr = win["eval"]("new Array("+inArr.length+")"),
                 i;
             for (i=0; i<inArr.length; i++) {
@@ -821,6 +854,35 @@ uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], 
         });
     }
 });
+uitest.define('run/feature/cacheBuster', ['documentUtils', 'run/instrumentor', 'run/logger', 'utils', 'urlParser', 'run/requirejsScriptAdder'], function(docUtils, instrumentor, logger, utils, urlParser, requirejsScriptAdder) {
+    
+    var now = utils.testRunTimestamp();
+    logger.log("forcing script refresh with timestamp "+now);
+
+    instrumentor.addPreprocessor(9999, forceScriptRefresh);
+    requirejsScriptAdder.addLoadInterceptor(9999, forceScriptRefreshLoadInterceptor);
+
+    return {
+        forceScriptRefresh: forceScriptRefresh,
+        forceScriptRefreshLoadInterceptor: forceScriptRefreshLoadInterceptor
+    };
+
+    function forceScriptRefreshLoadInterceptor(url, callback) {
+        return urlParser.cacheBustingUrl(url, now);
+    }
+
+    function forceScriptRefresh(html) {
+        return docUtils.replaceScripts(html, function(parsedTag) {
+            if(!parsedTag.scriptUrl) {
+                return undefined;
+            }
+            var url = urlParser.cacheBustingUrl(parsedTag.scriptUrl, now);
+            return parsedTag.scriptOpenTag.replace(parsedTag.scriptUrl, url)+"</script>";
+        });
+    }
+});
+
+
 uitest.define('run/feature/intervalSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
     var intervals = {},
         intervalStartCounter = 0;
@@ -913,7 +975,7 @@ uitest.define('run/feature/mobileViewport', ['run/config'], function(runConfig) 
             newMeta = topDoc.createElement("meta");
             newMeta.setAttribute("name", "viewport");
             newMeta.setAttribute("content", viewportMeta.getAttribute("content"));
-            topDoc.head.appendChild(newMeta);
+            topDoc.getElementsByTagName("head")[0].appendChild(newMeta);
         }
     }
 
@@ -1048,24 +1110,6 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
         };
     }
 });
-uitest.define('run/forceScriptRefreshPreprocessor', ['documentUtils', 'run/instrumentor', 'run/logger', 'utils'], function(docUtils, instrumentor, logger, utils) {
-    
-    instrumentor.addPreprocessor(9999, forceScriptRefresh);
-    return forceScriptRefresh;
-
-    function forceScriptRefresh(html) {
-        var now = utils.testRunTimestamp();
-        logger.log("forcing script refresh with timestamp "+now);
-        return docUtils.replaceScripts(html, function(parsedTag) {
-            if(!parsedTag.scriptUrl) {
-                return undefined;
-            }
-            return parsedTag.scriptOpenTag.replace(parsedTag.scriptUrl, parsedTag.scriptUrl+'?'+now)+"</script>";
-        });
-    }
-});
-
-
 uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 
 	var defaultResolvers = [];
@@ -1164,12 +1208,12 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         var newDocEl = oldDocEl.cloneNode(false);
         newDocEl.appendChild(doc.createElement("head"));
         newDocEl.appendChild(doc.createElement("body"));
-        
+
         doc.removeChild(oldDocEl);
         doc.appendChild(newDocEl);
         var restore = saveAndFreezeDoc(win);
 
-        win.addEventListener('load', function() {
+        docUtils.addEventListener(win, 'load', function() {
             restore();
 
             var docType = docUtils.serializeDocType(win.document);
@@ -1177,7 +1221,7 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
             var innerHtml = oldDocEl.innerHTML;
             innerHtml = innerHtml.replace("parent.uitest.instrument(window)", "false");
             callback(docType+htmlOpenTag+innerHtml+"</html>");
-        }, false);
+        });
     }
 
     function saveAndFreezeDoc(win) {
@@ -1218,7 +1262,11 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
                         // really delete it. For this, we also always set it
                         // to undefined!
                         win[prop] = undefined;
-                        delete win[prop];
+                        try {
+                            delete win[prop];
+                        } catch (e) {
+                            // IE doe not allow to delete variables from window...
+                        }
                     }
                 }
             }
@@ -1267,7 +1315,7 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         // (setTimeout only needed for IE9!)
         var sn = win.document.createElement("script");
         sn.setAttribute("type", "text/javascript");
-        sn.textContent = 'function rewrite() { document.open();document.write(newContent);document.close();} window.setTimeout(rewrite,0);';
+        docUtils.textContent(sn, 'function rewrite() { var newContent = window.newContent; document.open();document.write(newContent);document.close();} window.setTimeout(rewrite,0);');
         win.document.body.appendChild(sn);
     }
 
@@ -1309,7 +1357,7 @@ uitest.define('run/lesserThanIe10Preprocessor', ['run/instrumentor', 'run/logger
             return html;
         }
         logger.log("applying ie<10 bugfix");
-        return docUtils.replaceScripts(html, function(parsedTag) {
+        var newHtml = docUtils.replaceScripts(html, function(parsedTag) {
             if(!parsedTag.scriptUrl) {
                 return undefined;
             }
@@ -1318,11 +1366,12 @@ uitest.define('run/lesserThanIe10Preprocessor', ['run/instrumentor', 'run/logger
                 docUtils.loadAndEvalScriptSync(win, parsedTag.scriptUrl);
             }, "window") + '</script>';
         });
+        return newHtml;
     }
 
     function isIeLesserThan10(frame) {
-        if(frame.navigator.appName.indexOf("Internet Explorer") != -1) { //yeah, he's using IE
-            return frame.navigator.appVersion.indexOf("MSIE 1") == -1; //v10, 11, 12, etc. is fine
+        if(frame.navigator.appName.indexOf("Internet Explorer") !== -1) { //yeah, he's using IE
+            return frame.navigator.appVersion.indexOf("MSIE 1") === -1; //v10, 11, 12, etc. is fine
         }
         return false;
     }
@@ -1399,13 +1448,14 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 	}
 
 	// Goal:
-	// - Detect async work that cannot detected before some time after it's start
-	//   (e.g. the WebKitAnimationStart event is not fired until some ms after the dom change that started the animation).
+	// - Detect async work started by events that cannot be tracked
+	//   (e.g. scroll event, hashchange event, popState event).
 	// - Detect the situation where async work starts another async work
 	//
 	// Algorithm:
 	// Wait until all readySensors did not change for 50ms.
-
+	// Note: We already tested with 10ms, but that did not work well
+	// for popState events...
 
 	function ready(listener) {
 		var sensorStatus;
@@ -1416,7 +1466,7 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 				logger.log("ready waiting for [" + sensorStatus.busySensors + "]");
 				global.setTimeout(restart, 10);
 			} else {
-				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 10);
+				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 50);
 			}
 		}
 
@@ -1455,15 +1505,24 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 		ready: ready
 	};
 });
-uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'run/defaultScriptAdder', 'documentUtils', 'run/injector', 'run/logger', 'utils'], function(runConfig, instrumentor, defaultScriptAdder, docUtils, injector, logger, utils) {
-    var REQUIRE_JS_RE = /require[\W]/;
+uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'run/defaultScriptAdder', 'documentUtils', 'run/injector', 'run/logger', 'utils', 'urlParser'], function(runConfig, instrumentor, defaultScriptAdder, docUtils, injector, logger, utils, urlParser) {
+    var REQUIRE_JS_RE = /require[\W]/,
+        COMPARE_BY_PRIO = function(entry1, entry2) {
+            return entry2.prio - entry1.prio;
+        },
+        loadInterceptors = [];
 
     instrumentor.addPreprocessor(11, preprocess);
+    addLoadInterceptor(0, defaultLoadInterceptor);
+
+    function addLoadInterceptor(prio, interceptor) {
+        loadInterceptors.push({prio: prio, interceptor: interceptor});
+    }
 
     function preprocess(html) {
         return docUtils.replaceScripts(html, function(parsedScript) {
-            var appends = runConfig.appends,
-                intercepts = runConfig.intercepts;
+            var intercepts = runConfig.intercepts,
+                appends = runConfig.rjsAppends = runConfig.rjsAppends || runConfig.appends;
 
             if(!parsedScript.scriptUrl) {
                 return undefined;
@@ -1527,33 +1586,57 @@ uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'ru
         }
     }
 
+    function defaultLoadInterceptor(url, finishedCallback) {
+        var scriptExecutor = defaultScriptAdder.createInterceptingScriptExecutor(url, runConfig.intercepts);
+        if (scriptExecutor) {
+            try {
+                scriptExecutor();
+                finishedCallback();
+            } catch (e) {
+                finishedCallback(e);
+            }
+            return false;
+        }
+        return url;
+    }
+
+    function execLoadInterceptors(url, finishedCallback) {
+        var i = 0, finished = false;
+        loadInterceptors.sort(COMPARE_BY_PRIO);
+        while (i<loadInterceptors.length && url) {
+            url = loadInterceptors[i].interceptor(url, finishedCallback);
+            i++;
+        }
+        return url;
+    }
+
     function patchLoad(_require, intercepts) {
         var _load = _require.load;
         _require.load = function(context, moduleName, url) {
-            
-            var scriptExecutor = defaultScriptAdder.createInterceptingScriptExecutor(url, intercepts);
-            if(!scriptExecutor) {
-                return _load.apply(this, arguments);
-            }
-            try {
-                scriptExecutor();
-                context.completeLoad(moduleName);
-            } catch(error) {
-                //Set error on module, so it skips timeout checks.
-                context.registry[moduleName].error = true;
-                throw error;
+            url = execLoadInterceptors(url, function(error) {
+                if (error) {
+                    //Set error on module, so it skips timeout checks.
+                    context.registry[moduleName].error = true;
+                    throw error;
+                } else {
+                    context.completeLoad(moduleName);
+                }
+            });
+            if (url) {
+                return _load.call(this, context, moduleName, url);
             }
         };
     }
 
     return {
-        preprocess: preprocess
+        preprocess: preprocess,
+        defaultLoadInterceptor: defaultLoadInterceptor,
+        addLoadInterceptor: addLoadInterceptor
     };
 
 });
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'utils'], function(urlParser, global, runConfig, injector, logger, utils) {
-    var REFRESH_URL_ATTRIBUTE = 'uitr',
-        WINDOW_ID = 'uitestwindow',
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils'], function(urlParser, global, runConfig, injector, logger, docUtils) {
+    var WINDOW_ID = 'uitestwindow',
         frameElement, frameWindow;
 
     global.top.uitest = global.uitest;
@@ -1579,7 +1662,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         frameElement.setAttribute("id", WINDOW_ID);
         frameElement.setAttribute("width", "100%");
         frameElement.setAttribute("height", "100%");
-        frameElement.setAttribute("style", "position: absolute; bottom: 0; left: 0;background-color:white; border: 0px");
+        docUtils.setStyle(frameElement, "position: absolute; top: 0; left: 0; background-color:white; border: 0px");
         frameElement.style.zIndex = 100;
         doc.body.appendChild(frameElement);
 
@@ -1589,9 +1672,9 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     function createToggleButton(topWindow, iframeElement) {
         var doc = topWindow.document,
             toggleButton = doc.createElement("button");
-        toggleButton.textContent = "Toggle testframe";
-        toggleButton.setAttribute("style", "position: absolute; z-index: 1000; top: 0; right: 0; cursor: pointer;");
-        toggleButton.addEventListener("click", toggleListener, false);
+        docUtils.textContent(toggleButton, "Toggle testframe");
+        docUtils.setStyle(toggleButton, "position: absolute; z-index: 1000; width: auto; top: 0; right: 0; cursor: pointer;");
+        docUtils.addEventListener(toggleButton, "click", toggleListener);
         doc.body.appendChild(toggleButton);
         return toggleButton;
 
@@ -1606,10 +1689,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function navigateWithReloadTo(win, url) {
         url = makeAbsolute(url);
-        var parsedUrl = urlParser.parseUrl(url);
-
-        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, utils.testRunTimestamp());
-        url = urlParser.serializeUrl(parsedUrl);
+        url = urlParser.cacheBustingUrl(url, global.Date.now());
         logger.log("opening url "+url);
         win.location.href = url;
     }
@@ -1692,7 +1772,8 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
     };
 });
 uitest.define('urlParser', ['global'], function (global) {
-    var UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/;
+    var UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/,
+        NUMBER_RE = /^\d+$/;
 
 
     function parseUrl(url) {
@@ -1724,18 +1805,6 @@ uitest.define('urlParser', ['global'], function (global) {
             res += '#' + parsedUrl.hash;
         }
         return res;
-    }
-
-    function setOrReplaceQueryAttr(parsedUrl, attr, value) {
-        var newQueryEntry = attr + '=' + value;
-        var query = parsedUrl.query;
-        for (var i = 0; i < query.length; i++) {
-            if (query[i].indexOf(attr) === 0) {
-                query[i] = newQueryEntry;
-                return;
-            }
-        }
-        query.push(newQueryEntry);
     }
 
     function uitestUrl() {
@@ -1778,45 +1847,62 @@ uitest.define('urlParser', ['global'], function (global) {
         return urlWithoutSlash;
     }
 
+    function cacheBustingUrl(url, timestamp) {
+        var parsedUrl = parseUrl(url),
+            query = parsedUrl.query,
+            i, foundOldEntry = false;
+        for (i = 0; i < query.length && !foundOldEntry; i++) {
+            if (query[i].match(NUMBER_RE)) {
+                query[i] = timestamp;
+                foundOldEntry = true;
+            }
+        }
+        if (!foundOldEntry) {
+            query.push(timestamp);
+        }
+        return serializeUrl(parsedUrl);
+    }
+
     return {
-        setOrReplaceQueryAttr:setOrReplaceQueryAttr,
         parseUrl:parseUrl,
         serializeUrl:serializeUrl,
         makeAbsoluteUrl: makeAbsoluteUrl,
         filenameFor: filenameFor,
-        uitestUrl: uitestUrl
+        uitestUrl: uitestUrl,
+        cacheBustingUrl: cacheBustingUrl
     };
 });
-uitest.define('utils', ['global'], function(global) {
-    var now = -1;
-    if (global.Date) {
-        now = global.Date.now();
-    }
+(function() {
+    // Note: We only want to call this once,
+    // and not on every module instantiation!
+    var now = Date.now();
 
-    function isString(obj) {
-        return obj && obj.slice;
-    }
+    uitest.define('utils', ['global'], function(global) {
+        function isString(obj) {
+            return obj && obj.slice;
+        }
 
-    function isFunction(value) {
-        return typeof value === 'function';
-    }
+        function isFunction(value) {
+            return typeof value === 'function';
+        }
 
-    function isArray(value) {
-        return global.Object.prototype.toString.apply(value) === '[object Array]';
-    }
+        function isArray(value) {
+            return global.Object.prototype.toString.apply(value) === '[object Array]';
+        }
 
-    function testRunTimestamp() {
-        return now;
-    }
+        function testRunTimestamp() {
+            return now;
+        }
 
-    return {
-        isString: isString,
-        isFunction: isFunction,
-        isArray: isArray,
-        testRunTimestamp: testRunTimestamp
-    };
+        return {
+            isString: isString,
+            isFunction: isFunction,
+            isArray: isArray,
+            testRunTimestamp: testRunTimestamp
+        };
+    });
 
-});
+})();
 (function () {
     uitest.require(["facade", "jasmineSugar"]);
 })();

@@ -57,23 +57,6 @@ describe("urlParser", function () {
         });
     });
 
-    describe('setOrReplaceQueryAttr', function() {
-        it('should add a new query attribute if not existing', function() {
-            var data = {
-                query: []
-            };
-            urlParser.setOrReplaceQueryAttr(data, 'someProp', 'someValue');
-            expect(data.query).toEqual(["someProp=someValue"]);
-        });
-        it('should replace a query attribute if existing', function() {
-            var data = {
-                query: ["a=b"]
-            };
-            urlParser.setOrReplaceQueryAttr(data, 'a', 'c');
-            expect(data.query).toEqual(["a=c"]);
-        });
-    });
-
     describe('makeAbsoluteUrl', function() {
         it('should not change urls with a leading slash', function() {
             expect(urlParser.makeAbsoluteUrl('/someUrl', 'base')).toBe('/someUrl');
@@ -112,6 +95,18 @@ describe("urlParser", function () {
             test('uitest.js/some.js', false);
             // Note: This test is required for our CI, as we load every file of uitest.js individually!
             test('simpleRequire.js', true);
+        });
+    });
+
+    describe('cacheBustingUrl', function() {
+        it('should add a query parameter for empty urls', function() {
+            expect(urlParser.cacheBustingUrl('someUrl', 123)).toBe('someUrl?123');
+        });
+        it('should add a query parameter for urls with query', function() {
+            expect(urlParser.cacheBustingUrl('someUrl?a', 123)).toBe('someUrl?a&123');
+        });
+        it('should replace an existing timestamp in the query', function() {
+            expect(urlParser.cacheBustingUrl('someUrl?123&b', 3)).toBe('someUrl?3&b');
         });
     });
 });

@@ -17,8 +17,11 @@ describe('angular-xhrmock', function() {
     it('should allow filters to work with arrays created in tests (i.e. with different prototypes)', function() {
         uit.runs(function(filterFilter, limitToFilter, orderByFilter) {
             expect(filterFilter([1,2],1)).toEqual([1]);
+            expect(filterFilter(null)).toEqual(null);
             expect(limitToFilter([1,2],1)).toEqual([1]);
+            expect(limitToFilter(null)).toEqual(null);
             expect(orderByFilter([{a:2},{a:1}], 'a')).toEqual([{a:1},{a:2}]);
+            expect(orderByFilter(null)).toEqual(null);
         });
 
     });
@@ -35,7 +38,7 @@ describe('angular-xhrmock', function() {
             btnEl.click();
 
             $httpBackend.flush();
-            expect(resultEl.textContent).toBe(someData);
+            expect(resultEl.innerHTML).toBe(someData);
         });
     });
 

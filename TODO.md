@@ -1,8 +1,5 @@
 TODO
 ----
-* Testen gegen IE7+?!
-* Testen mit Rylc, siehe Mail von SSC!
-
 - syntactic sugar for other testfkws:
   * Mocha
   * QUnit

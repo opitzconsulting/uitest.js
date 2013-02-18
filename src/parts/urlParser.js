@@ -1,5 +1,6 @@
 uitest.define('urlParser', ['global'], function (global) {
-    var UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/;
+    var UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/,
+        NUMBER_RE = /^\d+$/;
 
 
     function parseUrl(url) {
@@ -31,18 +32,6 @@ uitest.define('urlParser', ['global'], function (global) {
             res += '#' + parsedUrl.hash;
         }
         return res;
-    }
-
-    function setOrReplaceQueryAttr(parsedUrl, attr, value) {
-        var newQueryEntry = attr + '=' + value;
-        var query = parsedUrl.query;
-        for (var i = 0; i < query.length; i++) {
-            if (query[i].indexOf(attr) === 0) {
-                query[i] = newQueryEntry;
-                return;
-            }
-        }
-        query.push(newQueryEntry);
     }
 
     function uitestUrl() {
@@ -85,12 +74,28 @@ uitest.define('urlParser', ['global'], function (global) {
         return urlWithoutSlash;
     }
 
+    function cacheBustingUrl(url, timestamp) {
+        var parsedUrl = parseUrl(url),
+            query = parsedUrl.query,
+            i, foundOldEntry = false;
+        for (i = 0; i < query.length && !foundOldEntry; i++) {
+            if (query[i].match(NUMBER_RE)) {
+                query[i] = timestamp;
+                foundOldEntry = true;
+            }
+        }
+        if (!foundOldEntry) {
+            query.push(timestamp);
+        }
+        return serializeUrl(parsedUrl);
+    }
+
     return {
-        setOrReplaceQueryAttr:setOrReplaceQueryAttr,
         parseUrl:parseUrl,
         serializeUrl:serializeUrl,
         makeAbsoluteUrl: makeAbsoluteUrl,
         filenameFor: filenameFor,
-        uitestUrl: uitestUrl
+        uitestUrl: uitestUrl,
+        cacheBustingUrl: cacheBustingUrl
     };
 });

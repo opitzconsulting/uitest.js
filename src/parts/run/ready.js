@@ -7,13 +7,14 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 	}
 
 	// Goal:
-	// - Detect async work that cannot detected before some time after it's start
-	//   (e.g. the WebKitAnimationStart event is not fired until some ms after the dom change that started the animation).
+	// - Detect async work started by events that cannot be tracked
+	//   (e.g. scroll event, hashchange event, popState event).
 	// - Detect the situation where async work starts another async work
 	//
 	// Algorithm:
 	// Wait until all readySensors did not change for 50ms.
-
+	// Note: We already tested with 10ms, but that did not work well
+	// for popState events...
 
 	function ready(listener) {
 		var sensorStatus;
@@ -24,7 +25,7 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 				logger.log("ready waiting for [" + sensorStatus.busySensors + "]");
 				global.setTimeout(restart, 10);
 			} else {
-				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 10);
+				global.setTimeout(ifNoAsyncWorkCallListenerElseRestart, 50);
 			}
 		}
 

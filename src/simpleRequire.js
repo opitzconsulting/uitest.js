@@ -48,6 +48,9 @@
         if (!instanceCache) {
             instanceCache = {};
         }
+        if (name==="moduleCache") {
+            return instanceCache;
+        }
         if (instanceCache[name] === undefined) {
             var resolvedValue;
             var mod = findModuleDefinition(name);

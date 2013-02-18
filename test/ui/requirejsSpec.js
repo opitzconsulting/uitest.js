@@ -53,5 +53,33 @@ describe('requirejs', function() {
                 });
             });
         });
+
+        describe('cacheBusting', function() {
+            function findHelloScriptUrl(doc) {
+                var i,
+                    scripts = doc.getElementsByTagName("script");
+
+                for (i=0; i<scripts.length; i++) {
+                    if (scripts[i].src.indexOf('sayHello')!==-1) {
+                        return scripts[i].src;
+                    }
+                }
+                return undefined;
+            }
+            it('should do nothing if disabled', function() {
+                uit.runs(function(document) {
+                    var helloJsUrl = findHelloScriptUrl(document);
+                    expect(helloJsUrl).toMatch(/sayHello\.js/);
+                });
+            });
+            it('should work if enabled', function() {
+                uit.feature('cacheBuster');
+                uit.runs(function(document) {
+                    var helloJsUrl = findHelloScriptUrl(document);
+                    expect(helloJsUrl).toMatch(/sayHello\.js\?[0-9]+/);
+                });
+            });
+        });
+
     }
 });

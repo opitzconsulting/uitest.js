@@ -1,17 +1,25 @@
 describe('run/feature/mobileViewport', function() {
-    var testframe, runConfig, win, newMetaElement, metaTags = [], topMetaTags = [];
+    var testframe, runConfig, win, newMetaElement, metaTags = [], topMetaTags = [],
+        headElement;
     beforeEach(function() {
         newMetaElement = {
             setAttribute: jasmine.createSpy('setAttribute')
         };
+        headElement = {
+            appendChild: jasmine.createSpy('appendChild')
+        };
         win = {
             top: {
                 document: {
-                    getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn(topMetaTags),
+                    getElementsByTagName: jasmine.createSpy('getElementsByTagName').andCallFake(function(tagName) {
+                        if (tagName==='meta') {
+                            return topMetaTags;
+                        } else if(tagName==='head') {
+                            return [headElement];
+                        }
+                    }),
                     createElement: jasmine.createSpy('createElement').andReturn(newMetaElement),
-                    head: {
-                        appendChild: jasmine.createSpy('appendChild')
-                    }
+                    head: headElement
                 }
             },
             document: {

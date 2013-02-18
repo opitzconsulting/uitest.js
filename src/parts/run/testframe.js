@@ -1,6 +1,5 @@
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'utils'], function(urlParser, global, runConfig, injector, logger, utils) {
-    var REFRESH_URL_ATTRIBUTE = 'uitr',
-        WINDOW_ID = 'uitestwindow',
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils'], function(urlParser, global, runConfig, injector, logger, docUtils) {
+    var WINDOW_ID = 'uitestwindow',
         frameElement, frameWindow;
 
     global.top.uitest = global.uitest;
@@ -26,7 +25,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         frameElement.setAttribute("id", WINDOW_ID);
         frameElement.setAttribute("width", "100%");
         frameElement.setAttribute("height", "100%");
-        frameElement.setAttribute("style", "position: absolute; bottom: 0; left: 0;background-color:white; border: 0px");
+        docUtils.setStyle(frameElement, "position: absolute; top: 0; left: 0; background-color:white; border: 0px");
         frameElement.style.zIndex = 100;
         doc.body.appendChild(frameElement);
 
@@ -36,9 +35,9 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     function createToggleButton(topWindow, iframeElement) {
         var doc = topWindow.document,
             toggleButton = doc.createElement("button");
-        toggleButton.textContent = "Toggle testframe";
-        toggleButton.setAttribute("style", "position: absolute; z-index: 1000; top: 0; right: 0; cursor: pointer;");
-        toggleButton.addEventListener("click", toggleListener, false);
+        docUtils.textContent(toggleButton, "Toggle testframe");
+        docUtils.setStyle(toggleButton, "position: absolute; z-index: 1000; width: auto; top: 0; right: 0; cursor: pointer;");
+        docUtils.addEventListener(toggleButton, "click", toggleListener);
         doc.body.appendChild(toggleButton);
         return toggleButton;
 
@@ -53,10 +52,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function navigateWithReloadTo(win, url) {
         url = makeAbsolute(url);
-        var parsedUrl = urlParser.parseUrl(url);
-
-        urlParser.setOrReplaceQueryAttr(parsedUrl, REFRESH_URL_ATTRIBUTE, utils.testRunTimestamp());
-        url = urlParser.serializeUrl(parsedUrl);
+        url = urlParser.cacheBustingUrl(url, global.Date.now());
         logger.log("opening url "+url);
         win.location.href = url;
     }

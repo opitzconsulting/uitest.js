@@ -1,5 +1,5 @@
 describe('run/testframe', function() {
-    var global, body, topFrame, iframeElement, uitestwindow, buttonElement, injector, someNow, utils;
+    var global, body, topFrame, iframeElement, uitestwindow, buttonElement, injector;
     beforeEach(function() {
         uitestwindow = {
             location: {},
@@ -12,17 +12,14 @@ describe('run/testframe', function() {
         };
         buttonElement = {
             setAttribute: jasmine.createSpy('setAttribute'),
-            addEventListener: jasmine.createSpy('addEventListener')
+            addEventListener: jasmine.createSpy('addEventListener'),
+            style: {}
         };
         iframeElement = {
             setAttribute: jasmine.createSpy('setAttribute'),
             parentElement: body,
             contentWindow: uitestwindow,
             style: {}
-        };
-        someNow = 1234;
-        utils = {
-            testRunTimestamp: jasmine.createSpy('testRunTimestamp').andReturn(someNow)
         };
         topFrame = {
             document: {
@@ -39,6 +36,9 @@ describe('run/testframe', function() {
         };
         global = {
             top: topFrame,
+            Date: {
+                now: jasmine.createSpy('now').andReturn(123)
+            },
             uitest: {},
             document: {
                 getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn([{
@@ -59,7 +59,6 @@ describe('run/testframe', function() {
             "run/config": {
                 url: url
             },
-            utils: utils,
             "run/injector": injector
         }, ["run/testframe", "utils"]);
         return modules["run/testframe"];
@@ -88,17 +87,17 @@ describe('run/testframe', function() {
     describe('set the location.href on the first call', function() {
         it('works for absolute urls', function() {
             createTestframe('/someUrl');
-            expect(uitestwindow.location.href).toBe("/someUrl?uitr="+someNow);
+            expect(uitestwindow.location.href).toBe("/someUrl?123");
         });
         it('adds the url of uitest.js for relative urls', function() {
             global.document.getElementsByTagName.andReturn([{src: 'someScript.js'}, {src:'/base/uitest.js'}]);
             createTestframe('someUrl');
-            expect(uitestwindow.location.href).toBe("/base/someUrl?uitr="+someNow);
+            expect(uitestwindow.location.href).toBe("/base/someUrl?123");
         });
     });
     it('should set the location.href on further calls', function() {
         createTestframe();
-        expect(uitestwindow.location.href).toBe("/someUrl?uitr="+someNow);
+        expect(uitestwindow.location.href).toBe("/someUrl?123");
     });
     describe('toggleButton', function() {
         it('should create a button', function() {

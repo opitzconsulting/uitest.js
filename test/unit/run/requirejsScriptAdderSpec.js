@@ -1,5 +1,5 @@
 describe('run/requirejsScriptAdder', function() {
-    var preprocessor, instrumentor, testframe, documentUtils, config, global,
+    var preprocessor, instrumentor, testframe, documentUtils, config, global, utils,
         REQUIREJS_SCRIPT = '<script src="require.js"></script>',
         HTML = 'before' + REQUIREJS_SCRIPT + 'after</body>',
         require, win, requireCallback, someDepNames, someDepValues, requireLoad, loadContext;
@@ -26,8 +26,9 @@ describe('run/requirejsScriptAdder', function() {
             "run/instrumentor": instrumentor,
             "run/testframe": testframe,
             global: global
-        }, ["run/requirejsScriptAdder", "documentUtils"]);
+        }, ["run/requirejsScriptAdder", "documentUtils", "utils"]);
         documentUtils = modules.documentUtils;
+        utils = modules.utils;
         preprocessor = modules["run/requirejsScriptAdder"];
 
         spyOn(documentUtils, 'loadAndEvalScriptSync');
@@ -67,19 +68,73 @@ describe('run/requirejsScriptAdder', function() {
         require.mostRecentCall.args[1](someDepValues);
         expect(requireCallback).toHaveBeenCalledWith(someDepValues);
     });
-    it('should call the original require.load', function() {
-        var someModuleName = 'someModule',
-            someUrl = 'someUrl';
-
-        preprocessor.preprocess(HTML);
-        instrumentor.createRemoteCallExpression.argsForCall[0][0](win);
-
-        expect(require.load).not.toBe(requireLoad);
-        require.load(loadContext, someModuleName, someUrl);
-        expect(requireLoad).toHaveBeenCalledWith(loadContext, someModuleName, someUrl);
+    describe('load interceptor', function() {
+        var someModuleName = 'someModule';
+        function exec(url) {
+            loadContext.registry.someModule = {};
+            preprocessor.preprocess(HTML);
+            expect(require.load).not.toHaveBeenCalled();
+            instrumentor.createRemoteCallExpression.argsForCall[0][0](win);
+            require.load(loadContext, someModuleName, url);
+        }
+        it('should call the original require.load url', function() {
+            exec("someUrl");
+            expect(requireLoad).toHaveBeenCalledWith(loadContext, someModuleName, "someUrl");
+        });
+        it('should allow a loadInterceptor to change the url', function() {
+            preprocessor.addLoadInterceptor(10, function(url, callback) {
+                return url+'?1';
+            });
+            exec("someUrl");
+            expect(requireLoad).toHaveBeenCalledWith(loadContext, someModuleName, "someUrl?1");
+        });
+        it('should execute the loadInterceptors ordered by their priority', function() {
+            preprocessor.addLoadInterceptor(10, function(url, callback) {
+                return url+'?10';
+            });
+            preprocessor.addLoadInterceptor(20, function(url, callback) {
+                return url+'?20';
+            });
+            exec("someUrl");
+            expect(requireLoad).toHaveBeenCalledWith(loadContext, someModuleName, "someUrl?20?10");
+        });
+        it('should allow a loadInterceptor to replace the default load in success case', function() {
+            preprocessor.addLoadInterceptor(10, function(url, callback) {
+                callback();
+            });
+            exec("someUrl");
+            expect(requireLoad).not.toHaveBeenCalled();
+            expect(loadContext.completeLoad).toHaveBeenCalledWith('someModule');
+        });
+        it('should allow a loadInterceptor to replace the default load in error case', function() {
+            var someError = new Error("someError");
+            preprocessor.addLoadInterceptor(10, function(url, callback) {
+                callback(someError);
+            });
+            expect(function() {
+                exec("someUrl");
+            }).toThrow(new Error("someError"));
+            expect(loadContext.completeLoad).not.toHaveBeenCalled();
+            expect(requireLoad).not.toHaveBeenCalled();
+            expect(loadContext.registry.someModule).toEqual({
+                error: true
+            });
+        });
     });
 
     describe('append', function() {
+        it('should clear the runConfig.appends, so the defaultScriptAdder will no more append the scripts', function() {
+            config.appends = [jasmine.createSpy('callback')];
+            var html = preprocessor.preprocess(HTML);
+            expect(config.appends.length).toBe(0);
+        });
+        it('should work for reloads, i.e. when the preprocessor is called multiple times', function() {
+            config.appends = [jasmine.createSpy('callback')];
+            preprocessor.preprocess(HTML);
+            expect(instrumentor.createRemoteCallExpression.callCount).toBe(1);
+            preprocessor.preprocess(HTML);
+            expect(instrumentor.createRemoteCallExpression.callCount).toBe(2);
+        });
         it('should not add a script tag before </body>', function() {
             config.appends = [jasmine.createSpy('callback')];
             var html = preprocessor.preprocess(HTML);
@@ -123,7 +178,7 @@ describe('run/requirejsScriptAdder', function() {
             require.load(loadContext, 'someModule', scriptUrl);
         }
 
-        it('should load the original script using docUtils.loadAndEvalScriptSync', function() {
+        it('should load the original script using docUtils.loadAndEvalScriptSync and a cache busting url', function() {
             simulateLoad({
                 script: 'interceptUrl'
             });

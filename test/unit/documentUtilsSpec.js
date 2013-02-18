@@ -1,5 +1,6 @@
 describe('documentUtils', function() {
-    var documentUtils, global;
+    var documentUtils, global,
+        ie = /MSIE/i.test(window.navigator.userAgent.toLowerCase());
     beforeEach(function() {
         global = {
         };
@@ -15,16 +16,12 @@ describe('documentUtils', function() {
         it('should return empty string if no doctype is given', function() {
             expect(doctype('<html></html>')).toBe('');
         });
-        it('should serialize html5 doctype', function() {
-            expect(doctype('<!DOCTYPE html><html></html>')).toBe('<!DOCTYPE html>');
-        });
-    });
-
-    describe('serializeHtmlBeforeLastScript', function() {
-        it('should return the part of the html before the last script', function() {
-            var doc = testutils.createFrame('<html><head>asdf<script someAttr></script></head></html>').win.document;
-            expect(documentUtils.serializeHtmlBeforeLastScript(doc)).toBe('<html><head></head><body>asdf');
-        });
+        if (!ie) {
+            // For IE7...
+            it('should serialize html5 doctype', function() {
+                expect(doctype('<!DOCTYPE html><html></html>')).toBe('<!DOCTYPE html>');
+            });
+        }
     });
 
     describe('replaceScripts', function() {

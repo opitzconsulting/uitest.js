@@ -21,8 +21,7 @@ test frameworks.
 * Instrumentations for a page:
     - add a script or function at the beginning/end of the page
     - intercept calls to any named function on the page, no matter if the function is global or not
-* Force script reload: Adds a query parameter to all scripts within a page
-  to force those scripts to be reloaded.
+* Cache busting feature to always fetch the recent versions of scripts in pages.
 * Wait for the end of asynchronous work, e.g. xhr, setTimeout, setInterval, page loading, ...
   This can be easily extended.
 * Easy access to global variables of the app to be tested in the test case using dependency injection.
@@ -33,7 +32,7 @@ test frameworks.
 * Compatibility:  
     * Testframeworks: Use any test framework and test runner, can also run standalone.
     * Supports applications that use requirejs 2.x.
-    * Browsers: Chrome, Firefox, IE9+, Safari, Mobile Safari, Android Browser 2.3+.
+    * Browsers: Chrome, Firefox, IE7+, Safari, Mobile Safari, Android Browser 2.3+.
     * Supports running tests from `file://` urls (Safari and chrome with command line argument `--disable-web-security`)
 * Dependencies:
     * No additional JS libs required
@@ -202,6 +201,13 @@ now you can use angular services for dependency injection at all places, e.g. in
 Mobile applications usually control the viewport of an application using a `<meta name="viewport">` tag to adjust the zoom level of the browser.
 
 The `feature('mobileViewport')` automatically copies this `<meta>` tag form the iframe to the top window so that the zoom level is correct, although the app is loaded in an iframe.
+
+
+## Cache buster
+Somtimes, the cache in the browser keeps an old copy of the scripts that we stored on the server or file system. A simple solution for this is to add a query parameter with an always changing id to every script tag. This is exactly, what the `feature("cacheBusting")` does for normal scripts as well as for scripts included by requirejs.
+
+Note: If you want to create breakpoints in your browser while cache busting is activated,
+use the `debugger;` statement in your scripts to manually stop the browser.
 
 
 ## Supporting libraries

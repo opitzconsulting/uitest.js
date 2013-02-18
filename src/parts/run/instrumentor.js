@@ -50,12 +50,12 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         var newDocEl = oldDocEl.cloneNode(false);
         newDocEl.appendChild(doc.createElement("head"));
         newDocEl.appendChild(doc.createElement("body"));
-        
+
         doc.removeChild(oldDocEl);
         doc.appendChild(newDocEl);
         var restore = saveAndFreezeDoc(win);
 
-        win.addEventListener('load', function() {
+        docUtils.addEventListener(win, 'load', function() {
             restore();
 
             var docType = docUtils.serializeDocType(win.document);
@@ -63,7 +63,7 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
             var innerHtml = oldDocEl.innerHTML;
             innerHtml = innerHtml.replace("parent.uitest.instrument(window)", "false");
             callback(docType+htmlOpenTag+innerHtml+"</html>");
-        }, false);
+        });
     }
 
     function saveAndFreezeDoc(win) {
@@ -104,7 +104,11 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
                         // really delete it. For this, we also always set it
                         // to undefined!
                         win[prop] = undefined;
-                        delete win[prop];
+                        try {
+                            delete win[prop];
+                        } catch (e) {
+                            // IE doe not allow to delete variables from window...
+                        }
                     }
                 }
             }
@@ -153,7 +157,7 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         // (setTimeout only needed for IE9!)
         var sn = win.document.createElement("script");
         sn.setAttribute("type", "text/javascript");
-        sn.textContent = 'function rewrite() { document.open();document.write(newContent);document.close();} window.setTimeout(rewrite,0);';
+        docUtils.textContent(sn, 'function rewrite() { var newContent = window.newContent; document.open();document.write(newContent);document.close();} window.setTimeout(rewrite,0);');
         win.document.body.appendChild(sn);
     }
 

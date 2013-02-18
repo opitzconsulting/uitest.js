@@ -4,7 +4,7 @@ uitest.define('documentUtils', ['global'], function(global) {
     // 1. opening script tag
     // 2. content of src attribute
     // 3. text content of script element.
-    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/g;
+    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/ig;
 
     function serializeDocType(doc) {
         var node = doc.doctype;
@@ -19,19 +19,15 @@ uitest.define('documentUtils', ['global'], function(global) {
         var parts = ['<html'];
         for(i = 0; i < docEl.attributes.length; i++) {
             attr = docEl.attributes[i];
-            if(attr.value !== undefined) {
-                parts.push(attr.name + '="' + attr.value + '"');
-            } else {
-                parts.push(attr.name);
+            if (attr.specified) {
+                if(attr.value) {
+                    parts.push(attr.name + '="' + attr.value + '"');
+                } else {
+                    parts.push(attr.name);
+                }
             }
         }
         return parts.join(" ") + ">";
-    }
-
-    function serializeHtmlBeforeLastScript(doc) {
-        var innerHtml = doc.documentElement.innerHTML;
-        var lastScript = innerHtml.lastIndexOf('<script');
-        return serializeDocType(doc) + serializeHtmlTag(doc.documentElement) + innerHtml.substring(0, lastScript);
     }
 
     function contentScriptHtml(content) {
@@ -99,14 +95,44 @@ uitest.define('documentUtils', ['global'], function(global) {
         });
     }
 
+    function addEventListener(target, type, callback) {
+        if (target.addEventListener) {
+            target.addEventListener(type, callback, false);
+        } else {
+            target.attachEvent("on"+type, callback);
+        }
+    }
+
+    function textContent(el, val) {
+        if ("text" in el) {
+            el.text = val;
+        } else {
+            if ("innerText" in el) {
+                el.innerHTML = val;
+            } else {
+                el.textContent = val;
+            }
+        }
+    }
+
+    function setStyle(el, val) {
+        if (el.style.setAttribute) {
+            el.style.setAttribute("cssText", val);
+        } else {
+            el.setAttribute("style", val);
+        }
+    }
+
     return {
         serializeDocType: serializeDocType,
         serializeHtmlTag: serializeHtmlTag,
-        serializeHtmlBeforeLastScript: serializeHtmlBeforeLastScript,
         contentScriptHtml: contentScriptHtml,
         urlScriptHtml: urlScriptHtml,
         loadAndEvalScriptSync: loadAndEvalScriptSync,
         loadFile: loadFile,
-        replaceScripts: replaceScripts
+        replaceScripts: replaceScripts,
+        addEventListener: addEventListener,
+        textContent: textContent,
+        setStyle: setStyle
     };
 });

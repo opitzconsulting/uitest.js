@@ -1,5 +1,8 @@
 describe('run/instrumentor', function() {
-    var instrumentor, frame, documentUtils, config, global, require;
+    var instrumentor, frame, documentUtils, config, global, require,
+        android = /android/i.test(window.navigator.userAgent.toLowerCase()),
+        ie = /MSIE/i.test(window.navigator.userAgent.toLowerCase());
+
     beforeEach(function() {
         config = {
         };
@@ -66,7 +69,10 @@ describe('run/instrumentor', function() {
             runs(function() {
                 window.tmp = function() {
                     instrumentor.internal.deactivateAndCaptureHtml(testutils.frame.win, function(_html) {
-                        html = _html;
+                        html = _html.replace(/[<\/]([A-Z]*)/g, function(match) {
+                            return match.toLowerCase();
+                        });
+                        html = html.replace(/[\n\r]/g, "");
                     });
                 };
                 testutils.createFrame(prefix + '<script>parent.tmp()</script>' + suffix);
@@ -74,19 +80,18 @@ describe('run/instrumentor', function() {
             waitsFor(function() {
                 return html;
             }, 200);
+            // for the document rewrite...
+            waits(20);
         }
 
         it('should give the html without the calling script to the callback', function() {
-            var prefix = '<html><head><meta name="someHeadMeta">',
+            var prefix = '<html><head><meta>',
                 suffix = '</head><body>someBody</body></html>';
             init(prefix, suffix);
             runs(function() {
                 expect(html).toBe(prefix + suffix);
             });
         });
-
-        var android = /android/i.test(window.navigator.userAgent.toLowerCase());
-        var ie = /MSIE/i.test(window.navigator.userAgent.toLowerCase());
 
         if (!android && !ie) {
             describe('not on android and not on ie', function() {
@@ -105,13 +110,21 @@ describe('run/instrumentor', function() {
         }
 
         describe('if scripts are executed', function() {
-            it('should not allow to create new globals', function() {
+            it('should not allow to create new globals after a doc rewrite', function() {
+                // Note:
+                // In IE7, global variables that are declared using "var" cannot be
+                // detected generically. However, IE7 does clear all global variables
+                // itself on a call to document.open, which we always do after deactivateAndCaptureHtml!
                 var prefix = '<html><head>',
-                    suffix = '<script>var someGlobalVar = true; window.someFlag = true;</script></head></html>';
+                    suffix = '<script>var someGlobalVar; someGlobalVar = someGlobalVar?someGlobalVar+1:0;window.someFlag = window.someFlag?window.someFlag+1:0;</script></head></html>';
                 init(prefix, suffix);
                 runs(function() {
-                    expect(testutils.frame.win.someFlag).toBeUndefined();
-                    expect(testutils.frame.win.someGlobalVar).toBeUndefined();
+                    instrumentor.internal.rewriteDocument(testutils.frame.win, html);
+                });
+                waits(10);
+                runs(function() {
+                    expect(testutils.frame.win.someFlag).toBe(0);
+                    expect(testutils.frame.win.someGlobalVar).toBe(0);
                 });
             });
             it('should not be able to modify the DOM using document.write/writeln', function() {
@@ -131,13 +144,13 @@ describe('run/instrumentor', function() {
                 });
             });
             it('should not be able to install setTimeouts', function() {
-                window.someFlag = false;
+                window.someTimeoutFlag = false;
                 var prefix = '<html><head></head><body>',
-                    suffix = '<script>setTimeout(function() { parent.someFlag = true; },0);</script></body></html>';
+                    suffix = '<script>setTimeout(function() { parent.someTimeoutFlag = true; },0);</script></body></html>';
                 init(prefix, suffix);
                 waits(20);
                 runs(function() {
-                    expect(window.someFlag).toBe(false);
+                    expect(window.someTimeoutFlag).toBe(false);
                 });
             });
             it('should not be able to install setIntervals', function() {
@@ -178,7 +191,10 @@ describe('run/instrumentor', function() {
             waits(20);
             runs(function() {
                 expect(doc.documentElement.getAttribute("test")).toBe("true");
-                expect(doc.doctype.name).toBe('html');
+                if (!ie) {
+                    // IE7 does not support document.doctype.
+                    expect(doc.doctype.name).toBe('html');
+                }
             });
         });
     });

@@ -35,6 +35,12 @@ describe('simpleRequire', function () {
             expect(uitest.require(moduleCache, ['someModule']).someModule).toBe(0);
         });
 
+        it('should inject the cache under the key "moduleCache"', function() {
+            uitest.define('someModule', ["moduleCache"], function(moduleCache) { return moduleCache; });
+            var someCache = uitest.require(['someModule']);
+            expect(someCache).toBe(someCache.someModule);
+        });
+
         it('should create instances of fixed value modules', function () {
             var someValue = {};
             uitest.define('someModule', someValue);

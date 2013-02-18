@@ -21,7 +21,7 @@
         var element = document.createElement('iframe');
         element.name = FRAME_NAME;
         document.body.appendChild(element);
-        var win = window.frames[FRAME_NAME];
+        var win = element.contentWindow || element.contentDocument;
         exports.frame = {
             win: win,
             element: element

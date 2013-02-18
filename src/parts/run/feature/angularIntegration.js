@@ -48,6 +48,9 @@ uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], 
             // to yield outArr instanceof win.Array.
             // Also, every call to "push" will also change the prototype somehow...
             /*jshint evil:true*/
+            if (!inArr) {
+                return inArr;
+            }
             var outArr = win["eval"]("new Array("+inArr.length+")"),
                 i;
             for (i=0; i<inArr.length; i++) {

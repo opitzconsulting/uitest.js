@@ -22,7 +22,7 @@ uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'docu
             i;
         logger.log("adding prepends after <head>");
         createScriptTagForPrependsOrAppends(htmlArr, prepends);
-        return html.replace(/<head>/, htmlArr.join(''));
+        return html.replace(/<head>/i, htmlArr.join(''));
     }
 
     function handleAppends(html, appends) {
@@ -31,7 +31,8 @@ uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'docu
         logger.log("adding appends at </body>");
         createScriptTagForPrependsOrAppends(htmlArr, appends);
         htmlArr.push('</body>');
-        return html.replace(/<\/body>/, htmlArr.join(''));
+        var newHtml = html.replace(/<\/body>/i, htmlArr.join(''));
+        return newHtml;
     }
 
     function createScriptTagForPrependsOrAppends(html, prependsOrAppends) {

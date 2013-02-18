@@ -1,30 +1,31 @@
-uitest.define('utils', ['global'], function(global) {
-    var now = -1;
-    if (global.Date) {
-        now = global.Date.now();
-    }
+(function() {
+    // Note: We only want to call this once,
+    // and not on every module instantiation!
+    var now = Date.now();
 
-    function isString(obj) {
-        return obj && obj.slice;
-    }
+    uitest.define('utils', ['global'], function(global) {
+        function isString(obj) {
+            return obj && obj.slice;
+        }
 
-    function isFunction(value) {
-        return typeof value === 'function';
-    }
+        function isFunction(value) {
+            return typeof value === 'function';
+        }
 
-    function isArray(value) {
-        return global.Object.prototype.toString.apply(value) === '[object Array]';
-    }
+        function isArray(value) {
+            return global.Object.prototype.toString.apply(value) === '[object Array]';
+        }
 
-    function testRunTimestamp() {
-        return now;
-    }
+        function testRunTimestamp() {
+            return now;
+        }
 
-    return {
-        isString: isString,
-        isFunction: isFunction,
-        isArray: isArray,
-        testRunTimestamp: testRunTimestamp
-    };
+        return {
+            isString: isString,
+            isFunction: isFunction,
+            isArray: isArray,
+            testRunTimestamp: testRunTimestamp
+        };
+    });
 
-});
+})();

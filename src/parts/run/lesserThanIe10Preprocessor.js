@@ -13,7 +13,7 @@ uitest.define('run/lesserThanIe10Preprocessor', ['run/instrumentor', 'run/logger
             return html;
         }
         logger.log("applying ie<10 bugfix");
-        return docUtils.replaceScripts(html, function(parsedTag) {
+        var newHtml = docUtils.replaceScripts(html, function(parsedTag) {
             if(!parsedTag.scriptUrl) {
                 return undefined;
             }
@@ -22,11 +22,12 @@ uitest.define('run/lesserThanIe10Preprocessor', ['run/instrumentor', 'run/logger
                 docUtils.loadAndEvalScriptSync(win, parsedTag.scriptUrl);
             }, "window") + '</script>';
         });
+        return newHtml;
     }
 
     function isIeLesserThan10(frame) {
-        if(frame.navigator.appName.indexOf("Internet Explorer") != -1) { //yeah, he's using IE
-            return frame.navigator.appVersion.indexOf("MSIE 1") == -1; //v10, 11, 12, etc. is fine
+        if(frame.navigator.appName.indexOf("Internet Explorer") !== -1) { //yeah, he's using IE
+            return frame.navigator.appVersion.indexOf("MSIE 1") === -1; //v10, 11, 12, etc. is fine
         }
         return false;
     }

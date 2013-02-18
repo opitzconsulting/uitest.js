@@ -1,15 +1,31 @@
 describe('basic', function() {
+    function endsWith(string, end) {
+        return string.substring(string.length-end.length) === end;
+    }
+
     var uit = uitest.current;
     uit.url("../test/ui/fixtures/basic.html");
 
     it('should load the page with the right location set', function() {
-        function endsWith(string, end) {
-            return string.substring(string.length-end.length) === end;
-        }
 
         uit.runs(function(window) {
             expect(endsWith(window.location.pathname, 'ui/fixtures/basic.html')).toBe(true);
         });
+    });
+    describe('reload page if hash changes', function() {
+        it('part1', function() {
+            uit.url("../test/ui/fixtures/basic.html#123");
+            uit.runs(function(window) {
+                window.testFlag = true;
+            });
+        });
+        it('part1', function() {
+            uit.url("../test/ui/fixtures/basic.html#1234");
+            uit.runs(function(window) {
+                expect(window.testFlag).toBeUndefined();
+            });
+        });
+
     });
     describe('inject', function() {
         it('should inject variables from the iframe', function() {
@@ -109,6 +125,39 @@ describe('basic', function() {
         });
         uit.runsAfterReload(function(window) {
             expect(window.flag).toBeUndefined();
+        });
+    });
+
+    describe('cacheBusting', function() {
+        function findHelloScriptUrl(doc) {
+            var i,
+                scripts = doc.getElementsByTagName("script");
+
+            for (i=0; i<scripts.length; i++) {
+                if (scripts[i].src.indexOf('sayHello')!==-1) {
+                    return scripts[i].src;
+                }
+            }
+            return undefined;
+        }
+        it('should do nothing if disabled', function() {
+            uit.runs(function(document) {
+                var helloJsUrl = findHelloScriptUrl(document);
+                if (helloJsUrl) {
+                    // Note: on IE, we replace all <script src> elements by inline scripts
+                    expect(helloJsUrl).toMatch(/sayHello\.js/);
+                }
+            });
+        });
+        it('should work if enabled', function() {
+            uit.feature('cacheBuster');
+            uit.runs(function(document) {
+                var helloJsUrl = findHelloScriptUrl(document);
+                if (helloJsUrl) {
+                    // Note: on IE, we replace all <script src> elements by inline scripts
+                    expect(helloJsUrl).toMatch(/sayHello\.js\?[0-9]+/);
+                }
+            });
         });
     });
 

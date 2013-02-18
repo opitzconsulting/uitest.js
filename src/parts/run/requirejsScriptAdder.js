@@ -1,12 +1,21 @@
-uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'run/defaultScriptAdder', 'documentUtils', 'run/injector', 'run/logger', 'utils'], function(runConfig, instrumentor, defaultScriptAdder, docUtils, injector, logger, utils) {
-    var REQUIRE_JS_RE = /require[\W]/;
+uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'run/defaultScriptAdder', 'documentUtils', 'run/injector', 'run/logger', 'utils', 'urlParser'], function(runConfig, instrumentor, defaultScriptAdder, docUtils, injector, logger, utils, urlParser) {
+    var REQUIRE_JS_RE = /require[\W]/,
+        COMPARE_BY_PRIO = function(entry1, entry2) {
+            return entry2.prio - entry1.prio;
+        },
+        loadInterceptors = [];
 
     instrumentor.addPreprocessor(11, preprocess);
+    addLoadInterceptor(0, defaultLoadInterceptor);
+
+    function addLoadInterceptor(prio, interceptor) {
+        loadInterceptors.push({prio: prio, interceptor: interceptor});
+    }
 
     function preprocess(html) {
         return docUtils.replaceScripts(html, function(parsedScript) {
-            var appends = runConfig.appends,
-                intercepts = runConfig.intercepts;
+            var intercepts = runConfig.intercepts,
+                appends = runConfig.rjsAppends = runConfig.rjsAppends || runConfig.appends;
 
             if(!parsedScript.scriptUrl) {
                 return undefined;
@@ -70,27 +79,52 @@ uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'ru
         }
     }
 
+    function defaultLoadInterceptor(url, finishedCallback) {
+        var scriptExecutor = defaultScriptAdder.createInterceptingScriptExecutor(url, runConfig.intercepts);
+        if (scriptExecutor) {
+            try {
+                scriptExecutor();
+                finishedCallback();
+            } catch (e) {
+                finishedCallback(e);
+            }
+            return false;
+        }
+        return url;
+    }
+
+    function execLoadInterceptors(url, finishedCallback) {
+        var i = 0, finished = false;
+        loadInterceptors.sort(COMPARE_BY_PRIO);
+        while (i<loadInterceptors.length && url) {
+            url = loadInterceptors[i].interceptor(url, finishedCallback);
+            i++;
+        }
+        return url;
+    }
+
     function patchLoad(_require, intercepts) {
         var _load = _require.load;
         _require.load = function(context, moduleName, url) {
-            
-            var scriptExecutor = defaultScriptAdder.createInterceptingScriptExecutor(url, intercepts);
-            if(!scriptExecutor) {
-                return _load.apply(this, arguments);
-            }
-            try {
-                scriptExecutor();
-                context.completeLoad(moduleName);
-            } catch(error) {
-                //Set error on module, so it skips timeout checks.
-                context.registry[moduleName].error = true;
-                throw error;
+            url = execLoadInterceptors(url, function(error) {
+                if (error) {
+                    //Set error on module, so it skips timeout checks.
+                    context.registry[moduleName].error = true;
+                    throw error;
+                } else {
+                    context.completeLoad(moduleName);
+                }
+            });
+            if (url) {
+                return _load.call(this, context, moduleName, url);
             }
         };
     }
 
     return {
-        preprocess: preprocess
+        preprocess: preprocess,
+        defaultLoadInterceptor: defaultLoadInterceptor,
+        addLoadInterceptor: addLoadInterceptor
     };
 
 });

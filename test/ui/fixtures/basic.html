@@ -11,7 +11,11 @@
     <script type="text/javascript" src="sayHello.js"></script>
     <script type="text/javascript">
         window.execState = "end";
-        document.addEventListener("DOMContentLoaded", loaded);
+        if (document.addEventListener) {
+            document.addEventListener("DOMContentLoaded", loaded, false);
+        } else {
+            document.attachEvent("onreadystatechange", loaded);
+        }
         function loaded(e) {
             window.execState = "loaded";
         };
