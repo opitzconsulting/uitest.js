@@ -10,7 +10,12 @@
     },
     "devDependencies": {
         "phantomjs": "latest",
-        "grunt": "latest",
+        "grunt": "0.4.x",
+        "grunt-cli": "latest",
+        "grunt-contrib-concat": "latest",
+        "grunt-contrib-connect": "latest",
+        "grunt-contrib-watch": "latest",
+        "grunt-contrib-jshint": "latest",
         "gruntacular": "latest",
         "mocha": "latest",
         "qunit": "latest"

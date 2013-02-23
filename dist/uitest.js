@@ -1,7 +1,6 @@
-/*! uitest.js - v0.9.0 - 2013-02-18
+/*! uitest.js - v0.9.1-SNAPSHOT - 2013-02-23
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
-
 /**
  * Simple implementation of AMD require/define assuming all
  * modules are named and loaded explicitly, and require is called
