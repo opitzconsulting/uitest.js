@@ -13,11 +13,11 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         // Jasmine leaves env.currentSpec filled even if outside
         // of any spec from the last run!
         if (spec && spec.queue.running) {
-            ids.unshift(spec.id);
+            ids.unshift("sp"+spec.id);
             suite = spec.suite;
         }
         while (suite) {
-            ids.unshift(suite.id);
+            ids.unshift("su"+suite.id);
             suite = suite.parentSuite;
         }
         return ids.join(".");

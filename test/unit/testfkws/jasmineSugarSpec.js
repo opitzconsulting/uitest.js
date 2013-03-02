@@ -58,7 +58,7 @@ describe('jasmineSugar', function() {
                         id: 1
                     }
                 };
-                expect(jasmineSugar.currentIdAccessor()).toBe('1.2');
+                expect(jasmineSugar.currentIdAccessor()).toBe('su1.su2');
             });
             it("should return the id of the suite and it's parent suites if outside of a spec but env.currentSpec is still filled", function() {
                 jasmineEnv.currentSuite = {
@@ -72,7 +72,7 @@ describe('jasmineSugar', function() {
                         running: false
                     }
                 };
-                expect(jasmineSugar.currentIdAccessor()).toBe('1.2');
+                expect(jasmineSugar.currentIdAccessor()).toBe('su1.su2');
             });
             it("should return the ids of the current spec with it's parent suites separated by a colon", function() {
                 jasmineEnv.currentSpec = {
@@ -87,7 +87,7 @@ describe('jasmineSugar', function() {
                         running: true
                     }
                 };
-                expect(jasmineSugar.currentIdAccessor()).toBe("1.2.3");
+                expect(jasmineSugar.currentIdAccessor()).toBe("su1.su2.sp3");
             });
 
         });

@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.1-SNAPSHOT - 2013-02-23
+/*! uitest.js - v0.9.1-SNAPSHOT - 2013-03-02
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -1713,11 +1713,11 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         // Jasmine leaves env.currentSpec filled even if outside
         // of any spec from the last run!
         if (spec && spec.queue.running) {
-            ids.unshift(spec.id);
+            ids.unshift("sp"+spec.id);
             suite = spec.suite;
         }
         while (suite) {
-            ids.unshift(suite.id);
+            ids.unshift("su"+suite.id);
             suite = suite.parentSuite;
         }
         return ids.join(".");
