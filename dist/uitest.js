@@ -512,7 +512,7 @@ uitest.define('facade', ['config', 'global'], function(config, global) {
             var id, parentId;
             for (id in uitCache) {
                 if (id!==childId && childId.indexOf(id)===0) {
-                    if (!parentId || id.length>parentId) {
+                    if (!parentId || id.length>parentId.length) {
                         parentId = id;
                     }
                 }

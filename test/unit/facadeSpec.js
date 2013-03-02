@@ -74,13 +74,13 @@ describe('facade', function() {
 				uit = facade.current;
 			facade.currentIdAccessor(currentIdAccessor);
 
-			currentIdAccessor.andReturn('1');
+			currentIdAccessor.andReturn('su1');
 			uit.url('parent1Url');
 
-			currentIdAccessor.andReturn('1.1');
+			currentIdAccessor.andReturn('su1.su2');
 			uit.url('parent2Url');
 
-			currentIdAccessor.andReturn('1.1.1');
+			currentIdAccessor.andReturn('su1.su2.sp0');
 			expect(uit.parent().url()).toBe('parent2Url');
 
 		});
