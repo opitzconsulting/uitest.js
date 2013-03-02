@@ -686,7 +686,7 @@ uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'docu
             if(!parsedScript.scriptUrl) {
                 return undefined;
             }
-            
+
             var scriptExecutor = createInterceptingScriptExecutor(parsedScript.scriptUrl, intercepts);
             if(scriptExecutor) {
                 return docUtils.contentScriptHtml(instrumentor.createRemoteCallExpression(function(win) {
@@ -854,7 +854,7 @@ uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], 
     }
 });
 uitest.define('run/feature/cacheBuster', ['documentUtils', 'run/instrumentor', 'run/logger', 'utils', 'urlParser', 'run/requirejsScriptAdder'], function(docUtils, instrumentor, logger, utils, urlParser, requirejsScriptAdder) {
-    
+
     var now = utils.testRunTimestamp();
     logger.log("forcing script refresh with timestamp "+now);
 
@@ -992,7 +992,7 @@ uitest.define('run/feature/mobileViewport', ['run/config'], function(runConfig) 
     }
 });
 uitest.define('run/feature/timeoutSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
-    
+
     var timeouts = {},
         timoutStartCounter = 0;
 
@@ -1119,7 +1119,6 @@ uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 			i;
 		fn = utils.isArray(fn)?fn[fn.length-1]:fn;
 		for (i=0; i<argNames.length; i++) {
-			
 			argValues.push(resolveArgIncludingDefaultResolvers(argNames[i], values));
 		}
 		return fn.apply(self, argValues);
@@ -1176,7 +1175,7 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         exports.internal.deactivateAndCaptureHtml(win, function(html) {
             var i;
             logger.log("captured html");
-            
+
             for (i=0; i<preprocessors.length; i++) {
                 html = preprocessors[i].processor(html);
             }
@@ -1755,7 +1754,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         });
 
     }
- 
+
     return {
         currentIdAccessor: currentIdAccessor,
         runs: runs,

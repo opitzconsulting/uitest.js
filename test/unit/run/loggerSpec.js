@@ -12,7 +12,7 @@ describe('run/logger', function() {
             "run/config": runConfig
         },["run/logger"])["run/logger"];
     });
-    
+
     describe('log', function() {
         it('should log to the console if trace enabled', function() {
             runConfig.trace = true;

@@ -64,5 +64,4 @@ describe('run/injector', function() {
 			expect(args).toEqual(['someValue']);
 		});
 	});
-	
 });

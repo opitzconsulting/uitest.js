@@ -53,7 +53,7 @@ describe('run/instrumentor', function() {
             expect(global.uitest.instrument).toBe(instrumentor.internal.instrument);
         });
     });
-    
+
     describe('deactivateAndCaptureHtml', function() {
         var html;
 

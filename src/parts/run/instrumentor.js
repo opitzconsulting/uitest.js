@@ -19,7 +19,7 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         exports.internal.deactivateAndCaptureHtml(win, function(html) {
             var i;
             logger.log("captured html");
-            
+
             for (i=0; i<preprocessors.length; i++) {
                 html = preprocessors[i].processor(html);
             }

@@ -1,6 +1,6 @@
 describe('requirejs', function() {
     var uit = uitest.current;
-    
+
     describe('without data-main', function() {
         uit.url("../test/ui/fixtures/requirejs.html");
         createSpecs();

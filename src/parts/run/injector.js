@@ -8,7 +8,6 @@ uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 			i;
 		fn = utils.isArray(fn)?fn[fn.length-1]:fn;
 		for (i=0; i<argNames.length; i++) {
-			
 			argValues.push(resolveArgIncludingDefaultResolvers(argNames[i], values));
 		}
 		return fn.apply(self, argValues);

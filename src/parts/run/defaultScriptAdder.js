@@ -66,7 +66,7 @@ uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'docu
             if(!parsedScript.scriptUrl) {
                 return undefined;
             }
-            
+
             var scriptExecutor = createInterceptingScriptExecutor(parsedScript.scriptUrl, intercepts);
             if(scriptExecutor) {
                 return docUtils.contentScriptHtml(instrumentor.createRemoteCallExpression(function(win) {

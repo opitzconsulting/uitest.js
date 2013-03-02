@@ -55,7 +55,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         });
 
     }
- 
+
     return {
         currentIdAccessor: currentIdAccessor,
         runs: runs,

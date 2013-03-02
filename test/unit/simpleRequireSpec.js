@@ -15,7 +15,6 @@ describe('simpleRequire', function () {
         it('should allow to use a callback for the required modules', function() {
             var someValue = 'someValue';
             uitest.define('someModule', someValue);
-            
             var actualValue;
             uitest.require(['someModule'], function(someModule) {
                 actualValue = someModule;

@@ -1,5 +1,5 @@
 uitest.define('run/feature/timeoutSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
-    
+
     var timeouts = {},
         timoutStartCounter = 0;
 
