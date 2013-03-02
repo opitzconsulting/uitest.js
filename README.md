@@ -93,6 +93,8 @@ methods are available
 * `url(someUrl)`:
 Sets the url of the page ot be loaded. If the url is relative, it will be resolved relative to the
 path of the `uitest.js` in the current page.
+Please note that to prevent caching issues, and also to allow to only change
+the hash between different tests, all pages will get a further query parameter containing the current time. E.g. setting a url `/someUrl` will result in a location of `/someUrl?12345`. If you need that query parameter doubled somewhere else in your url, use `{now}`. E.g. an url of `/someUrl?check={now}` will yield to a location of `/someUrl?check=12345&12345`.
 
 * `trace(boolean)`:
 Enables debug logging for several features.

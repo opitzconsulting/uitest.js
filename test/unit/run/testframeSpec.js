@@ -99,6 +99,10 @@ describe('run/testframe', function() {
         createTestframe();
         expect(uitestwindow.location.href).toBe("/someUrl?123");
     });
+    it('should replace {now} in the url with the value used for cacheBusting', function() {
+        createTestframe('someUrl?check={now}');
+        expect(uitestwindow.location.href).toBe("/someUrl?check=123&123");
+    });
     describe('toggleButton', function() {
         it('should create a button', function() {
             createTestframe();

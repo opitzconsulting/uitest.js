@@ -1686,8 +1686,10 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 
     function navigateWithReloadTo(win, url) {
+        var now = global.Date.now();
         url = makeAbsolute(url);
-        url = urlParser.cacheBustingUrl(url, global.Date.now());
+        url = urlParser.cacheBustingUrl(url, now);
+        url = url.replace("{now}",now);
         logger.log("opening url "+url);
         win.location.href = url;
     }
