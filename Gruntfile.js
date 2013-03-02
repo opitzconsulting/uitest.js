@@ -17,8 +17,8 @@ module.exports = function(grunt) {
       }
     },
     watch: {
-      files: '<config:lint.files>',
-      tasks: 'concat'
+      files: '<%= jshint.files %>',
+      tasks: ['jshint', 'concat', 'testacularRun:dev']
     },
     jshint: {
       files: ['src/**/*.js', 'test/**/*Spec.js'],
@@ -67,25 +67,46 @@ module.exports = function(grunt) {
     },
     testacular: {
       dev: {
-        configFile: 'testacular.conf.js',
-        singleRun: false,
-        browsers: []
+        options: {
+          configFile: 'testacular.conf.js',
+          singleRun: false,
+          browsers: [],
+          keepalive: false
+        }
       },
       ci: {
-        configFile: 'testacular.conf.js',
-        singleRun: true,
-        browsers: ['PhantomJS']
+        options: {
+          configFile: 'testacular.conf.js',
+          singleRun: true,
+          browsers: ['Firefox'],
+          keepalive: true
+        }
+      },
+      localBuild: {
+        options: {
+          configFile: 'testacular.conf.js',
+          singleRun: true,
+          browsers: ['Chrome'],
+          keepalive: true
+        }
+      }
+    },
+    testacularRun: {
+      dev: {
+        options: {
+          runnerPort: 9100
+        }
       }
     }
   });
 
-  grunt.registerTask('dev', ['connect','testacular:dev']);
+  grunt.registerTask('dev', ['connect','testacular:dev','watch']);
 
-  grunt.registerTask('default', ['jshint','connect','testacular:ci','concat']);
+  grunt.registerTask('default', ['jshint','connect','testacular:localBuild','concat']);
 
   grunt.registerTask('travis', ['jshint','connect','testacular:ci']);
 
-  grunt.loadNpmTasks('gruntacular');
+  grunt.loadNpmTasks('grunt-testacular');
   grunt.loadNpmTasks('grunt-contrib-concat');
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-contrib-watch');

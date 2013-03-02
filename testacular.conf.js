@@ -7,9 +7,7 @@ proxies = {'/base/test': 'http://localhost:9000/test'};
 files = [
   JASMINE,
   JASMINE_ADAPTER,
-  'src/simpleRequire.js',
-  'src/parts/**/*.js',
-  'src/main.js',
+  'dist/uitest.js',
   'test/lib/testutils.js',
   'test/lib/uitestutils.js',
   'test/ui/**/*Spec.js',
@@ -43,7 +41,7 @@ logLevel = LOG_INFO;
 
 // enable / disable watching file and executing tests whenever any file changes
 // CLI --auto-watch --no-auto-watch
-autoWatch = true;
+autoWatch = false;
 
 // Start these browsers, currently available:
 // - Chrome
