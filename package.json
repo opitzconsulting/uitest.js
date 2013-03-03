@@ -17,7 +17,8 @@
         "grunt-contrib-jshint": "latest",
         "grunt-testacular": "latest",
         "mocha": "latest",
-        "qunit": "latest"
+        "qunit": "latest",
+        "phantomjs": "latest"
     },
     "engine": "node *",
     "repository": {
