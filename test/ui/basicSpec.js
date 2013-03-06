@@ -12,6 +12,12 @@ describe('basic', function() {
             expect(endsWith(window.location.pathname, 'ui/fixtures/basic.html')).toBe(true);
         });
     });
+    it('should load the page with hash location set', function() {
+        uit.url("../test/ui/fixtures/basic.html#page1.html");
+        uit.runs(function(window) {
+            expect(window.location.hash).toBe('#page1.html');
+        });
+    });
     describe('reload page if hash changes', function() {
         it('part1', function() {
             uit.url("../test/ui/fixtures/basic.html#123");

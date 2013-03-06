@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.1-SNAPSHOT - 2013-03-03
+/*! uitest.js - v0.9.1-SNAPSHOT - 2013-03-06
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -1313,7 +1313,9 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         // (setTimeout only needed for IE9!)
         var sn = win.document.createElement("script");
         sn.setAttribute("type", "text/javascript");
-        docUtils.textContent(sn, 'function rewrite() { var newContent = window.newContent; document.open();document.write(newContent);document.close();} window.setTimeout(rewrite,0);');
+        // IE somehow looses the hash when rewriting the document.
+        // So save it and restore it afterwards!
+        docUtils.textContent(sn, 'function rewrite() { var newContent = window.newContent; var hash = location.hash;document.open();if (hash) location.hash = hash;document.write(newContent);document.close();} window.setTimeout(rewrite,0);');
         win.document.body.appendChild(sn);
     }
 

@@ -52,7 +52,8 @@ module.exports = function(grunt) {
           uitest: true,
           testutils: true,
           window: true,
-          document: true
+          document: true,
+          dump: true
         }
       }
 
