@@ -103,9 +103,9 @@ module.exports = function(grunt) {
 
   grunt.registerTask('dev', ['connect','testacular:dev','watch']);
 
-  grunt.registerTask('default', ['jshint','concat','connect','testacular:localBuild']);
+  grunt.registerTask('default', ['jshint','concat','testacular:localBuild']);
 
-  grunt.registerTask('travis', ['jshint','concat','connect','testacular:travis']);
+  grunt.registerTask('travis', ['jshint','concat','testacular:travis']);
 
   grunt.loadNpmTasks('grunt-testacular');
   grunt.loadNpmTasks('grunt-contrib-concat');

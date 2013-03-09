@@ -1,8 +1,6 @@
 // base path, that will be used to resolve files and exclude
 basePath = '.';
 
-proxies = {'/base/test': 'http://localhost:9000/test'};
-
 // list of files / patterns to load in the browser
 files = [
   JASMINE,
@@ -11,7 +9,8 @@ files = [
   'test/lib/testutils.js',
   'test/lib/uitestutils.js',
   'test/ui/**/*Spec.js',
-  'test/unit/**/*Spec.js'
+  'test/unit/**/*Spec.js',
+  {pattern: 'test/**/*', watched: true, included: false, served: true}
 ];
 
 // list of files to exclude
