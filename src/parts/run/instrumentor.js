@@ -152,15 +152,37 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
 
     function rewriteDocument(win, html) {
         win.newContent = html;
-        // This trick is needed for IE10 and IE9
+        // We replace the content using an inline script, 
         // so that the window keeps it's original url although we replace it's content!
-        // (setTimeout only needed for IE9!)
+        // Bugs encountered here:
+        // - IE<10 requires us to use setTimeout in the script
+        //   otherwise it would not rewrite the document!
+        // - FF 19: If we rewrite the document in a timeout,
+        //   and afterwards the hash of the document is changed, the document
+        //   is reloaded!
+        // - IE10 (and lower) removes the hash from the url of the document
+        //   during rewriting.
         var sn = win.document.createElement("script");
+        sn.setAttribute("id", "rewriteScript");
         sn.setAttribute("type", "text/javascript");
-        // IE somehow looses the hash when rewriting the document.
-        // So save it and restore it afterwards!
-        docUtils.textContent(sn, 'function rewrite() { var newContent = window.newContent; var hash = location.hash;document.open();if (hash) location.hash = hash;document.write(newContent);document.close();} window.setTimeout(rewrite,0);');
+        docUtils.textContent(sn, rewrite.toString()+';rewrite();');
+
         win.document.body.appendChild(sn);
+
+        function rewrite() {
+            /*jshint evil:true*/
+            var newContent = window.newContent,
+                hash = document.location.hash;
+            document.open();
+            if (hash) {
+                document.location.hash = hash;
+            }
+            document.write(newContent);
+            document.close();
+            if (document.getElementById("rewriteScript")) {
+                window.setTimeout(rewrite,0);
+            }
+        }
     }
 
     function createRemoteCallExpression(callback) {
