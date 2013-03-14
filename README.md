@@ -174,7 +174,7 @@ The `feature('angularIntegration')` enables angular.js support in uitest:
 
 #### Mocking the backend using `angular-mocks.js`:
 
-Angular provides a special library for unit testing, `angular-mocks.js`. This library contains a mock `$httpBackend` that can be programmed to return fake responses (see [http://docs.angularjs.org/api/ngMock.$httpBackend](http://docs.angularjs.org/api/ngMock.$httpBackend)). The `feature('jasmineIntegration')` automatically enables this mock backend, so you can program and verify xhr calls just like unit tests. E.g.
+Angular provides a special library for unit testing, `angular-mocks.js`. This library contains a mock `$httpBackend` that can be programmed to return fake responses (see [http://docs.angularjs.org/api/ngMock.$httpBackend](http://docs.angularjs.org/api/ngMock.$httpBackend)). The `feature('angularIntegration')` automatically enables this mock backend, so you can program and verify xhr calls just like unit tests. E.g.
 
     var uit = uitest.current;
     uit.feature("angularIntegration");
