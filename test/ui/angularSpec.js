@@ -26,6 +26,33 @@ describe('angular-xhrmock', function() {
 
     });
 
+    it('should mock backend calls in angular.runs calls', function() {
+        var someData = "someData";
+        uit.append(function(angular) {
+            var mod = angular.module("ng");
+            mod.config(function($provide) {
+                $provide.decorator('$http', ['$delegate', '$httpBackend', function($http, $httpBackend) {
+                    $httpBackend.whenGET('angularApp.js').
+                        respond(someData);
+                    return $http;
+                }]);
+            });
+        });
+        uit.append(function(angular) {
+            var mod = angular.module("ng");
+            mod.run(function($http, $rootScope) {
+                $http.get("angularApp.js").success(function(data) {
+                    $rootScope.data = data;
+                });
+            });
+        });
+        uit.runs(function(document, angular, $httpBackend, $rootScope) {
+            expect($rootScope.data).toBeUndefined();
+            $httpBackend.flush();
+            expect($rootScope.data).toBe(someData);
+        });
+    });
+
     it('should mock backend calls', function() {
         var someData = "someData";
         uit.runs(function(document, angular, $httpBackend) {
