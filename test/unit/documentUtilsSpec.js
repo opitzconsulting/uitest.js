@@ -1,6 +1,6 @@
 describe('documentUtils', function() {
     var documentUtils, global,
-        ie = /MSIE/i.test(window.navigator.userAgent.toLowerCase());
+        ie = testutils.browser.ie;
     beforeEach(function() {
         global = {
         };
@@ -114,6 +114,14 @@ describe('documentUtils', function() {
             documentUtils.loadAndEvalScriptSync(win, 'someUrl', preProcessCalback);
             simulateXhrResponse('someResponse');
             expect(win['eval']).toHaveBeenCalledWith('someProcessedResponse');
+        });
+    });
+
+    describe('makeEmptyTagsToOpenCloseTags', function() {
+        it('should unpack empty tags', function() {
+            var html = '<html a="b"><closed/><closed2 c="d"/></html>';
+            html = documentUtils.makeEmptyTagsToOpenCloseTags(html);
+            expect(html).toBe('<html a="b"><closed></closed><closed2 c="d"></closed2></html>');
         });
     });
 });

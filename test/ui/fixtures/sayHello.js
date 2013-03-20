@@ -3,5 +3,9 @@
         return "hello "+userName;
     }
 
-    document.getElementById("greeting").textContent = sayHello("someUser");
+    function testIntercept(userName) {
+        return sayHello(userName);
+    }
+
+    window.testIntercept = testIntercept;
 })();

@@ -1,4 +1,4 @@
-uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 'global'], function(docUtils, runConfig, logger, global) {
+uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 'global', 'run/testframe'], function(docUtils, runConfig, logger, global, testframe) {
 
     var exports,
         NO_SCRIPT_TAG = "noscript",
@@ -24,7 +24,11 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
                 html = preprocessors[i].processor(html);
             }
 
-            exports.internal.rewriteDocument(win, html);
+            // We need to unpack empty tags to open/close tags here, 
+            // as the new document is always a normal html document. E.g. empty script tags
+            // (<script.../>) would result in the next script tag to not be executed!
+            html = docUtils.makeEmptyTagsToOpenCloseTags(html);
+            testframe.rewriteDocument(html);
         });
     }
 
@@ -38,13 +42,13 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         // to get executed.
 
         // However, in some browsers, the scripts are still executed
-        // and we need to prevent them from chaing the DOM
+        // and we need to prevent them from chaning the dom and throwing errors
         // (e.g. Android 2.3 browser and IE<10).
 
         // No need to care for:
+        // - changing globals: We rewrite the document later which will 
+        //   revert all globals (see testframe).
         // - modification of the DOM using document.*: document.* access our always new document.
-        // - catch all event listeners, e.g. for DOMContentLoaded, win.load, ...:
-        //   we are doing a document.open() afterwards, which will unregister those listeners.
 
         var oldDocEl = doc.documentElement;
         var newDocEl = oldDocEl.cloneNode(false);
@@ -53,7 +57,7 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
 
         doc.removeChild(oldDocEl);
         doc.appendChild(newDocEl);
-        var restore = saveAndFreezeDoc(win);
+        var restore = preventErrorsByNooping(win);
 
         docUtils.addEventListener(win, 'load', function() {
             restore();
@@ -62,15 +66,15 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
             var htmlOpenTag = docUtils.serializeHtmlTag(oldDocEl);
             var innerHtml = oldDocEl.innerHTML;
             innerHtml = innerHtml.replace("parent.uitest.instrument(window)", "false");
-            callback(docType+htmlOpenTag+innerHtml+"</html>");
+            var html = docType+htmlOpenTag+innerHtml+"</html>";
+            callback(html);
         });
     }
 
-    function saveAndFreezeDoc(win) {
+    function preventErrorsByNooping(win) {
         var doc = win.document,
             restoreFns = [];
 
-        saveGlobals();
         replaceWinFn("setTimeout", noop);
         replaceWinFn("setInterval", noop);
         replaceWinFn("XMLHttpRequest", FakeXMLHttpRequest);
@@ -78,41 +82,17 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         replaceDocFn("write", noop);
         replaceDocFn("writeln", noop);
 
+        win.onerror = function() {
+            // Return true to tell IE we handled it
+            return true;
+        };
+
         return function() {
             var i;
             for (i=0; i<restoreFns.length; i++) {
                 restoreFns[i]();
             }
         };
-
-        function saveGlobals() {
-            var prop,
-                oldGlobals = {};
-
-            for (prop in win) {
-                oldGlobals[prop] = win[prop];
-            }
-
-            restoreFns.push(restore);
-
-            function restore() {
-                var prop;
-                for (prop in win) {
-                    if (!(prop in oldGlobals)) {
-                        // Note: if the variable was defined using "var",
-                        // deleting it from the window object does not
-                        // really delete it. For this, we also always set it
-                        // to undefined!
-                        win[prop] = undefined;
-                        try {
-                            delete win[prop];
-                        } catch (e) {
-                            // IE doe not allow to delete variables from window...
-                        }
-                    }
-                }
-            }
-        }
 
         function replaceWinFn(name, replaceFn) {
             var _old = win[name];
@@ -150,41 +130,6 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         lastScript.parentNode.removeChild(lastScript);
     }
 
-    function rewriteDocument(win, html) {
-        win.newContent = html;
-        // We replace the content using an inline script, 
-        // so that the window keeps it's original url although we replace it's content!
-        // Bugs encountered here:
-        // - IE<10 requires us to use setTimeout in the script
-        //   otherwise it would not rewrite the document!
-        // - FF 19: If we rewrite the document in a timeout,
-        //   and afterwards the hash of the document is changed, the document
-        //   is reloaded!
-        // - IE10 (and lower) removes the hash from the url of the document
-        //   during rewriting.
-        var sn = win.document.createElement("script");
-        sn.setAttribute("id", "rewriteScript");
-        sn.setAttribute("type", "text/javascript");
-        docUtils.textContent(sn, rewrite.toString()+';rewrite();');
-
-        win.document.body.appendChild(sn);
-
-        function rewrite() {
-            /*jshint evil:true*/
-            var newContent = window.newContent,
-                hash = document.location.hash;
-            document.open();
-            if (hash) {
-                document.location.hash = hash;
-            }
-            document.write(newContent);
-            document.close();
-            if (document.getElementById("rewriteScript")) {
-                window.setTimeout(rewrite,0);
-            }
-        }
-    }
-
     function createRemoteCallExpression(callback) {
         var argExpressions = global.Array.prototype.slice.call(arguments, 1) || [],
             callbackId = instrument.callbacks.length;
@@ -195,8 +140,7 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
     exports = {
         internal: {
             instrument: instrument,
-            deactivateAndCaptureHtml: deactivateAndCaptureHtml,
-            rewriteDocument: rewriteDocument
+            deactivateAndCaptureHtml: deactivateAndCaptureHtml
         },
         createRemoteCallExpression: createRemoteCallExpression,
         addPreprocessor: addPreprocessor,

@@ -39,9 +39,11 @@ module.exports = function(grunt) {
           module: false,
           describe: true,
           ddescribe: true,
+          xdescribe: true,
           beforeEach: true,
           afterEach: true,
           it: true,
+          xit: true,
           iit: true,
           runs: true,
           waitsFor: true,
@@ -62,7 +64,8 @@ module.exports = function(grunt) {
       server: {
         options: {
           port: 9000,
-          base: './'
+          base: './',
+          hostname: ''
         }
       }
     },

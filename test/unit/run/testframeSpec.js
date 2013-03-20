@@ -1,9 +1,18 @@
 describe('run/testframe', function() {
-    var global, body, topFrame, iframeElement, uitestwindow, buttonElement, injector;
+    var global, body, topFrame, iframeElement, uitestwindow, buttonElement, injector, runSniffer, scriptElement;
     beforeEach(function() {
+        scriptElement = {
+            setAttribute: jasmine.createSpy('setAttribute')
+        };
         uitestwindow = {
             location: {},
-            close: jasmine.createSpy('close')
+            close: jasmine.createSpy('close'),
+            document: {
+                createElement: jasmine.createSpy('createElement').andReturn(scriptElement),
+                body: {
+                    appendChild: jasmine.createSpy('appendChild')
+                }
+            }
         };
         body = {
             appendChild: jasmine.createSpy('appendChild'),
@@ -49,6 +58,7 @@ describe('run/testframe', function() {
         injector = {
             addDefaultResolver: jasmine.createSpy('addDefaultResolver')
         };
+        runSniffer = {};
     });
 
     function createTestframe(url) {
@@ -59,9 +69,17 @@ describe('run/testframe', function() {
             "run/config": {
                 url: url
             },
-            "run/injector": injector
+            "run/injector": injector,
+            "run/sniffer": runSniffer
         }, ["run/testframe", "utils"]);
         return modules["run/testframe"];
+    }
+
+    function realSniffer(finishedCallback) {
+        var sniffer = uitest.require({
+            global: window
+        }, ["sniffer"]).sniffer;
+        sniffer(finishedCallback);
     }
 
     it('should publish the uitest module to the top frame', function() {
@@ -70,19 +88,21 @@ describe('run/testframe', function() {
     });
     it('should register itself as default resolver at the injector', function() {
         var testframe = createTestframe();
-        expect(injector.addDefaultResolver).toHaveBeenCalledWith(testframe);
+        expect(injector.addDefaultResolver).toHaveBeenCalled();
+        testframe.win = function() { return {x: 'y' }; };
+        expect(injector.addDefaultResolver.mostRecentCall.args[0]('x')).toBe('y');
     });
     it('should create an iframe in the top frame on first module creation', function() {
         var testframe = createTestframe();
         expect(body.appendChild).toHaveBeenCalledWith(iframeElement);
         expect(iframeElement.setAttribute).toHaveBeenCalledWith("id", "uitestwindow");
-        expect(testframe).toBe(uitestwindow);
+        expect(testframe.win()).toBe(uitestwindow);
     });
     it('should reuse an existing iframe in the top frame by its id', function() {
         topFrame.document.getElementById.andReturn(iframeElement);
         var testframe = createTestframe();
         expect(body.appendChild).not.toHaveBeenCalled();
-        expect(testframe).toBe(uitestwindow);
+        expect(testframe.win()).toBe(uitestwindow);
     });
     describe('set the location.href on the first call', function() {
         it('works for absolute urls', function() {
@@ -118,4 +138,58 @@ describe('run/testframe', function() {
             expect(iframeElement.style.zIndex).toBe(100);
         });
     });
+
+    describe('rewriteDocument', function() {
+        it('should reset all previously existing globals', function() {
+            var win;
+            // Note: We need to use the real sniffer here,
+            // as not all strategies for rewriting work on all browsers!
+            runSniffer = null;
+            runs(function() {
+                realSniffer(function(_runSniffer) {
+                    runSniffer = _runSniffer;
+                });
+            });
+            waitsFor(function() {
+                return runSniffer;
+            });
+            runs(function() {
+                var testframe = createTestframe();
+                global.top = window.top;
+                win = testutils.createFrame('<html></html>').win;
+                win.a = 1;
+                testframe.win = function() {
+                    return win;
+                };
+                testframe.rewriteDocument('<html></html>');
+            });
+            waits(100);
+            runs(function() {
+                expect(win.a).toBeUndefined();
+            });
+        });
+
+        it('should use a js url if the browser supports it', function() {
+            var html = '<html></html>';
+            runSniffer.jsUrl = true;
+            var testframe = createTestframe();
+            testframe.rewriteDocument(html);
+            /*jshint scripturl:true*/
+            expect(uitestwindow.location.href).toBe('javascript:window.top.newContent');
+            expect(topFrame.newContent).toBe(html);
+        });
+
+        it('should use document.open/write/close if the browser does not support js urls', function() {
+            var html = '<html></html>';
+            runSniffer.jsUrl = false;
+            var testframe = createTestframe();
+            var oldUrl = uitestwindow.location.href;
+            testframe.rewriteDocument(html);
+            expect(uitestwindow.location.href).toBe(oldUrl);
+            expect(uitestwindow.document.createElement).toHaveBeenCalledWith('script');
+            expect(uitestwindow.document.body.appendChild).toHaveBeenCalledWith(scriptElement);
+            expect(scriptElement.textContent.length>0).toBe(true);
+        });
+    });
+
 });

@@ -37,6 +37,11 @@ test frameworks.
 * Dependencies:
     * No additional JS libs required
     * Does not need any additional test server, only a browser to execute the tests
+* Supports xhtml on many browsers. 
+    * Not on FF (as FF does uses `javascript:` urls in 
+  a special way :-( )
+    * Not on IE<=8, as IE<=8 is not able to load xhtml in an iframe
+      (error XML5632: only one root element is allowed).
 
 
 ## Usage
@@ -51,8 +56,6 @@ test frameworks.
 Preconditions:
 
 * The page to be tested must be loaded from the same domain as the test code.
-* The page to be tested must not contain an `<noscript>` tag.
-* Does not support xhtml pages (they cannot be rewritten using `document.write`).
 
 ## Samples
 See the ui tests under `test/ui/*Spec.js`.

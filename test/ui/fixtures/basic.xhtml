@@ -1,13 +1,15 @@
-<!DOCTYPE html>
-<html>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
-    <script type="text/javascript">parent.uitest && parent.uitest.instrument(window);</script>
+    <script type="text/javascript">//<![CDATA[
+    parent.uitest && parent.uitest.instrument(window);
+    //]]></script>
     <script type="text/javascript">window.execState = "start";</script>
 
 </head>
-
 <body>
-    <script type="text/javascript" src="sayHello.js"></script>
+    <script type="text/javascript" src="sayHello.js"></script>    
     <script type="text/javascript">
         window.execState = "end";
         if (document.addEventListener) {
@@ -15,6 +17,7 @@
         } else {
             document.attachEvent("onreadystatechange", loaded);
         }
+
         function loaded(e) {
             window.execState = "loaded";
         };

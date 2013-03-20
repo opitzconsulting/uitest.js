@@ -32,8 +32,23 @@
         return exports.frame;
     }
 
+    function browserSniffer() {
+        var useragent = window.navigator.userAgent.toLowerCase(),
+            android = /android/i.test(useragent),
+            ieMatch = /MSIE\s+(\d+)/i.exec(useragent),
+            ff = /firefox/i.test(useragent);
+
+        return {
+            android: android,
+            ie: ieMatch && parseInt(ieMatch[1],10),
+            ff: ff
+        };
+
+    }
+
     exports = {
-        createFrame: createFrame
+        createFrame: createFrame,
+        browser: browserSniffer()
     };
     window.testutils = exports;
 })(window);

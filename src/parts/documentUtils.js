@@ -4,7 +4,8 @@ uitest.define('documentUtils', ['global'], function(global) {
     // 1. opening script tag
     // 2. content of src attribute
     // 3. text content of script element.
-    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/ig;
+    SCRIPT_RE = /(<script(?:[^>]*(src=\s*"([^"]+)"))?[^>]*>)([\s\S]*?)<\/script>/ig,
+    EMPTY_TAG_RE = /(<([^>\s]+)[^>]*)\/>/ig;
 
     function serializeDocType(doc) {
         var node = doc.doctype;
@@ -123,6 +124,12 @@ uitest.define('documentUtils', ['global'], function(global) {
         }
     }
 
+    function makeEmptyTagsToOpenCloseTags(html) {
+        return html.replace(EMPTY_TAG_RE, function(match, openTag, tagName) {
+            return openTag+"></"+tagName+">";
+        });
+    }
+
     return {
         serializeDocType: serializeDocType,
         serializeHtmlTag: serializeHtmlTag,
@@ -133,6 +140,7 @@ uitest.define('documentUtils', ['global'], function(global) {
         replaceScripts: replaceScripts,
         addEventListener: addEventListener,
         textContent: textContent,
-        setStyle: setStyle
+        setStyle: setStyle,
+        makeEmptyTagsToOpenCloseTags: makeEmptyTagsToOpenCloseTags
     };
 });

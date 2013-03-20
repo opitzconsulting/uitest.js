@@ -1,5 +1,5 @@
 describe('run/requirejsScriptAdder', function() {
-    var preprocessor, instrumentor, testframe, documentUtils, config, global, utils,
+    var preprocessor, instrumentor, testframe, testframeWin, documentUtils, config, global, utils,
         REQUIREJS_SCRIPT = '<script src="require.js"></script>',
         HTML = 'before' + REQUIREJS_SCRIPT + 'after</body>',
         require, win, requireCallback, someDepNames, someDepValues, requireLoad, loadContext;
@@ -20,7 +20,10 @@ describe('run/requirejsScriptAdder', function() {
                 return "##rc(" + args.join(",") + ");";
             })
         };
-        testframe = {};
+        testframeWin = {};
+        testframe = {
+            win: jasmine.createSpy().andReturn(testframeWin)
+        };
         var modules = uitest.require({
             "run/config": config,
             "run/instrumentor": instrumentor,
@@ -184,7 +187,7 @@ describe('run/requirejsScriptAdder', function() {
             });
 
             var args = documentUtils.loadAndEvalScriptSync.mostRecentCall.args;
-            expect(args[0]).toBe(testframe);
+            expect(args[0]).toBe(testframeWin);
             expect(args[1]).toBe('interceptUrl');
 
             expect(loadContext.completeLoad).toHaveBeenCalledWith('someModule');

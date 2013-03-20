@@ -18,11 +18,13 @@ uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'docu
     }
 
     function handlePrepends(html, prepends) {
-        var htmlArr = ['<head>'],
+        var htmlArr = [],
             i;
         logger.log("adding prepends after <head>");
         createScriptTagForPrependsOrAppends(htmlArr, prepends);
-        return html.replace(/<head>/i, htmlArr.join(''));
+        return html.replace(/<head[^>]*>/i, function(match) {
+            return match + htmlArr.join('');
+        });
     }
 
     function handleAppends(html, appends) {
@@ -30,8 +32,9 @@ uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'docu
             i;
         logger.log("adding appends at </body>");
         createScriptTagForPrependsOrAppends(htmlArr, appends);
-        htmlArr.push('</body>');
-        var newHtml = html.replace(/<\/body>/i, htmlArr.join(''));
+        var newHtml = html.replace(/<\/body>/i, function(match) {
+            return htmlArr.join('') + match;
+        });
         return newHtml;
     }
 
@@ -110,7 +113,7 @@ uitest.define('run/defaultScriptAdder', ['run/config', 'run/instrumentor', 'docu
     function execInterceptScript(matchingInterceptsByName, scriptUrl) {
         // Need to do the xhr in sync here so the script execution order in the document
         // stays the same!
-        docUtils.loadAndEvalScriptSync(testframe, scriptUrl, preProcessCallback);
+        docUtils.loadAndEvalScriptSync(testframe.win(), scriptUrl, preProcessCallback);
 
         function preProcessCallback(data) {
             return data.replace(NAMED_FUNCTION_RE, function(all, fnName) {

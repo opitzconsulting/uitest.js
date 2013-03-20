@@ -1,7 +1,6 @@
 describe('run/instrumentor', function() {
     var instrumentor, frame, documentUtils, config, global, require,
-        android = /android/i.test(window.navigator.userAgent.toLowerCase()),
-        ie = /MSIE/i.test(window.navigator.userAgent.toLowerCase());
+        testframe;
 
     beforeEach(function() {
         config = {
@@ -10,8 +9,13 @@ describe('run/instrumentor', function() {
         global = {
             Array: Array
         };
+        testframe = {
+            win: {},
+            rewriteDocument: jasmine.createSpy('rewriteDocument')
+        };
         var modules = uitest.require({
             "run/config": config,
+            "run/testframe": testframe,
             global: global
      }, ["run/instrumentor", "documentUtils"]);
         documentUtils = modules.documentUtils;
@@ -27,7 +31,6 @@ describe('run/instrumentor', function() {
         beforeEach(function() {
             config.b = 2;
             spyOn(instrumentor.internal, 'deactivateAndCaptureHtml');
-            spyOn(instrumentor.internal, 'rewriteDocument');
         });
         it('should call deactivateAndCaptureHtml, the preprocessors, and then rewriteDocument', function() {
             var someInitialHtml = 'someInitialHtml',
@@ -47,7 +50,7 @@ describe('run/instrumentor', function() {
             expect(instrumentor.internal.deactivateAndCaptureHtml.mostRecentCall.args[0]).toBe(win);
             expect(preproc1).toHaveBeenCalledWith(someInitialHtml);
             expect(preproc2).toHaveBeenCalledWith("preproc1Html");
-            expect(instrumentor.internal.rewriteDocument).toHaveBeenCalledWith(win, "preproc2Html");
+            expect(testframe.rewriteDocument).toHaveBeenCalledWith("preproc2Html");
         });
         it('should make it global', function() {
             expect(global.uitest.instrument).toBe(instrumentor.internal.instrument);
@@ -93,7 +96,16 @@ describe('run/instrumentor', function() {
             });
         });
 
-        if (!android && !ie) {
+        it('should rewrite empty xhtml tag into open/close tags', function() {
+            var prefix = '<html><head>',
+                suffix = '</head><body/></html>';
+            init(prefix, suffix);
+            runs(function() {
+                expect(html).toBe('<html><head></head><body></body></html>');
+            });
+        });
+
+        if (!testutils.browser.android && !testutils.browser.ie) {
             describe('not on android and not on ie', function() {
                 // Here we want to enforce that our html capture and script deactivation
                 // works at least on some browsers without workarounds.
@@ -119,7 +131,10 @@ describe('run/instrumentor', function() {
                     suffix = '<script>var someGlobalVar; someGlobalVar = someGlobalVar?someGlobalVar+1:0;window.someFlag = window.someFlag?window.someFlag+1:0;</script></head></html>';
                 init(prefix, suffix);
                 runs(function() {
-                    instrumentor.internal.rewriteDocument(testutils.frame.win, html);
+                    var doc = testutils.frame.win.document;
+                    doc.open();
+                    doc.write(html);
+                    doc.close();
                 });
                 waits(10);
                 runs(function() {
@@ -173,28 +188,6 @@ describe('run/instrumentor', function() {
                     expect(window.someFlag).toBe(false);
                 });
 
-            });
-        });
-    });
-
-    describe('rewriteDocument', function() {
-        function rewrite(html) {
-            var frame = testutils.createFrame('<html></html>').win;
-            instrumentor.internal.rewriteDocument(frame, html);
-            return frame.document;
-        }
-        it('should replace the document, including the root element and doctype', function() {
-            var doc;
-            runs(function() {
-                doc = rewrite('<!DOCTYPE html><html test="true"></html>');
-            });
-            waits(20);
-            runs(function() {
-                expect(doc.documentElement.getAttribute("test")).toBe("true");
-                if (!ie) {
-                    // IE7 does not support document.doctype.
-                    expect(doc.doctype.name).toBe('html');
-                }
             });
         });
     });

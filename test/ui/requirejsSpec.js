@@ -46,10 +46,8 @@ describe('requirejs', function() {
                         return "intercepted " + userName;
                     }
                 });
-                uit.runs(function(document) {
-                    var el = document.getElementById("greeting");
-                    expect(el.textContent).toBe("intercepted someUser");
-                    expect(savedData.execState).toBe('end');
+                uit.runs(function(testIntercept) {
+                    expect(testIntercept("someUser")).toBe("intercepted someUser");
                 });
             });
         });

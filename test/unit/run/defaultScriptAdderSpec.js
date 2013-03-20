@@ -1,5 +1,5 @@
 describe('run/defaultScriptAdder', function() {
-    var instrumentor, preprocessor, testframe, documentUtils, config, global;
+    var instrumentor, preprocessor, testframe, testframeWin, documentUtils, config, global;
     beforeEach(function() {
         config = {
             appends: [],
@@ -17,7 +17,10 @@ describe('run/defaultScriptAdder', function() {
                 return "##rc("+args.join(",")+");";
             })
         };
-        testframe = {};
+        testframeWin = {};
+        testframe = {
+            win: jasmine.createSpy().andReturn(testframeWin)
+        };
         var modules = uitest.require({
             "run/config": config,
             "run/instrumentor": instrumentor,
@@ -166,7 +169,7 @@ describe('run/defaultScriptAdder', function() {
             instrumentor.createRemoteCallExpression.mostRecentCall.args[0]();
 
             var args = documentUtils.loadAndEvalScriptSync.mostRecentCall.args;
-            expect(args[0]).toBe(testframe);
+            expect(args[0]).toBe(testframeWin);
             expect(args[1]).toBe('interceptUrl');
         });
         it('should instrument named functions in the original script', function() {
