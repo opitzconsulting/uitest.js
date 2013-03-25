@@ -8,17 +8,40 @@ uitest.define('sniffer', ['global'], function(global) {
         // location href from the top window to the iframe.
         tmpFrame.contentWindow.document.open();
         tmpFrame.contentWindow.document.close();
-        tmpFrame.onload = function() {
+        if (tmpFrame.attachEvent) {
+            tmpFrame.attachEvent("onload", onloadCallback);
+        } else {
+            tmpFrame.onload = onloadCallback;
+        }
+        tmpFrame.contentWindow.location.href="javascript:'<html></html>'";
+
+        function onloadCallback(){
             var result = tmpFrame.contentWindow.location.href.indexOf('javascript:')===-1;
             tmpFrame.parentNode.removeChild(tmpFrame);
             callback(result);
-        };
-        tmpFrame.contentWindow.location.href="javascript:'<html></html>'";
+        }
     }
+
+    function browserSniffer() {
+        var useragent = global.navigator.userAgent.toLowerCase(),
+            android = /android/i.test(useragent),
+            ieMatch = /MSIE\s+(\d+)/i.exec(useragent),
+            ff = /firefox/i.test(useragent);
+
+        return {
+            android: android,
+            ie: ieMatch && parseInt(ieMatch[1],10),
+            ff: ff
+        };
+    }
+
 
     function detectFeatures(readyCallback) {
         jsUrlDoesNotChangeLocation(function(jsUrlSupported) {
-            readyCallback({jsUrl: jsUrlSupported});
+            readyCallback({
+                jsUrl: jsUrlSupported,
+                browser: browserSniffer()
+            });
         });
     }
 

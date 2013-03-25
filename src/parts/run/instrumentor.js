@@ -1,4 +1,4 @@
-uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 'global', 'run/testframe'], function(docUtils, runConfig, logger, global, testframe) {
+uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 'global', 'run/testframe', 'run/sniffer'], function(docUtils, runConfig, logger, global, testframe, sniffer) {
 
     var exports,
         NO_SCRIPT_TAG = "noscript",
@@ -10,7 +10,6 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
     function addPreprocessor(priority, preprocessor) {
         preprocessors.push({prio: priority, processor: preprocessor});
     }
-
     instrument.callbacks = [];
 
     function instrument(win) {
@@ -33,6 +32,14 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
     }
 
     function deactivateAndCaptureHtml(win, callback) {
+        if (sniffer.browser.ie && sniffer.browser.ie<=8) {
+            oldIEDeactivateAndCaptureHtml(win, callback);
+        } else {
+            defaultDeactivateAndCaptureHtml(win, callback);
+        }
+    }
+
+    function defaultDeactivateAndCaptureHtml(win, callback) {
         var doc = win.document;
         removeCurrentScript(doc);
 
@@ -59,7 +66,9 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         doc.appendChild(newDocEl);
         var restore = preventErrorsByNooping(win);
 
-        docUtils.addEventListener(win, 'load', function() {
+        docUtils.addEventListener(win, 'load', finished);
+
+        function finished() {
             restore();
 
             var docType = docUtils.serializeDocType(win.document);
@@ -68,7 +77,32 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
             innerHtml = innerHtml.replace("parent.uitest.instrument(window)", "false");
             var html = docType+htmlOpenTag+innerHtml+"</html>";
             callback(html);
-        });
+        }
+    }
+
+    // For old IE<=8 only!
+    function oldIEDeactivateAndCaptureHtml(win, callback) {
+        var doc = win.document;
+        removeCurrentScript(doc);
+        var prefix = doc.documentElement.innerHTML;
+        var deactivateComment = "<![if false]>";
+        doc.write(deactivateComment);
+
+        docUtils.addEventListener(win, 'load', finished);
+
+        function finished() {
+            var innerHtml = doc.documentElement.innerHTML;
+            innerHtml = innerHtml.replace(deactivateComment, "");
+            var endHtmlMatch = innerHtml.match(/([\s\S]*)<\/html>/i);
+            if (endHtmlMatch) {
+                innerHtml = endHtmlMatch[1];
+            }
+            var docType = docUtils.serializeDocType(win.document);
+            var htmlOpenTag = docUtils.serializeHtmlTag(win.document.documentElement);
+
+            var html = docType+htmlOpenTag+innerHtml+"</html>";
+            callback(html);
+        }
     }
 
     function preventErrorsByNooping(win) {
@@ -81,11 +115,6 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
 
         replaceDocFn("write", noop);
         replaceDocFn("writeln", noop);
-
-        win.onerror = function() {
-            // Return true to tell IE we handled it
-            return true;
-        };
 
         return function() {
             var i;

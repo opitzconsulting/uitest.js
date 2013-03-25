@@ -45,9 +45,9 @@ describe('run/testframe', function() {
         };
         global = {
             top: topFrame,
-            Date: {
-                now: jasmine.createSpy('now').andReturn(123)
-            },
+            Date: jasmine.createSpy('Date').andReturn({
+                getTime: jasmine.createSpy('now').andReturn(123)
+            }),
             uitest: {},
             document: {
                 getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn([{

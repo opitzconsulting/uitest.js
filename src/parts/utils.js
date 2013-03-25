@@ -1,7 +1,7 @@
 (function() {
     // Note: We only want to call this once,
     // and not on every module instantiation!
-    var now = Date.now();
+    var now = new Date().getTime();
 
     uitest.define('utils', ['global'], function(global) {
         function isString(obj) {

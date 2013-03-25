@@ -32,7 +32,6 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         frameElement.setAttribute("width", "100%");
         frameElement.setAttribute("height", "100%");
         docUtils.setStyle(frameElement, "position: absolute; top: 0; left: 0; background-color:white; border: 0px");
-        // TODO restore the old zIndex...
         frameElement.style.zIndex = 100;
         doc.body.appendChild(frameElement);
 
@@ -58,7 +57,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 
     function navigateWithReloadTo(win, url) {
-        var now = global.Date.now();
+        var now = new global.Date().getTime();
         url = makeAbsolute(url);
         url = urlParser.cacheBustingUrl(url, now);
         url = url.replace("{now}",now);

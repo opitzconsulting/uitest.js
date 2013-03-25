@@ -1,6 +1,6 @@
 describe('run/instrumentor', function() {
     var instrumentor, frame, documentUtils, config, global, require,
-        testframe;
+        testframe, sniffer;
 
     beforeEach(function() {
         config = {
@@ -13,9 +13,13 @@ describe('run/instrumentor', function() {
             win: {},
             rewriteDocument: jasmine.createSpy('rewriteDocument')
         };
+        sniffer = {
+            browser: testutils.browser
+        };
         var modules = uitest.require({
             "run/config": config,
             "run/testframe": testframe,
+            "run/sniffer": sniffer,
             global: global
      }, ["run/instrumentor", "documentUtils"]);
         documentUtils = modules.documentUtils;
@@ -32,10 +36,10 @@ describe('run/instrumentor', function() {
             config.b = 2;
             spyOn(instrumentor.internal, 'deactivateAndCaptureHtml');
         });
-        it('should call deactivateAndCaptureHtml, the preprocessors, and then rewriteDocument', function() {
+        it('should call deactivateAndCaptureHtml, the preprocessors, expand empty tags and then rewriteDocument', function() {
             var someInitialHtml = 'someInitialHtml',
                 preproc1 = jasmine.createSpy("preproc1").andReturn("preproc1Html"),
-                preproc2 = jasmine.createSpy("preproc1").andReturn("preproc2Html");
+                preproc2 = jasmine.createSpy("preproc1").andReturn("preproc2Html<emptyTag/>");
 
             instrumentor.addPreprocessor(0, preproc2);
             instrumentor.addPreprocessor(100, preproc1);
@@ -50,7 +54,7 @@ describe('run/instrumentor', function() {
             expect(instrumentor.internal.deactivateAndCaptureHtml.mostRecentCall.args[0]).toBe(win);
             expect(preproc1).toHaveBeenCalledWith(someInitialHtml);
             expect(preproc2).toHaveBeenCalledWith("preproc1Html");
-            expect(testframe.rewriteDocument).toHaveBeenCalledWith("preproc2Html");
+            expect(testframe.rewriteDocument).toHaveBeenCalledWith("preproc2Html<emptyTag></emptyTag>");
         });
         it('should make it global', function() {
             expect(global.uitest.instrument).toBe(instrumentor.internal.instrument);
@@ -58,7 +62,7 @@ describe('run/instrumentor', function() {
     });
 
     describe('deactivateAndCaptureHtml', function() {
-        var html;
+        var html, deactivateAndCaptureHtml;
 
         beforeEach(function() {
             documentUtils.loadFile.andCallFake(function(win, url, async, callback) {
@@ -96,16 +100,7 @@ describe('run/instrumentor', function() {
             });
         });
 
-        it('should rewrite empty xhtml tag into open/close tags', function() {
-            var prefix = '<html><head>',
-                suffix = '</head><body/></html>';
-            init(prefix, suffix);
-            runs(function() {
-                expect(html).toBe('<html><head></head><body></body></html>');
-            });
-        });
-
-        if (!testutils.browser.android && !testutils.browser.ie) {
+        if (!testutils.browser.android) {
             describe('not on android and not on ie', function() {
                 // Here we want to enforce that our html capture and script deactivation
                 // works at least on some browsers without workarounds.

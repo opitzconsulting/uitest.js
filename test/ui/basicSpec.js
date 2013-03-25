@@ -3,7 +3,7 @@ describe('basic', function() {
         return string.substring(string.length - end.length) === end;
     }
 
-    // executeTests("html mode", "basic.html");
+    executeTests("html mode", "basic.html");
     if (!testutils.browser.ff && (!testutils.browser.ie || testutils.browser.ie>=9)) {
         executeTests("xhtml mode", "basic.xhtml");
     }
@@ -14,7 +14,7 @@ describe('basic', function() {
             uit.url("../test/ui/fixtures/"+basicUrl);
 
             it('should load the page with the right location set', function() {
-             uit.runs(function(window) {
+                uit.runs(function(window) {
                     expect(endsWith(window.location.pathname, 'ui/fixtures/'+basicUrl)).toBe(true);
                 });
             });

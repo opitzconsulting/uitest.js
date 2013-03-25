@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.1-SNAPSHOT - 2013-03-20
+/*! uitest.js - v0.9.1-SNAPSHOT - 2013-03-25
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -1176,7 +1176,7 @@ uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 		addDefaultResolver: addDefaultResolver
 	};
 });
-uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 'global', 'run/testframe'], function(docUtils, runConfig, logger, global, testframe) {
+uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 'global', 'run/testframe', 'run/sniffer'], function(docUtils, runConfig, logger, global, testframe, sniffer) {
 
     var exports,
         NO_SCRIPT_TAG = "noscript",
@@ -1188,7 +1188,6 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
     function addPreprocessor(priority, preprocessor) {
         preprocessors.push({prio: priority, processor: preprocessor});
     }
-
     instrument.callbacks = [];
 
     function instrument(win) {
@@ -1211,6 +1210,14 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
     }
 
     function deactivateAndCaptureHtml(win, callback) {
+        if (sniffer.browser.ie && sniffer.browser.ie<=8) {
+            oldIEDeactivateAndCaptureHtml(win, callback);
+        } else {
+            defaultDeactivateAndCaptureHtml(win, callback);
+        }
+    }
+
+    function defaultDeactivateAndCaptureHtml(win, callback) {
         var doc = win.document;
         removeCurrentScript(doc);
 
@@ -1237,7 +1244,9 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         doc.appendChild(newDocEl);
         var restore = preventErrorsByNooping(win);
 
-        docUtils.addEventListener(win, 'load', function() {
+        docUtils.addEventListener(win, 'load', finished);
+
+        function finished() {
             restore();
 
             var docType = docUtils.serializeDocType(win.document);
@@ -1246,7 +1255,32 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
             innerHtml = innerHtml.replace("parent.uitest.instrument(window)", "false");
             var html = docType+htmlOpenTag+innerHtml+"</html>";
             callback(html);
-        });
+        }
+    }
+
+    // For old IE<=8 only!
+    function oldIEDeactivateAndCaptureHtml(win, callback) {
+        var doc = win.document;
+        removeCurrentScript(doc);
+        var prefix = doc.documentElement.innerHTML;
+        var deactivateComment = "<![if false]>";
+        doc.write(deactivateComment);
+
+        docUtils.addEventListener(win, 'load', finished);
+
+        function finished() {
+            var innerHtml = doc.documentElement.innerHTML;
+            innerHtml = innerHtml.replace(deactivateComment, "");
+            var endHtmlMatch = innerHtml.match(/([\s\S]*)<\/html>/i);
+            if (endHtmlMatch) {
+                innerHtml = endHtmlMatch[1];
+            }
+            var docType = docUtils.serializeDocType(win.document);
+            var htmlOpenTag = docUtils.serializeHtmlTag(win.document.documentElement);
+
+            var html = docType+htmlOpenTag+innerHtml+"</html>";
+            callback(html);
+        }
     }
 
     function preventErrorsByNooping(win) {
@@ -1259,11 +1293,6 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
 
         replaceDocFn("write", noop);
         replaceDocFn("writeln", noop);
-
-        win.onerror = function() {
-            // Return true to tell IE we handled it
-            return true;
-        };
 
         return function() {
             var i;
@@ -1623,7 +1652,6 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         frameElement.setAttribute("width", "100%");
         frameElement.setAttribute("height", "100%");
         docUtils.setStyle(frameElement, "position: absolute; top: 0; left: 0; background-color:white; border: 0px");
-        // TODO restore the old zIndex...
         frameElement.style.zIndex = 100;
         doc.body.appendChild(frameElement);
 
@@ -1649,7 +1677,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 
     function navigateWithReloadTo(win, url) {
-        var now = global.Date.now();
+        var now = new global.Date().getTime();
         url = makeAbsolute(url);
         url = urlParser.cacheBustingUrl(url, now);
         url = url.replace("{now}",now);
@@ -1723,17 +1751,40 @@ uitest.define('sniffer', ['global'], function(global) {
         // location href from the top window to the iframe.
         tmpFrame.contentWindow.document.open();
         tmpFrame.contentWindow.document.close();
-        tmpFrame.onload = function() {
+        if (tmpFrame.attachEvent) {
+            tmpFrame.attachEvent("onload", onloadCallback);
+        } else {
+            tmpFrame.onload = onloadCallback;
+        }
+        tmpFrame.contentWindow.location.href="javascript:'<html></html>'";
+
+        function onloadCallback(){
             var result = tmpFrame.contentWindow.location.href.indexOf('javascript:')===-1;
             tmpFrame.parentNode.removeChild(tmpFrame);
             callback(result);
-        };
-        tmpFrame.contentWindow.location.href="javascript:'<html></html>'";
+        }
     }
+
+    function browserSniffer() {
+        var useragent = global.navigator.userAgent.toLowerCase(),
+            android = /android/i.test(useragent),
+            ieMatch = /MSIE\s+(\d+)/i.exec(useragent),
+            ff = /firefox/i.test(useragent);
+
+        return {
+            android: android,
+            ie: ieMatch && parseInt(ieMatch[1],10),
+            ff: ff
+        };
+    }
+
 
     function detectFeatures(readyCallback) {
         jsUrlDoesNotChangeLocation(function(jsUrlSupported) {
-            readyCallback({jsUrl: jsUrlSupported});
+            readyCallback({
+                jsUrl: jsUrlSupported,
+                browser: browserSniffer()
+            });
         });
     }
 
@@ -1915,7 +1966,7 @@ uitest.define('urlParser', ['global'], function (global) {
 (function() {
     // Note: We only want to call this once,
     // and not on every module instantiation!
-    var now = Date.now();
+    var now = new Date().getTime();
 
     uitest.define('utils', ['global'], function(global) {
         function isString(obj) {
