@@ -1,8 +1,8 @@
 describe('regression', function() {
-    var uit = uitest.current,
-        relPath = "../test/ui/fixtures/basic.html";
+    var uit = uitest.current;
 
     describe('issue 8 and 9: Setting and returning hash', function() {
+        var relPath = "../test/ui/fixtures/basic.html";
         it('should allow to change the hash without a reload', function() {
             uit.url(relPath);
             uit.runs(function(window) {
@@ -21,6 +21,8 @@ describe('regression', function() {
                 expect(window.location.hash).toBe('#/page1.html');
             });
         });
+    });
+    describe('issue 14: using $.animate', function() {
         it('should allow $.animate', function() {
             var el;
             uit.url( "../test/ui/fixtures/animateFixture.html");
