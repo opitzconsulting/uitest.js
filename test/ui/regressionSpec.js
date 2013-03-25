@@ -21,5 +21,16 @@ describe('regression', function() {
                 expect(window.location.hash).toBe('#/page1.html');
             });
         });
+        it('should allow $.animate', function() {
+            var el;
+            uit.url( "../test/ui/fixtures/animateFixture.html");
+            uit.runs(function($) {
+                el = $('#pages');
+                el.animate({'left':'200px'});
+            });
+            uit.runs(function($) {
+                expect(el.css('left')).toBe('200px');
+            });
+        });
     });
 });
