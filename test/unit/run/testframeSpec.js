@@ -27,6 +27,7 @@ describe('run/testframe', function() {
         iframeElement = {
             setAttribute: jasmine.createSpy('setAttribute'),
             parentElement: body,
+            parentNode: body,
             contentWindow: uitestwindow,
             style: {}
         };
@@ -41,7 +42,8 @@ describe('run/testframe', function() {
                     }
                 }),
                 getElementById: jasmine.createSpy('getElementById')
-            }
+            },
+            "eval": jasmine.createSpy('eval')
         };
         global = {
             top: topFrame,
@@ -98,10 +100,10 @@ describe('run/testframe', function() {
         expect(iframeElement.setAttribute).toHaveBeenCalledWith("id", "uitestwindow");
         expect(testframe.win()).toBe(uitestwindow);
     });
-    it('should reuse an existing iframe in the top frame by its id', function() {
+    it('should delete an existing iframe in the top frame by its id', function() {
         topFrame.document.getElementById.andReturn(iframeElement);
         var testframe = createTestframe();
-        expect(body.appendChild).not.toHaveBeenCalled();
+        expect(body.removeChild).toHaveBeenCalledWith(iframeElement);
         expect(testframe.win()).toBe(uitestwindow);
     });
     describe('set the location.href on the first call', function() {
@@ -128,14 +130,6 @@ describe('run/testframe', function() {
             createTestframe();
             expect(topFrame.document.createElement).toHaveBeenCalledWith("button");
             expect(topFrame.document.body.appendChild).toHaveBeenCalledWith(buttonElement);
-        });
-        it('should toggle the zIndex from -100 to +100', function() {
-            createTestframe();
-            expect(iframeElement.style.zIndex).toBe(100);
-            buttonElement.addEventListener.mostRecentCall.args[1]();
-            expect(iframeElement.style.zIndex).toBe(-100);
-            buttonElement.addEventListener.mostRecentCall.args[1]();
-            expect(iframeElement.style.zIndex).toBe(100);
         });
     });
 
