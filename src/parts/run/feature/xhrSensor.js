@@ -35,7 +35,20 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
                         } else if(name === 'abort') {
                             ready = true;
                         }
-                        var res = self.origin[name].apply(self.origin, arguments);
+                        // Note: Can't use apply here, as IE7 does not
+                        // support apply for XHR methods...
+                        var res;
+                        if (arguments.length===0) {
+                            res = self.origin[name]();
+                        } else if (arguments.length===1) {
+                            res = self.origin[name](arguments[0]);
+                        } else if (arguments.length===2) {
+                            res = self.origin[name](arguments[0], arguments[1]);
+                        } else if (arguments.length===3) {
+                            res = self.origin[name](arguments[0], arguments[1], arguments[2]);
+                        } else {
+                            throw new Error("Too many arguments for the xhr proxy: "+arguments.length);
+                        }
                         copyState();
                         return res;
                     };

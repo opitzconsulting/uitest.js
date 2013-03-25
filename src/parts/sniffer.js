@@ -1,21 +1,29 @@
 uitest.define('sniffer', ['global'], function(global) {
 
     function jsUrlDoesNotChangeLocation(callback) {
-        /*jshint scripturl:true*/
         var tmpFrame = global.top.document.createElement("iframe");
         global.top.document.body.appendChild(tmpFrame);
         // Opening and closing applies the
         // location href from the top window to the iframe.
         tmpFrame.contentWindow.document.open();
         tmpFrame.contentWindow.document.close();
-        if (tmpFrame.attachEvent) {
-            tmpFrame.attachEvent("onload", onloadCallback);
-        } else {
-            tmpFrame.onload = onloadCallback;
+        // The timeout is needed as FF triggers the onload
+        // from the previous document.open/close
+        // even if we set the onload AFTER we did document.open/close!
+        global.setTimeout(changeHrefAndAddOnLoad, 0);
+
+        function changeHrefAndAddOnLoad() {
+            /*jshint scripturl:true*/
+            if (tmpFrame.attachEvent) {
+                tmpFrame.attachEvent("onload", onloadCallback);
+            } else {
+                tmpFrame.onload = onloadCallback;
+            }
+            tmpFrame.contentWindow.location.href="javascript:'<html><body>Hello</body></html>'";
         }
-        tmpFrame.contentWindow.location.href="javascript:'<html></html>'";
 
         function onloadCallback(){
+            /*jshint scripturl:true*/
             var result = tmpFrame.contentWindow.location.href.indexOf('javascript:')===-1;
             tmpFrame.parentNode.removeChild(tmpFrame);
             callback(result);

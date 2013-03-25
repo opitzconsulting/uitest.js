@@ -27,17 +27,18 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function createFrame(topWindow) {
         var doc = topWindow.document,
-            frameElement = doc.createElement("iframe"),
-            oldFrame = doc.getElementById(WINDOW_ID);
+            frameElement = doc.getElementById(WINDOW_ID);
 
-        if (oldFrame) {
-            // remove an old iframe, if existing...
-            oldFrame.parentNode.removeChild(oldFrame);
+        if (frameElement) {
+            // resuse an old iframe, if existing...
+            return frameElement;
         }
-        frameElement.setAttribute("id", WINDOW_ID);
-        frameElement.setAttribute("width", "100%");
-        frameElement.setAttribute("height", "100%");
-        docUtils.setStyle(frameElement, "position: absolute; top: 0; left: 0; background-color:white; border: 0px");
+        var wrapper = doc.createElement("div");
+        wrapper.innerHTML = '<iframe id="'+WINDOW_ID+'" '+
+                            'width="100%" height="100%" '+
+                            'style="position: absolute; top: 0; left: 0; background-color:white; border: 0px;"></iframe>';
+
+        frameElement = wrapper.firstChild;
         frameElement.style.zIndex = 100;
         doc.body.appendChild(frameElement);
 
@@ -46,33 +47,25 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function createToggleButton(topWindow, iframeElement) {
         var doc = topWindow.document,
-            toggleButton = doc.createElement("button"),
-            oldButton = doc.getElementById(BUTTON_ID),
-            listenerFnName = BUTTON_ID+"Listener";
+            button = doc.getElementById(BUTTON_ID);
 
-        if (oldButton) {
-            oldButton.parentNode.removeChild(oldButton);
+        if (button) {
+            // resuse an existing button, if existing...
+            return button;
         }
+        var wrapper = doc.createElement("div");
+        wrapper.innerHTML = '<button id="'+BUTTON_ID+'" '+
+            'style="position: absolute; z-index: 1000; width: auto; top: 0; right: 0; cursor: pointer;" '+
+            'onclick="('+toggleListener.toString()+')(\''+WINDOW_ID+'\');"'+
+            '>Toggle testframe</button>';
+        button = wrapper.firstChild;
+        doc.body.appendChild(button);
 
-        toggleButton.setAttribute("id", BUTTON_ID);
-        toggleButton.setAttribute("onclick", BUTTON_LISTENER_ID+"();");
-        docUtils.textContent(toggleButton, "Toggle testframe");
-        docUtils.setStyle(toggleButton, "position: absolute; z-index: 1000; width: auto; top: 0; right: 0; cursor: pointer;");
-        doc.body.appendChild(toggleButton);
-        // Note: We need to add the onclick listener using an eval in the top window,
-        // as the frame that is executing the tests is removed after the tests
-        // by testacular, and by this the listener is also removed / invalidated
-        // in some browsers (e.g. IE8).
-        /*jshint evil:true*/
-        topWindow["eval"]("("+createToggleListener.toString()+")('"+BUTTON_LISTENER_ID+"','"+WINDOW_ID+"')");
+        return button;
 
-        return toggleButton;
-
-        function createToggleListener(fnName, frameElementId) {
-            window[fnName] = function() {
-                var frame = document.getElementById(frameElementId);
-                frame.style.zIndex = frame.style.zIndex * -1;
-            };
+        function toggleListener(frameId) {
+            var el = document.getElementById(frameId);
+            el.style.zIndex = el.style.zIndex * -1;
         }
     }
 

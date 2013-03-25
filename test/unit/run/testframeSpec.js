@@ -34,12 +34,16 @@ describe('run/testframe', function() {
         topFrame = {
             document: {
                 body: body,
-                createElement: jasmine.createSpy('createElement').andCallFake(function(elemName) {
-                    if(elemName === 'iframe') {
-                        return iframeElement;
-                    } else if(elemName === 'button') {
-                        return buttonElement;
+                createElement: jasmine.createSpy('createElement').andCallFake(function() {
+                    var callCount = topFrame.document.createElement.callCount;
+                    var res = {};
+                    if (callCount===1) {
+                        res.firstChild = iframeElement;
+                    } else if (callCount===2) {
+                        res.firstChild = buttonElement;
                     }
+                    res.firstChild.createdBy = res;
+                    return res;
                 }),
                 getElementById: jasmine.createSpy('getElementById')
             },
@@ -97,14 +101,13 @@ describe('run/testframe', function() {
     it('should create an iframe in the top frame on first module creation', function() {
         var testframe = createTestframe();
         expect(body.appendChild).toHaveBeenCalledWith(iframeElement);
-        expect(iframeElement.setAttribute).toHaveBeenCalledWith("id", "uitestwindow");
+        expect(iframeElement.createdBy.innerHTML).toMatch(/<iframe id="uitestwindow".*/);
         expect(testframe.win()).toBe(uitestwindow);
     });
-    it('should delete an existing iframe in the top frame by its id', function() {
+    it('should reuse an existing iframe in the top frame by its id', function() {
         topFrame.document.getElementById.andReturn(iframeElement);
         var testframe = createTestframe();
-        expect(body.removeChild).toHaveBeenCalledWith(iframeElement);
-        expect(testframe.win()).toBe(uitestwindow);
+        expect(body.appendChild).not.toHaveBeenCalled();
     });
     describe('set the location.href on the first call', function() {
         it('works for absolute urls', function() {
@@ -128,7 +131,7 @@ describe('run/testframe', function() {
     describe('toggleButton', function() {
         it('should create a button', function() {
             createTestframe();
-            expect(topFrame.document.createElement).toHaveBeenCalledWith("button");
+            expect(buttonElement.createdBy.innerHTML).toMatch(/<button id="uitestwindowBtn".*/);
             expect(topFrame.document.body.appendChild).toHaveBeenCalledWith(buttonElement);
         });
     });

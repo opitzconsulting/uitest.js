@@ -116,14 +116,6 @@ uitest.define('documentUtils', ['global'], function(global) {
         }
     }
 
-    function setStyle(el, val) {
-        if (el.style.setAttribute) {
-            el.style.setAttribute("cssText", val);
-        } else {
-            el.setAttribute("style", val);
-        }
-    }
-
     function makeEmptyTagsToOpenCloseTags(html) {
         return html.replace(EMPTY_TAG_RE, function(match, openTag, tagName) {
             return openTag+"></"+tagName+">";
@@ -140,7 +132,6 @@ uitest.define('documentUtils', ['global'], function(global) {
         replaceScripts: replaceScripts,
         addEventListener: addEventListener,
         textContent: textContent,
-        setStyle: setStyle,
         makeEmptyTagsToOpenCloseTags: makeEmptyTagsToOpenCloseTags
     };
 });

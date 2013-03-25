@@ -3,19 +3,7 @@
 <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge" >
     <title>Jasmine Test Runner</title>
-    <!--
     <link rel="stylesheet" href="lib/jasmine.css">
--->
-    <script type="text/javascript">
-    window.logs = ["Logs---"];
-
-    function showLogs() {
-        var pre = document.createElement("pre");
-        pre.setAttribute("style", "position:absolute;z-index:1000");
-        document.getElementsByTagName("body")[0].appendChild(pre);
-        pre.innerHTML = window.logs.join("\n");
-    }
-    </script>
 
     <script type="text/javascript" src="lib/jasmine.js"></script>
     <script type="text/javascript" src="lib/jasmine-html.js"></script>
@@ -25,22 +13,15 @@
 
     <!-- include spec files here... -->
     <script type="text/javascript" src="ui/basicSpec.js"></script>
-    <!--
     <script type="text/javascript" src="ui/mobileSpec.js"></script>
     <script type="text/javascript" src="ui/angularSpec.js"></script>
     <script type="text/javascript" src="ui/requirejsSpec.js"></script>
--->
 
 </head>
 <body>
 <!-- execute jasmine tests -->
 <script type="text/javascript">
     var reporter = new jasmine.TrivialReporter();
-    var _finish = jasmine.Runner.prototype.finishCallback;
-    jasmine.Runner.prototype.finishCallback = function() {
-        showLogs();
-        return _finish.apply(this, arguments);
-    };
     jasmine.getEnv().addReporter(reporter);
     jasmine.getEnv().specFilter = function(spec) {
         return reporter.specFilter(spec);

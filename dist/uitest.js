@@ -425,14 +425,6 @@ uitest.define('documentUtils', ['global'], function(global) {
         }
     }
 
-    function setStyle(el, val) {
-        if (el.style.setAttribute) {
-            el.style.setAttribute("cssText", val);
-        } else {
-            el.setAttribute("style", val);
-        }
-    }
-
     function makeEmptyTagsToOpenCloseTags(html) {
         return html.replace(EMPTY_TAG_RE, function(match, openTag, tagName) {
             return openTag+"></"+tagName+">";
@@ -449,7 +441,6 @@ uitest.define('documentUtils', ['global'], function(global) {
         replaceScripts: replaceScripts,
         addEventListener: addEventListener,
         textContent: textContent,
-        setStyle: setStyle,
         makeEmptyTagsToOpenCloseTags: makeEmptyTagsToOpenCloseTags
     };
 });
@@ -1101,7 +1092,20 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
                         } else if(name === 'abort') {
                             ready = true;
                         }
-                        var res = self.origin[name].apply(self.origin, arguments);
+                        // Note: Can't use apply here, as IE7 does not
+                        // support apply for XHR methods...
+                        var res;
+                        if (arguments.length===0) {
+                            res = self.origin[name]();
+                        } else if (arguments.length===1) {
+                            res = self.origin[name](arguments[0]);
+                        } else if (arguments.length===2) {
+                            res = self.origin[name](arguments[0], arguments[1]);
+                        } else if (arguments.length===3) {
+                            res = self.origin[name](arguments[0], arguments[1], arguments[2]);
+                        } else {
+                            throw new Error("Too many arguments for the xhr proxy: "+arguments.length);
+                        }
                         copyState();
                         return res;
                     };
@@ -1647,17 +1651,18 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function createFrame(topWindow) {
         var doc = topWindow.document,
-            frameElement = doc.createElement("iframe"),
-            oldFrame = doc.getElementById(WINDOW_ID);
+            frameElement = doc.getElementById(WINDOW_ID);
 
-        if (oldFrame) {
-            // remove an old iframe, if existing...
-            oldFrame.parentNode.removeChild(oldFrame);
+        if (frameElement) {
+            // resuse an old iframe, if existing...
+            return frameElement;
         }
-        frameElement.setAttribute("id", WINDOW_ID);
-        frameElement.setAttribute("width", "100%");
-        frameElement.setAttribute("height", "100%");
-        docUtils.setStyle(frameElement, "position: absolute; top: 0; left: 0; background-color:white; border: 0px");
+        var wrapper = doc.createElement("div");
+        wrapper.innerHTML = '<iframe id="'+WINDOW_ID+'" '+
+                            'width="100%" height="100%" '+
+                            'style="position: absolute; top: 0; left: 0; background-color:white; border: 0px;"></iframe>';
+
+        frameElement = wrapper.firstChild;
         frameElement.style.zIndex = 100;
         doc.body.appendChild(frameElement);
 
@@ -1666,33 +1671,25 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function createToggleButton(topWindow, iframeElement) {
         var doc = topWindow.document,
-            toggleButton = doc.createElement("button"),
-            oldButton = doc.getElementById(BUTTON_ID),
-            listenerFnName = BUTTON_ID+"Listener";
+            button = doc.getElementById(BUTTON_ID);
 
-        if (oldButton) {
-            oldButton.parentNode.removeChild(oldButton);
+        if (button) {
+            // resuse an existing button, if existing...
+            return button;
         }
+        var wrapper = doc.createElement("div");
+        wrapper.innerHTML = '<button id="'+BUTTON_ID+'" '+
+            'style="position: absolute; z-index: 1000; width: auto; top: 0; right: 0; cursor: pointer;" '+
+            'onclick="('+toggleListener.toString()+')(\''+WINDOW_ID+'\');"'+
+            '>Toggle testframe</button>';
+        button = wrapper.firstChild;
+        doc.body.appendChild(button);
 
-        toggleButton.setAttribute("id", BUTTON_ID);
-        toggleButton.setAttribute("onclick", BUTTON_LISTENER_ID+"();");
-        docUtils.textContent(toggleButton, "Toggle testframe");
-        docUtils.setStyle(toggleButton, "position: absolute; z-index: 1000; width: auto; top: 0; right: 0; cursor: pointer;");
-        doc.body.appendChild(toggleButton);
-        // Note: We need to add the onclick listener using an eval in the top window,
-        // as the frame that is executing the tests is removed after the tests
-        // by testacular, and by this the listener is also removed / invalidated
-        // in some browsers (e.g. IE8).
-        /*jshint evil:true*/
-        topWindow["eval"]("("+createToggleListener.toString()+")('"+BUTTON_LISTENER_ID+"','"+WINDOW_ID+"')");
+        return button;
 
-        return toggleButton;
-
-        function createToggleListener(fnName, frameElementId) {
-            window[fnName] = function() {
-                var frame = document.getElementById(frameElementId);
-                frame.style.zIndex = frame.style.zIndex * -1;
-            };
+        function toggleListener(frameId) {
+            var el = document.getElementById(frameId);
+            el.style.zIndex = el.style.zIndex * -1;
         }
     }
 
@@ -1768,21 +1765,29 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 uitest.define('sniffer', ['global'], function(global) {
 
     function jsUrlDoesNotChangeLocation(callback) {
-        /*jshint scripturl:true*/
         var tmpFrame = global.top.document.createElement("iframe");
         global.top.document.body.appendChild(tmpFrame);
         // Opening and closing applies the
         // location href from the top window to the iframe.
         tmpFrame.contentWindow.document.open();
         tmpFrame.contentWindow.document.close();
-        if (tmpFrame.attachEvent) {
-            tmpFrame.attachEvent("onload", onloadCallback);
-        } else {
-            tmpFrame.onload = onloadCallback;
+        // The timeout is needed as FF triggers the onload
+        // from the previous document.open/close
+        // even if we set the onload AFTER we did document.open/close!
+        global.setTimeout(changeHrefAndAddOnLoad, 0);
+
+        function changeHrefAndAddOnLoad() {
+            /*jshint scripturl:true*/
+            if (tmpFrame.attachEvent) {
+                tmpFrame.attachEvent("onload", onloadCallback);
+            } else {
+                tmpFrame.onload = onloadCallback;
+            }
+            tmpFrame.contentWindow.location.href="javascript:'<html><body>Hello</body></html>'";
         }
-        tmpFrame.contentWindow.location.href="javascript:'<html></html>'";
 
         function onloadCallback(){
+            /*jshint scripturl:true*/
             var result = tmpFrame.contentWindow.location.href.indexOf('javascript:')===-1;
             tmpFrame.parentNode.removeChild(tmpFrame);
             callback(result);
