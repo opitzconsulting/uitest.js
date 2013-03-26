@@ -60,6 +60,9 @@ Preconditions:
 ## Samples
 See the ui tests under `test/ui/*Spec.js`.
 
+## Reporting Bugs
+Please use this [Plunk](http://plnkr.co/edit/rGCvTXINKVv4B4lqM6gv) as starting point.
+
 ## Build
 Directory structure
 
