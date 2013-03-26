@@ -1,9 +1,9 @@
-uitest.define('run/feature/mobileViewport', ['run/config'], function(runConfig) {
+uitest.define('run/feature/mobileViewport', ['run/config', 'top'], function(runConfig, top) {
     runConfig.appends.push(install);
 
     function install(window) {
         var doc = window.document,
-            topDoc = window.top.document,
+            topDoc = top.document,
             viewportMeta = findViewportMeta(doc),
             topViewportMeta = findViewportMeta(topDoc),
             newMeta;

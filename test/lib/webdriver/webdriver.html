@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" >
+    <title>Jasmine Test Runner</title>
+    <script type="text/javascript" src="lib/webdriver/selenium-atoms.js"></script>
+    <script type="text/javascript" src="lib/webdriver/webdriver.js"></script>
+    <script type="text/javascript" src="lib/webdriver/commands.js"></script>
+    <script type="text/javascript" src="../dist/uitest.js"></script>
+
+</head>
+<body>
+<input id="input" type="text"/>
+<script>
+ var driver = new webdriver.Builder().usingSession("uitest").build();
+ var input = driver.findElement(webdriver.By.tagName('input'));
+
+ input.sendKeys('foo bar baz').then(function() {
+   console.log('Expected foo bar baz, got: '+document.getElementById('input').value);
+ });
+</script>
+</body>
+</html>

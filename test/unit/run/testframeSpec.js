@@ -5,6 +5,7 @@ describe('run/testframe', function() {
             setAttribute: jasmine.createSpy('setAttribute')
         };
         uitestwindow = {
+            parent: {},
             location: {},
             close: jasmine.createSpy('close'),
             document: {
@@ -50,7 +51,6 @@ describe('run/testframe', function() {
             "eval": jasmine.createSpy('eval')
         };
         global = {
-            top: topFrame,
             Date: jasmine.createSpy('Date').andReturn({
                 getTime: jasmine.createSpy('now').andReturn(123)
             }),
@@ -68,10 +68,13 @@ describe('run/testframe', function() {
     });
 
     function createTestframe(url) {
-        url = url || '/someUrl';
+        if (url===undefined) {
+            url = '/someUrl';
+        }
 
         var modules = uitest.require({
             global: global,
+            top: topFrame,
             "run/config": {
                 url: url
             },
@@ -90,7 +93,7 @@ describe('run/testframe', function() {
 
     it('should publish the uitest module to the top frame', function() {
         createTestframe();
-        expect(global.top.uitest).toBe(global.uitest);
+        expect(topFrame.uitest).toBe(global.uitest);
     });
     it('should register itself as default resolver at the injector', function() {
         var testframe = createTestframe();
@@ -151,14 +154,13 @@ describe('run/testframe', function() {
                 return runSniffer;
             });
             runs(function() {
-                var testframe = createTestframe();
-                global.top = window.top;
+                var testframe = createTestframe('');
                 win = testutils.createFrame('<html></html>').win;
                 win.a = 1;
                 testframe.win = function() {
                     return win;
                 };
-                testframe.rewriteDocument('<html></html>');
+                testframe.rewriteDocument('<html><body>test</body></html>');
             });
             waits(100);
             runs(function() {
@@ -172,8 +174,8 @@ describe('run/testframe', function() {
             var testframe = createTestframe();
             testframe.rewriteDocument(html);
             /*jshint scripturl:true*/
-            expect(uitestwindow.location.href).toBe('javascript:window.top.newContent');
-            expect(topFrame.newContent).toBe(html);
+            expect(uitestwindow.location.href).toBe('javascript:window.parent.newContent');
+            expect(uitestwindow.parent.newContent).toBe(html);
         });
 
         it('should use document.open/write/close if the browser does not support js urls', function() {

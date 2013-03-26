@@ -1,4 +1,4 @@
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
+uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, top, runConfig, injector, logger, docUtils, sniffer) {
     var WINDOW_ID = 'uitestwindow',
         BUTTON_ID = WINDOW_ID+'Btn',
         BUTTON_LISTENER_ID = BUTTON_ID+"Listener",
@@ -6,9 +6,9 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         toggleButton,
         exports;
 
-    global.top.uitest = global.uitest;
-    frameElement = createFrame(global.top);
-    toggleButton = createToggleButton(global.top, frameElement);
+    top.uitest = global.uitest;
+    frameElement = createFrame(top);
+    toggleButton = createToggleButton(top, frameElement);
 
     navigateWithReloadTo(getIframeWindow(), runConfig.url);
 
@@ -102,9 +102,9 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
                     return match+'<script type="text/javascript">location.hash="'+currHash+'";</script>';
                 });
             }
-            global.top.newContent = html;
+            win.parent.newContent = html;
             /*jshint scripturl:true*/
-            win.location.href = 'javascript:window.top.newContent';
+            win.location.href = 'javascript:window.parent.newContent';
         }
 
         function rewriteWithoutJsUrl() {

@@ -1,6 +1,6 @@
 describe('run/feature/mobileViewport', function() {
     var testframe, runConfig, win, newMetaElement, metaTags = [], topMetaTags = [],
-        headElement;
+        headElement, top;
     beforeEach(function() {
         newMetaElement = {
             setAttribute: jasmine.createSpy('setAttribute')
@@ -8,8 +8,7 @@ describe('run/feature/mobileViewport', function() {
         headElement = {
             appendChild: jasmine.createSpy('appendChild')
         };
-        win = {
-            top: {
+        top = {
                 document: {
                     getElementsByTagName: jasmine.createSpy('getElementsByTagName').andCallFake(function(tagName) {
                         if (tagName==='meta') {
@@ -21,7 +20,8 @@ describe('run/feature/mobileViewport', function() {
                     createElement: jasmine.createSpy('createElement').andReturn(newMetaElement),
                     head: headElement
                 }
-            },
+            };
+        win = {
             document: {
                 getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn(metaTags)
             }
@@ -31,6 +31,7 @@ describe('run/feature/mobileViewport', function() {
             appends: []
         };
         uitest.require({
+            top: top,
             "run/config": runConfig
         },["run/feature/mobileViewport"]);
     });
@@ -51,7 +52,7 @@ describe('run/feature/mobileViewport', function() {
 
         runConfig.appends[0](win);
         var doc = win.document;
-        var topDoc = win.top.document;
+        var topDoc = top.document;
         expect(doc.getElementsByTagName).toHaveBeenCalledWith("meta");
         expect(topDoc.createElement).toHaveBeenCalledWith("meta");
         expect(topDoc.head.appendChild).toHaveBeenCalledWith(newMetaElement);
@@ -65,7 +66,7 @@ describe('run/feature/mobileViewport', function() {
 
         runConfig.appends[0](win);
         var doc = win.document;
-        var topDoc = win.top.document;
+        var topDoc = top.document;
         expect(topDoc.getElementsByTagName).toHaveBeenCalledWith("meta");
         expect(topMetaTags[0].parentNode.removeChild).not.toHaveBeenCalled();
         expect(topMetaTags[1].parentNode.removeChild).toHaveBeenCalledWith(topMetaTags[1]);

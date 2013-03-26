@@ -1,8 +1,8 @@
-uitest.define('sniffer', ['global'], function(global) {
+uitest.define('sniffer', ['top'], function(top) {
 
     function jsUrlDoesNotChangeLocation(callback) {
-        var tmpFrame = global.top.document.createElement("iframe");
-        global.top.document.body.appendChild(tmpFrame);
+        var tmpFrame = top.document.createElement("iframe");
+        top.document.body.appendChild(tmpFrame);
         // Opening and closing applies the
         // location href from the top window to the iframe.
         tmpFrame.contentWindow.document.open();
@@ -10,7 +10,7 @@ uitest.define('sniffer', ['global'], function(global) {
         // The timeout is needed as FF triggers the onload
         // from the previous document.open/close
         // even if we set the onload AFTER we did document.open/close!
-        global.setTimeout(changeHrefAndAddOnLoad, 0);
+        top.setTimeout(changeHrefAndAddOnLoad, 0);
 
         function changeHrefAndAddOnLoad() {
             /*jshint scripturl:true*/
@@ -31,7 +31,7 @@ uitest.define('sniffer', ['global'], function(global) {
     }
 
     function browserSniffer() {
-        var useragent = global.navigator.userAgent.toLowerCase(),
+        var useragent = top.navigator.userAgent.toLowerCase(),
             android = /android/i.test(useragent),
             ieMatch = /MSIE\s+(\d+)/i.exec(useragent),
             ff = /firefox/i.test(useragent);

@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.1-SNAPSHOT - 2013-03-25
+/*! uitest.js - v0.9.1-SNAPSHOT - 2013-03-26
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -970,12 +970,12 @@ uitest.define('run/feature/jqmAnimationSensor', ['run/config', 'run/ready'], fun
         };
     }
 });
-uitest.define('run/feature/mobileViewport', ['run/config'], function(runConfig) {
+uitest.define('run/feature/mobileViewport', ['run/config', 'top'], function(runConfig, top) {
     runConfig.appends.push(install);
 
     function install(window) {
         var doc = window.document,
-            topDoc = window.top.document,
+            topDoc = top.document,
             viewportMeta = findViewportMeta(doc),
             topViewportMeta = findViewportMeta(topDoc),
             newMeta;
@@ -1622,7 +1622,7 @@ uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'ru
     };
 
 });
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
+uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, top, runConfig, injector, logger, docUtils, sniffer) {
     var WINDOW_ID = 'uitestwindow',
         BUTTON_ID = WINDOW_ID+'Btn',
         BUTTON_LISTENER_ID = BUTTON_ID+"Listener",
@@ -1630,9 +1630,9 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         toggleButton,
         exports;
 
-    global.top.uitest = global.uitest;
-    frameElement = createFrame(global.top);
-    toggleButton = createToggleButton(global.top, frameElement);
+    top.uitest = global.uitest;
+    frameElement = createFrame(top);
+    toggleButton = createToggleButton(top, frameElement);
 
     navigateWithReloadTo(getIframeWindow(), runConfig.url);
 
@@ -1726,9 +1726,9 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
                     return match+'<script type="text/javascript">location.hash="'+currHash+'";</script>';
                 });
             }
-            global.top.newContent = html;
+            win.parent.newContent = html;
             /*jshint scripturl:true*/
-            win.location.href = 'javascript:window.top.newContent';
+            win.location.href = 'javascript:window.parent.newContent';
         }
 
         function rewriteWithoutJsUrl() {
@@ -1762,11 +1762,11 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 });
 
-uitest.define('sniffer', ['global'], function(global) {
+uitest.define('sniffer', ['top'], function(top) {
 
     function jsUrlDoesNotChangeLocation(callback) {
-        var tmpFrame = global.top.document.createElement("iframe");
-        global.top.document.body.appendChild(tmpFrame);
+        var tmpFrame = top.document.createElement("iframe");
+        top.document.body.appendChild(tmpFrame);
         // Opening and closing applies the
         // location href from the top window to the iframe.
         tmpFrame.contentWindow.document.open();
@@ -1774,7 +1774,7 @@ uitest.define('sniffer', ['global'], function(global) {
         // The timeout is needed as FF triggers the onload
         // from the previous document.open/close
         // even if we set the onload AFTER we did document.open/close!
-        global.setTimeout(changeHrefAndAddOnLoad, 0);
+        top.setTimeout(changeHrefAndAddOnLoad, 0);
 
         function changeHrefAndAddOnLoad() {
             /*jshint scripturl:true*/
@@ -1795,7 +1795,7 @@ uitest.define('sniffer', ['global'], function(global) {
     }
 
     function browserSniffer() {
-        var useragent = global.navigator.userAgent.toLowerCase(),
+        var useragent = top.navigator.userAgent.toLowerCase(),
             android = /android/i.test(useragent),
             ieMatch = /MSIE\s+(\d+)/i.exec(useragent),
             ff = /firefox/i.test(useragent);
@@ -1891,6 +1891,18 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         }
     };
 });
+uitest.define('top', ['global'], function(global) {
+    try {
+        var res = global.top;
+        // This read access should throw an exception if
+        // we are on different domains...
+        var domain = res.document.getElementsByTagName("html");
+        return res;
+    } catch (e) {
+        return global;
+    }
+});
+
 uitest.define('urlParser', ['global'], function (global) {
     var UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/,
         NUMBER_RE = /^\d+$/;
