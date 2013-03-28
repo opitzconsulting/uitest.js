@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.1-SNAPSHOT - 2013-03-26
+/*! uitest.js - v0.9.1 - 2013-03-28
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**

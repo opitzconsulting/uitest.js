@@ -1,4 +1,4 @@
-xdescribe('angular-xhrmock', function() {
+describe('angular-xhrmock', function() {
     var uit = uitest.current,
         btnEl, resultEl;
 

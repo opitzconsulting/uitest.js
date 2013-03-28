@@ -1,7 +1,7 @@
 {
     "name": "uitest.js",
     "description": "uitest.js is able to load a webpage into a frame or popup, instrument that page and the javascript in that page (e.g. add additional scripts at the end of the document, ...) and execute actions on that page.",
-    "version": "0.9.1-SNAPSHOT",
+    "version": "0.9.1",
     "private": true,
     "homepage": "https://github.com/tigbro/uitest.js",
     "author": {
