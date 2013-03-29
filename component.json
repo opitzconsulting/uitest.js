@@ -1,0 +1,15 @@
+{
+    "name": "uitest.js",
+    "version": "0.9.2",
+    "main": ["./dist/uitest.js"],
+    "dependencies": {
+    },
+    "ignore": [
+        "src/",
+        "test/",
+        ".travis.yml",
+        "Gruntfile.js",
+        "package.json",
+        "testacular.conf.js"
+    ]
+}
