@@ -46,6 +46,7 @@ uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'ru
     function patchRequire(win, appends) {
         var _require = win.require;
         win.require = function(deps, originalCallback) {
+            _require.onResourceLoad = win.require.onResourceLoad;
             _require(deps, function() {
                 var args = arguments,
                     self = this;

@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.1 - 2013-03-28
+/*! uitest.js - v0.9.2-SNAPSHOT - 2013-04-02
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -1540,6 +1540,7 @@ uitest.define('run/requirejsScriptAdder', ['run/config', 'run/instrumentor', 'ru
     function patchRequire(win, appends) {
         var _require = win.require;
         win.require = function(deps, originalCallback) {
+            _require.onResourceLoad = win.require.onResourceLoad;
             _require(deps, function() {
                 var args = arguments,
                     self = this;

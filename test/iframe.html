@@ -1,9 +1,63 @@
 <!DOCTYPE html>
 <html>
 <body>
+    <button onclick="location.href+='#test';">Hello</button>
 
-    <iframe src="http://localhost:9000/test/UiSpecRunner.html" width="100%" height="500px">
-    </iframe>    
+    <iframe id="ifr"></iframe>
+
+    <script>
+        var iframe = document.getElementById("ifr");
+        var win = iframe.contentWindow;
+        var doc = win.document;
+        // This works
+        iframe.onload = next;
+
+        // This does not work
+        // setTimeout(next, 1000);
+
+        // This works too.
+        // Note: We need this for every document.rewrite!
+        // win.location.href = "/nonExistentPageToFixFirefoxHistoryBug";
+
+        // This works too!
+        // We know that uitest.js exists and know the path,
+        // and this does not yield errors in the console!
+        // TODO: Use this always!!
+        win.location.href = "/dist/uitest.js";
+
+        
+        // This does not work!
+        // win.location.href = 'about:blank';
+        
+        // This does not work!
+        // win.location.href = 'javascript:"<html><body></body></html>"';
+
+        // This does not work
+        // doc.open();
+        // doc.close();
+
+        function next() {
+            win = iframe.contentWindow;
+            doc = win.document;
+            rewrite(doc, '/url1');
+            console.log("now");
+
+            // just for keeping the url. But if we set the href
+            // using history.pushState we don't need this...
+            /*var se = doc.createElement("script");
+            se.setAttribute("type", "text/javascript");
+            se.textContent = "("+rewrite.toString()+")(document)";
+            doc.body.appendChild(se);
+            */
+        }
+
+        function rewrite(document, url) {
+            document.open();
+            document.write('<!DOCTYPE html><html><body><script>history.pushState(null, "", "'+url+'");</'+'script></body></html>');
+            document.close();            
+        }
+
+    </script>
 
 </body>
 </html>

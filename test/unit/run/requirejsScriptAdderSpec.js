@@ -71,6 +71,21 @@ describe('run/requirejsScriptAdder', function() {
         require.mostRecentCall.args[1](someDepValues);
         expect(requireCallback).toHaveBeenCalledWith(someDepValues);
     });
+    it('should copy the onResourceLoad callback to the original require on the first call to require', function() {
+        var onResourceLoad = jasmine.createSpy('onResourceLoad');
+        var reqConfig = {};
+
+        require.config = reqConfig;
+        preprocessor.preprocess(HTML);
+        instrumentor.createRemoteCallExpression.argsForCall[0][0](win);
+
+        expect(win.require).not.toBe(require);
+        expect(win.require.config).toBe(reqConfig);
+
+        win.require.onResourceLoad = onResourceLoad;
+        win.require(someDepNames, requireCallback);
+        expect(require.onResourceLoad).toBe(onResourceLoad);
+    });
     describe('load interceptor', function() {
         var someModuleName = 'someModule';
         function exec(url) {

@@ -12,6 +12,14 @@ describe('requirejs', function() {
     });
 
     function createSpecs() {
+        describe('onResourceLoad', function() {
+            it('should still call onResourceLoad callback', function() {
+                uit.runs(function(resources) {
+                    expect(resources[resources.length-1]).toEqual('sayHello');
+                });
+            });
+        });
+
         describe('append', function() {
             it('should exec append functions before the require callback', function() {
                 var savedExecState;

@@ -5,6 +5,10 @@
     <script src="../../lib/require.js" data-main="requireMain"></script>
     <script>
         window.execState = "begin";
+        window.resources = [];
+        require.onResourceLoad = function(context, map) {
+            window.resources.push(map.name);
+        };
     </script>
 </head>
 <body>
