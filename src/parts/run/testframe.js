@@ -96,15 +96,18 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
 
         function rewriteWithJsUrl() {
             var currHash = win.location.hash;
-            if (currHash) {
-                // preserve the hash. Needed for ie!
-                html = html.replace(/<head[^>]*>/i, function(match) {
-                    return match+'<script type="text/javascript">location.hash="'+currHash+'";</script>';
-                });
-            }
-            win.parent.newContent = html;
+            // Bugs here:
+            // - IE looses the hash when rewriting using a js url
+            // - Rewriting using a js url or doc.open/write/close deletes the current history entry.
+            //   This yields to problems when using history.back()!
+            //   (at least in a fresh Chrome in Inkognito mode)
+            win.location.hash = 'someUniqueHashToCreateAHistoryEntry';
+            html = html.replace(/<head[^>]*>/i, function(match) {
+                return match+'<script type="text/javascript">location.hash="'+currHash+'";</script>';
+            });
+            win.newContent = html;
             /*jshint scripturl:true*/
-            win.location.href = 'javascript:window.parent.newContent';
+            win.location.href = 'javascript:window.newContent';
         }
 
         function rewriteWithoutJsUrl() {

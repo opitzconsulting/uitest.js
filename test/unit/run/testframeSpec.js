@@ -174,8 +174,8 @@ describe('run/testframe', function() {
             var testframe = createTestframe();
             testframe.rewriteDocument(html);
             /*jshint scripturl:true*/
-            expect(uitestwindow.location.href).toBe('javascript:window.parent.newContent');
-            expect(uitestwindow.parent.newContent).toBe(html);
+            expect(uitestwindow.location.href).toBe('javascript:window.newContent');
+            expect(uitestwindow.newContent).toBe(html);
         });
 
         it('should use document.open/write/close if the browser does not support js urls', function() {

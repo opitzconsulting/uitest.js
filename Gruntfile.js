@@ -74,7 +74,7 @@ module.exports = function(grunt) {
         options: {
           configFile: 'testacular.conf.js',
           singleRun: false,
-          browsers: [],
+          browsers: ['PhantomJS'],
           keepalive: false
         }
       },

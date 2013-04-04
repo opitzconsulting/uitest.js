@@ -35,4 +35,38 @@ describe('regression', function() {
             });
         });
     });
+
+    describe('history', function() {
+        it('should allow to get back to the initial url using hashes', function() {
+            var initHref;
+            uit.url( "../test/ui/fixtures/empty.html");
+            uit.runs(function(location, history) {
+                initHref = location.href;
+                location.hash = 'someHash';
+            });
+            uit.runs(function(history,location) {
+                history.back();
+            });
+            uit.runs(function(location) {
+                expect(location.href).toBe(initHref);
+            });
+        });
+        if (window.history.pushState) {
+            it('should allow to get back to the initial url using history.pushState', function() {
+                var initHref;
+                uit.url( "../test/ui/fixtures/empty.html");
+                uit.runs(function(location, history) {
+                    initHref = location.href;
+                    history.pushState(null, '', '#someHash');
+                    expect(location.hash).toBe("#someHash");
+                });
+                uit.runs(function(history) {
+                    history.back();
+                });
+                uit.runs(function(location) {
+                    expect(location.href).toBe(initHref);
+                });
+            });
+        }
+    });
 });
