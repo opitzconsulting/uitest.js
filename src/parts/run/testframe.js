@@ -101,9 +101,16 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
             // - Rewriting using a js url or doc.open/write/close deletes the current history entry.
             //   This yields to problems when using history.back()!
             //   (at least in a fresh Chrome in Inkognito mode)
-            win.location.hash = 'someUniqueHashToCreateAHistoryEntry';
+            // - PhantomJS: creating a history entry using hash change does not work correctly.
+            //   Using history.pushState however does work...
             html = html.replace(/<head[^>]*>/i, function(match) {
-                return match+'<script type="text/javascript">location.hash="'+currHash+'";</script>';
+                var createHistoryEntryCommand;
+                if (win.history.pushState) {
+                    createHistoryEntryCommand = 'history.pushState(null, "", "'+currHash+'");';
+                } else {
+                    createHistoryEntryCommand = 'location.hash="someUniqueHashToCreateAHistoryEntry";location.hash="'+currHash+'";';
+                }
+                return match+'<script type="text/javascript">'+createHistoryEntryCommand+'</script>';
             });
             win.newContent = html;
             /*jshint scripturl:true*/

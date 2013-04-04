@@ -37,36 +37,55 @@ describe('regression', function() {
     });
 
     describe('history', function() {
-        it('should allow to get back to the initial url using hashes', function() {
-            var initHref;
-            uit.url( "../test/ui/fixtures/empty.html");
-            uit.runs(function(location, history) {
-                initHref = location.href;
-                location.hash = 'someHash';
-            });
-            uit.runs(function(history,location) {
-                history.back();
-            });
-            uit.runs(function(location) {
-                expect(location.href).toBe(initHref);
-            });
-        });
-        if (window.history.pushState) {
-            it('should allow to get back to the initial url using history.pushState', function() {
+        describe('go back to the initial url', function() {
+            it('should work using using hashes', function() {
                 var initHref;
                 uit.url( "../test/ui/fixtures/empty.html");
                 uit.runs(function(location, history) {
                     initHref = location.href;
-                    history.pushState(null, '', '#someHash');
-                    expect(location.hash).toBe("#someHash");
+                    location.hash = 'someHash';
                 });
-                uit.runs(function(history) {
+                uit.runs(function(history,location) {
                     history.back();
                 });
                 uit.runs(function(location) {
                     expect(location.href).toBe(initHref);
                 });
             });
-        }
+            // Testcase here: execute this test alone (using iit), with
+            // as freshly opened Chrome in Inkognito mode.
+            it('should work when starting at a hash url', function() {
+                var initHref;
+                uit.url( "../test/ui/fixtures/empty.html#someInitHash");
+                uit.runs(function(location, history) {
+                    initHref = location.href;
+                    location.hash = 'someHash';
+                });
+                uit.runs(function(history,location) {
+                    history.back();
+                });
+                uit.runs(function(location) {
+                    expect(location.href).toBe(initHref);
+                });
+
+            });
+
+            if (window.history.pushState) {
+                it('should work using history.pushState', function() {
+                    var initHref;
+                    uit.url( "../test/ui/fixtures/empty.html");
+                    uit.runs(function(location, history) {
+                        initHref = location.href;
+                        history.pushState(null, '', '#someHash');
+                    });
+                    uit.runs(function(history) {
+                        history.back();
+                    });
+                    uit.runs(function(location) {
+                        expect(location.href).toBe(initHref);
+                    });
+                });
+            }
+        });
     });
 });
