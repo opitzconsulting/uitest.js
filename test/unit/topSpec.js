@@ -19,7 +19,13 @@ describe('top', function() {
         createTop();
         expect(top).toBe(global);
     });
+    it('should return global if top does not contain a body element', function() {
+        global.top.document.getElementsByTagName.andReturn([]);
+        createTop();
+        expect(top).toBe(global);
+    });
     it('should return global.top if top is accessible', function() {
+        global.top.document.getElementsByTagName.andReturn([{}]);
         createTop();
         expect(top).toBe(global.top);
     });

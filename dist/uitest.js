@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.2-SNAPSHOT - 2013-04-04
+/*! uitest.js - v0.9.2-SNAPSHOT - 2013-04-05
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -1907,7 +1907,12 @@ uitest.define('top', ['global'], function(global) {
         var res = global.top;
         // This read access should throw an exception if
         // we are on different domains...
-        var domain = res.document.getElementsByTagName("html");
+        // If the top document contains a frameset, we don't have a body
+        // so we stay to our frame window...
+        var bodies = res.document.getElementsByTagName("body");
+        if (bodies.length === 0) {
+            return global;
+        }
         return res;
     } catch (e) {
         return global;
