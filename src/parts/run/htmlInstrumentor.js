@@ -1,33 +1,45 @@
-uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 'global', 'run/testframe', 'run/sniffer'], function(docUtils, runConfig, logger, global, testframe, sniffer) {
+uitest.define('run/htmlInstrumentor', ['documentUtils', 'run/config', 'run/logger', 'global', 'run/testframe', 'run/sniffer', 'htmlParserFactory'], function(docUtils, runConfig, logger, global, testframe, sniffer, htmlParserFactory) {
 
     var exports,
-        NO_SCRIPT_TAG = "noscript",
-        preprocessors = [],
-        COMPARE_BY_PRIO = function(entry1, entry2) {
-            return entry2.prio - entry1.prio;
-        };
+        preProcessors = [],
+        htmlParser = htmlParserFactory();
 
-    function addPreprocessor(priority, preprocessor) {
-        preprocessors.push({prio: priority, processor: preprocessor});
-    }
     instrument.callbacks = [];
 
+    exports = {
+        internal: {
+            instrument: instrument,
+            deactivateAndCaptureHtml: deactivateAndCaptureHtml
+        },
+        createRemoteCallExpression: createRemoteCallExpression,
+        addPreProcessor: addPreProcessor,
+        htmlParser: htmlParser,
+        global: {
+            uitest: {
+                instrument: instrument
+            }
+        }
+    };
+    return exports;
+
+    function addPreProcessor(preProcessor) {
+        preProcessors.push(preProcessor);
+    }
+
     function instrument(win) {
-        preprocessors.sort(COMPARE_BY_PRIO);
         logger.log("starting instrumentation");
         exports.internal.deactivateAndCaptureHtml(win, function(html) {
-            var i;
+            var i, parsedHtml;
             logger.log("captured html");
-
-            for (i=0; i<preprocessors.length; i++) {
-                html = preprocessors[i].processor(html);
-            }
-
-            // We need to unpack empty tags to open/close tags here, 
-            // as the new document is always a normal html document. E.g. empty script tags
-            // (<script.../>) would result in the next script tag to not be executed!
-            html = docUtils.makeEmptyTagsToOpenCloseTags(html);
-            testframe.rewriteDocument(html);
+            htmlParser.transform(html,null,preProcessors,function(errors, html) {
+                var error;
+                if (errors) {
+                    error = new Error("Error during preprocessing html");
+                    error.detailErrors = errors;
+                    throw error;
+                }
+                testframe.rewriteDocument(html);
+            });
         });
     }
 
@@ -166,18 +178,4 @@ uitest.define('run/instrumentor', ['documentUtils', 'run/config', 'run/logger', 
         return "parent.uitest.instrument.callbacks[" + callbackId + "](" + argExpressions.join(",") + ");";
     }
 
-    exports = {
-        internal: {
-            instrument: instrument,
-            deactivateAndCaptureHtml: deactivateAndCaptureHtml
-        },
-        createRemoteCallExpression: createRemoteCallExpression,
-        addPreprocessor: addPreprocessor,
-        global: {
-            uitest: {
-                instrument: instrument
-            }
-        }
-    };
-    return exports;
 });

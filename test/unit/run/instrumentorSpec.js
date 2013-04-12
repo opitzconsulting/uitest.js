@@ -38,8 +38,8 @@ describe('run/instrumentor', function() {
         });
         it('should call deactivateAndCaptureHtml, the preprocessors, expand empty tags and then rewriteDocument', function() {
             var someInitialHtml = 'someInitialHtml',
-                preproc1 = jasmine.createSpy("preproc1").andReturn("preproc1Html"),
-                preproc2 = jasmine.createSpy("preproc1").andReturn("preproc2Html<emptyTag/>");
+                preproc1 = jasmine.createSpy("preproc1"),
+                preproc2 = jasmine.createSpy("preproc2");
 
             instrumentor.addPreprocessor(0, preproc2);
             instrumentor.addPreprocessor(100, preproc1);

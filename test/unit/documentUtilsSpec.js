@@ -24,47 +24,6 @@ describe('documentUtils', function() {
         }
     });
 
-    describe('replaceScripts', function() {
-        var callback;
-        beforeEach(function() {
-            callback = jasmine.createSpy('callback');
-        });
-        it('should replace url scripts', function() {
-            var someReplacement = 'someReplacement';
-            callback.andReturn(someReplacement);
-            var result = documentUtils.replaceScripts('<script src="a"></script>', callback);
-            expect(callback.callCount).toBe(1);
-            expect(callback).toHaveBeenCalledWith({match: '<script src="a"></script>',scriptOpenTag: '<script src="a">', srcAttribute: 'src="a"', scriptUrl: 'a', textContent: ''});
-        });
-        it('should replace inline scripts', function() {
-            var someReplacement = 'someReplacement';
-            callback.andReturn(someReplacement);
-            var result = documentUtils.replaceScripts('<script>a</script>', callback);
-            expect(callback.callCount).toBe(1);
-            expect(callback).toHaveBeenCalledWith({match: '<script>a</script>', scriptOpenTag: '<script>', srcAttribute: '', scriptUrl: '', textContent: 'a'});
-        });
-        it('should replace scripts if the result is not undefined', function() {
-            var someReplacement = 'someReplacement';
-            callback.andReturn(someReplacement);
-            expect(documentUtils.replaceScripts('<script>a</script>', callback)).toBe(someReplacement);
-        });
-        it('should not replace scripts if the result is undefined', function() {
-            var input = '<script>a</script>';
-            expect(documentUtils.replaceScripts(input, callback)).toBe(input);
-        });
-        it('should replace multiple inline scripts', function() {
-            documentUtils.replaceScripts('<script>a</script><script>b</script>', callback);
-            expect(callback.callCount).toBe(2);
-            expect(callback.argsForCall[0]).toEqual([{match: '<script>a</script>', scriptOpenTag: '<script>',srcAttribute: '', scriptUrl: '', textContent: 'a'}]);
-            expect(callback.argsForCall[1]).toEqual([{match: '<script>b</script>', scriptOpenTag: '<script>',srcAttribute: '', scriptUrl: '', textContent: 'b'}]);
-        });
-        it('should replace multi line inline scripts', function() {
-            var content = 'a\r\nb';
-            documentUtils.replaceScripts('<script>' + content + '</script>', callback);
-            expect(callback).toHaveBeenCalledWith({match: '<script>' + content + '</script>', scriptOpenTag: '<script>', srcAttribute: '', scriptUrl: '', textContent: content});
-        });
-    });
-
     describe('loadAndEvalScriptSync', function() {
         var xhr, win;
         beforeEach(function() {
