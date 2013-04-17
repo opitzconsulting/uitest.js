@@ -1,4 +1,4 @@
-uitest.define('run/requirejsInstrumentor', ['run/htmlInstrumentor', 'documentUtils', 'run/injector', 'run/logger', 'utils', 'urlParser'], function(docInstrumentor, docUtils, injector, logger, utils, urlParser) {
+uitest.define('run/requirejsInstrumentor', ['run/htmlInstrumentor', 'documentUtils', 'run/injector', 'run/logger', 'utils', 'urlParser', 'run/testframe'], function(docInstrumentor, docUtils, injector, logger, utils, urlParser, testframe) {
     var REQUIRE_JS_RE = /require[\W]/,
         eventHandlers = [];
 
@@ -28,7 +28,7 @@ uitest.define('run/requirejsInstrumentor', ['run/htmlInstrumentor', 'documentUti
         function handleRequireJsScriptToken() {
             logger.log("detected requirejs with script url "+token.src);
 
-            var content = docInstrumentor.createRemoteCallExpression(function(win) {
+            var content = testframe.createRemoteCallExpression(function(win) {
                 afterRequireJsScript(win);
             }, "window");
 

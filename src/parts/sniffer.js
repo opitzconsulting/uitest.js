@@ -48,7 +48,8 @@ uitest.define('sniffer', ['top'], function(top) {
         jsUrlDoesNotChangeLocation(function(jsUrlSupported) {
             readyCallback({
                 jsUrl: jsUrlSupported,
-                browser: browserSniffer()
+                browser: browserSniffer(),
+                history: !!top.history.pushState
             });
         });
     }

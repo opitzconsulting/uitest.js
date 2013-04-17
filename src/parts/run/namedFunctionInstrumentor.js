@@ -1,4 +1,4 @@
-uitest.define('run/namedFunctionInstrumentor', ['run/scriptInstrumentor', 'run/injector', 'run/htmlInstrumentor', 'annotate', 'run/config', 'urlParser'], function(scriptInstrumentor, injector, docInstrumentor, annotate, runConfig, urlParser) {
+uitest.define('run/namedFunctionInstrumentor', ['run/scriptInstrumentor', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe'], function(scriptInstrumentor, injector, annotate, runConfig, urlParser, testframe) {
     scriptInstrumentor.addPreProcessor(preProcessJavaScript);
 
     return preProcessJavaScript;
@@ -18,7 +18,7 @@ uitest.define('run/namedFunctionInstrumentor', ['run/scriptInstrumentor', 'run/i
         }
         event.pushToken({
             type: 'other',
-            match: 'if (!' + token.name + '.delegate)return ' + docInstrumentor.createRemoteCallExpression(fnCallback, "window", token.name, "this", "arguments")
+            match: 'if (!' + token.name + '.delegate)return ' + testframe.createRemoteCallExpression(fnCallback, "window", token.name, "this", "arguments")
         });
         control.next();
         return;

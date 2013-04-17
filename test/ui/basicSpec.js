@@ -4,7 +4,7 @@ describe('basic', function() {
     }
 
     executeTests("html mode", "basic.html");
-    if (!testutils.browser.ff && (!testutils.browser.ie || testutils.browser.ie>=9)) {
+    if (!testutils.browser.ie || testutils.browser.ie>=9) {
         executeTests("xhtml mode", "basic.xhtml");
     }
 
@@ -24,7 +24,7 @@ describe('basic', function() {
                     expect(window.location.hash).toBe('#page1.html');
                 });
             });
-            describe('reload page if hash changes', function() {
+            describe('not reload page if hash changes', function() {
                 it('part1', function() {
                     uit.url("../test/ui/fixtures/"+basicUrl+"#123");
                     uit.runs(function(window) {
@@ -128,7 +128,7 @@ describe('basic', function() {
                 });
             });
 
-            it('should wait for page reload', function() {
+            /*TODOit('should wait for page reload', function() {
                 uit.runs(function(window, location) {
                     window.flag = true;
                     location.reload();
@@ -137,6 +137,7 @@ describe('basic', function() {
                     expect(window.flag).toBeUndefined();
                 });
             });
+*/
 
             describe('cacheBusting', function() {
                 function findHelloScriptUrl(doc) {

@@ -1,4 +1,4 @@
-uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector', 'documentUtils', 'run/logger', 'run/testframe', 'jsParserFactory', 'run/requirejsInstrumentor'], function(docInstrumentor, injector, docUtils, logger, testframe, jsParserFactory, requirejsInstrumentor) {
+uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector', 'documentUtils', 'run/logger', 'run/testframe', 'jsParserFactory', 'run/requirejsInstrumentor', 'urlParser'], function(docInstrumentor, injector, docUtils, logger, testframe, jsParserFactory, requirejsInstrumentor, urlParser) {
     var preProcessors = [],
         jsParser = jsParserFactory();
 
@@ -15,10 +15,13 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
     }
 
     function preprocessHtml(event, control) {
-        var token = event.token;
+        var token = event.token,
+            state = event.state,
+            absUrl;
 
         if (token.type==='urlscript') {
-            docUtils.loadScript(testframe.win(), token.src, function(error, scriptContent) {
+            absUrl = urlParser.makeAbsoluteUrl(token.src, state.url);
+            docUtils.loadScript(absUrl, function(error, scriptContent) {
                 if (error) {
                     control.stop(error);
                 } else {
@@ -49,7 +52,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                 logger.log("intercepting "+scriptSrc);
                 event.pushToken({
                     type: 'contentscript',
-                    content: docInstrumentor.createRemoteCallExpression(function(win) {
+                    content: testframe.createRemoteCallExpression(function(win) {
                         docUtils.evalScript(win, newScriptContent);
                     }, "window"),
                     attrs: scriptAttrs
@@ -64,8 +67,11 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
             control.next();
             return;
         }
-        var url = event.url;
-        docUtils.loadScript(testframe.win(), url, function(error, scriptContent) {
+        var url = event.url,
+            docUrl = testframe.win().document.location.href,
+            absUrl = urlParser.makeAbsoluteUrl(url, docUrl);
+
+        docUtils.loadScript(absUrl, function(error, scriptContent) {
             if (error) {
                 control.stop(error);
             }

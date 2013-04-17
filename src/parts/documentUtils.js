@@ -24,8 +24,8 @@ uitest.define('documentUtils', ['global'], function(global) {
         return parts.join(" ") + ">";
     }
 
-    function loadFile(win, url, resultCallback) {
-        var xhr = new win.XMLHttpRequest();
+    function loadFile(url, resultCallback) {
+        var xhr = new global.XMLHttpRequest();
         xhr.onreadystatechange = function() {
             if(xhr.readyState === 4) {
                 if(xhr.status === 200 || xhr.status === 0) {
@@ -39,8 +39,8 @@ uitest.define('documentUtils', ['global'], function(global) {
         xhr.send();
     }
 
-    function loadScript(win, url, resultCallback) {
-        loadFile(win, url, function(error, data) {
+    function loadScript(url, resultCallback) {
+        loadFile(url, function(error, data) {
             if (!error) {
                 resultCallback(null, data+"//@ sourceURL=" + url);
             } else {

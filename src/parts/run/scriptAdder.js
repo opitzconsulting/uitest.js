@@ -1,4 +1,4 @@
-uitest.define('run/scriptAdder', ['run/config', 'run/htmlInstrumentor', 'documentUtils', 'run/injector', 'run/testframe', 'annotate', 'run/logger', 'urlParser', 'utils', 'run/requirejsInstrumentor'], function(runConfig, docInstrumentor, docUtils, injector, testframe, annotate, logger, urlParser, utils, requirejsInstrumentor) {
+uitest.define('run/scriptAdder', ['run/config', 'run/htmlInstrumentor', 'documentUtils', 'run/injector', 'annotate', 'run/logger', 'urlParser', 'utils', 'run/requirejsInstrumentor', 'run/testframe'], function(runConfig, docInstrumentor, docUtils, injector, annotate, logger, urlParser, utils, requirejsInstrumentor, testframe) {
     // This needs to be before the scriptInstrumentor, so
     // the added scripts are also processed!
     preprocessHtml.priority = 10;
@@ -66,7 +66,7 @@ uitest.define('run/scriptAdder', ['run/config', 'run/htmlInstrumentor', 'documen
                     lastCallbackArr = [];
                     pushToken({
                         type: 'contentscript',
-                        content: docInstrumentor.createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')
+                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')
                     });
                 }
                 lastCallbackArr.push(prependOrAppend);
