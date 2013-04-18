@@ -2,7 +2,15 @@
 <html>
 <body>
     <script>
-        setTimeout('test');
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'http://www.corsproxy.com/en.wikipedia.org/wiki/Http', true);
+        xhr.setRequestHeader("Accept","*/*");
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState===4) {
+                console.log(xhr.responseText);
+            }
+        }
+        xhr.send(null);
 
     </script>
 

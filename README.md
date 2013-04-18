@@ -136,10 +136,6 @@ Please note that the iframe is shared between all uitest instances.
   load the test page into the iframe.
   The callback is called using dependency injection. See below for details about ready sensors.
 
-* `reloaded(callback)`: Waits until the testpage has been reloaded and is ready again.
-  This is useful for testing pages that do a form submit or link to other pages.
-  The callback is called using dependency injection, see below.
-
 * `inject(callback)`: Calls the given callback using dependency injection.
 
 ## Dependency Injection
@@ -172,8 +168,6 @@ The following additional functions exist for Jasmine-BDD:
 - `uitest.current`: This returns a singleton uitest instance,
   whose functions delegate to the current uitest instance of the spec/suite.  
 - `uitest.current.runs(callback[,timeout])`: First, this executes a `waitsFor` call using `uitest.current.ready`.
-Then it executes the the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
-- `uitest.current.runsAfterReload(callback[,timeout])`: First, this executes a `waitsFor` call using `uitest.current.reloaded`.
 Then it executes the the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
 
 

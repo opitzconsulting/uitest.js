@@ -5,8 +5,6 @@ uitest.define('facade', ['config', 'global', 'sniffer'], function(config, global
     function create() {
         var res = {
             ready: ready,
-            realoded: reloaded,
-            reloaded: reloaded,
             inject: inject
         },
             i, fnName, configInstance;
@@ -145,11 +143,6 @@ uitest.define('facade', ['config', 'global', 'sniffer'], function(config, global
 
     function featureModule(featureName) {
         return "run/feature/"+featureName;
-    }
-
-    function reloaded(callback) {
-        checkRunning(this);
-        this._runModules["run/loadSensor"].reloaded(callback);
     }
 
     function inject(callback) {

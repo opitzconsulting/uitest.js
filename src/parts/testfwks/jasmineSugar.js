@@ -40,31 +40,13 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         });
     }
 
-    function runsAfterReload(callback, timeout) {
-        var ready = false;
-        global.runs(function() {
-            facade.current.reloaded(function() {
-                ready = true;
-            });
-        });
-        global.waitsFor(function() {
-            return ready;
-        }, "uitest.reloaded", timeout);
-        global.runs(function() {
-            facade.current.inject(callback);
-        });
-
-    }
-
     return {
         currentIdAccessor: currentIdAccessor,
         runs: runs,
-        runsAfterReload: runsAfterReload,
         global: {
             uitest: {
                 current: {
-                    runs: runs,
-                    runsAfterReload: runsAfterReload
+                    runs: runs
                 }
             }
         }

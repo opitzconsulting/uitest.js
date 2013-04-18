@@ -1,37 +1,42 @@
 uitest.define('urlParser', ['global'], function (global) {
-    var UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/,
+    var URL_RE = /(((\w+)\:)?\/\/([^\/]+))?([^\?#]*)(\?([^#]*))?(#.*)?/,
+        UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/,
         NUMBER_RE = /^\d+$/;
 
 
     function parseUrl(url) {
-        var hashIndex = url.indexOf('#');
-        var hash;
-        var query = '';
-        if (hashIndex !== -1) {
-            hash = url.substring(hashIndex + 1);
-            url = url.substring(0, hashIndex);
-        }
-        var queryIndex = url.indexOf('?');
-        if (queryIndex !== -1) {
-            query = url.substring(queryIndex + 1);
-            url = url.substring(0, queryIndex);
-        }
+        var match = url.match(URL_RE);
         return {
-            baseUrl:url,
-            hash:hash,
-            query:query ? query.split('&') : []
+            protocol: match[3] || '',
+            domain: match[4] || '',
+            path: match[5] || '',
+            query: match[7] ? match[7].split('&'):[],
+            hash: match[8]?match[8].substring(1):undefined
         };
     }
 
     function serializeUrl(parsedUrl) {
-        var res = parsedUrl.baseUrl;
+        var res = [];
+        if (parsedUrl.protocol) {
+            res.push(parsedUrl.protocol);
+            res.push(":");
+        }
+        if (parsedUrl.domain) {
+            res.push("//");
+            res.push(parsedUrl.domain);
+        }
+        if (parsedUrl.path) {
+            res.push(parsedUrl.path);
+        }
         if (parsedUrl.query && parsedUrl.query.length) {
-            res += '?' + parsedUrl.query.join('&');
+            res.push('?');
+            res.push(parsedUrl.query.join('&'));
         }
-        if (parsedUrl.hash) {
-            res += '#' + parsedUrl.hash;
+        if (typeof parsedUrl.hash === "string") {
+            res.push('#');
+            res.push(parsedUrl.hash);
         }
-        return res;
+        return res.join('');
     }
 
     function uitestUrl() {
@@ -55,10 +60,14 @@ uitest.define('urlParser', ['global'], function (global) {
     }
 
     function makeAbsoluteUrl(url, baseUrl) {
-        if(url.charAt(0) === '/' || url.indexOf('://') !== -1) {
+        if(isAbsoluteUrl(url)) {
             return url;
         }
         return basePath(baseUrl) + '/' + url;
+    }
+
+    function isAbsoluteUrl(url) {
+        return url.charAt(0) === '/' || url.indexOf('://') !== -1;
     }
 
     function filenameFor(url) {
@@ -91,6 +100,7 @@ uitest.define('urlParser', ['global'], function (global) {
     }
 
     return {
+        isAbsoluteUrl: isAbsoluteUrl,
         parseUrl:parseUrl,
         serializeUrl:serializeUrl,
         makeAbsoluteUrl: makeAbsoluteUrl,

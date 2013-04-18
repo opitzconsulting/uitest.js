@@ -6,6 +6,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         callbacks = {},
         nextCallbackId = 0;
 
+    global.uitest.callbacks = callbacks;
     injector.addDefaultResolver(function(argName) {
         return getIframeWindow()[argName];
     });
@@ -21,15 +22,12 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 
     function load(url, html) {
-        global.uitest.callbacks = callbacks;
         if (sniffer.history) {
             loadUsingHistoryApi(url, html);
         } else {
             loadWithoutHistoryApi(url, html);
         }
     }
-
-
 
     function loadUsingHistoryApi(url, html) {
         var fr, win;

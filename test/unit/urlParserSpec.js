@@ -1,4 +1,4 @@
-describe("urlParser", function () {
+ddescribe("urlParser", function () {
     var urlParser, global;
     beforeEach(function () {
         global = {
@@ -15,43 +15,75 @@ describe("urlParser", function () {
     });
 
     describe('parseUrl and serializeUrl', function () {
-        it('should parse and serialize urls without query and hash', function () {
-            var someUrl = 'http://someUrl';
+        it('should parse and serialize complete urls', function () {
+            var someUrl = 'http://host/path#someHash';
             var actualUrl = urlParser.parseUrl(someUrl);
             expect(actualUrl).toEqual({
-                baseUrl:'http://someUrl',
-                hash:undefined,
-                query:[  ]
+                protocol:'http',
+                domain:'host',
+                path:'/path',
+                query:[  ],
+                hash:'someHash'
             });
             expect(urlParser.serializeUrl(actualUrl)).toEqual(someUrl);
         });
-        it('should parse urls with hashes', function () {
-            var someUrl = 'http://someUrl#123';
+        it('should parse urls with existing empty hash', function() {
+            var someUrl = 'http://host/path?someQuery#';
             var actualUrl = urlParser.parseUrl(someUrl);
             expect(actualUrl).toEqual({
-                baseUrl:'http://someUrl',
-                hash:"123",
-                query:[  ]
+                protocol:'http',
+                domain:'host',
+                path:'/path',
+                query:[ 'someQuery' ],
+                hash:''
+            });
+            expect(urlParser.serializeUrl(actualUrl)).toEqual(someUrl);
+        });
+        it('should parse urls without a hash', function() {
+            var someUrl = 'http://host/path';
+            var actualUrl = urlParser.parseUrl(someUrl);
+            expect(actualUrl).toEqual({
+                protocol:'http',
+                domain:'host',
+                path:'/path',
+                query:[  ],
+                hash:undefined
+            });
+            expect(urlParser.serializeUrl(actualUrl)).toEqual(someUrl);
+        });
+        it('should parse urls with multiple query parts', function () {
+            var someUrl = 'http://host/path?a=b&c';
+            var actualUrl = urlParser.parseUrl(someUrl);
+            expect(actualUrl).toEqual({
+                protocol:'http',
+                domain:'host',
+                path:'/path',
+                query:[ "a=b", "c" ],
+                hash:undefined
             });
             expect(urlParser.serializeUrl(actualUrl)).toBe(someUrl);
         });
-        it('should parse urls with queries', function () {
-            var someUrl = 'http://someUrl?a=b&c';
+        it('should parse urls without protocol', function() {
+            var someUrl = '//host/path';
             var actualUrl = urlParser.parseUrl(someUrl);
             expect(actualUrl).toEqual({
-                baseUrl:'http://someUrl',
-                hash:undefined,
-                query:[ "a=b", "c" ]
+                protocol:'',
+                domain:'host',
+                path:'/path',
+                query:[ ],
+                hash:undefined
             });
             expect(urlParser.serializeUrl(actualUrl)).toBe(someUrl);
         });
-        it('should parse urls with queries and hashes', function () {
-            var someUrl = 'http://someUrl?a=b&c#123';
+        it('should parse urls without protocol and domain', function() {
+            var someUrl = '/path';
             var actualUrl = urlParser.parseUrl(someUrl);
             expect(actualUrl).toEqual({
-                baseUrl:'http://someUrl',
-                hash:'123',
-                query:[ "a=b", "c" ]
+                protocol:'',
+                domain:'',
+                path:'/path',
+                query:[ ],
+                hash:undefined
             });
             expect(urlParser.serializeUrl(actualUrl)).toBe(someUrl);
         });
