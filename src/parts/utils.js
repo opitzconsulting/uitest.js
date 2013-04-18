@@ -20,23 +20,53 @@
             return now;
         }
 
-        function processAsyncEvent(event, listeners, finalNext, finalStop) {
+        function asyncLoop(items, handler, finalNext, stop) {
             var i = 0,
+                steps = [],
+                loopRunning = false,
                 control = {
-                    next: nextListener,
-                    stop: finalStop
+                    next: nextStep,
+                    stop: stop
                 };
 
-            listeners.sort(compareByPriority);
-            nextListener();
+            nextStep();
 
-            function nextListener() {
-                if (i<listeners.length) {
+            // We are using the trampoline pattern from lisp here,
+            // to prevent long stack calls when the handler
+            // is calling control.next in sync!
+            function loop() {
+                var itemAndIndex;
+                if (loopRunning) {
+                    return;
+                }
+                loopRunning = true;
+                while (steps.length) {
+                    itemAndIndex = steps.shift();
+                    handler(itemAndIndex.index, itemAndIndex.item, control);
+                }
+                loopRunning = false;
+            }
+
+            function nextStep() {
+                if (i<items.length) {
                     i++;
-                    listeners[i-1](event, control);
+                    steps.push({
+                        item: items[i-1],
+                        index: i-1
+                    });
+                    loop();
                 } else {
                     finalNext();
                 }
+            }
+        }
+
+        function processAsyncEvent(event, listeners, finalNext, stop) {
+            listeners.sort(compareByPriority);
+            asyncLoop(listeners, handler, finalNext, stop);
+
+            function handler(index, listener, control) {
+                listener(event, control);
             }
         }
 
@@ -49,7 +79,8 @@
             isFunction: isFunction,
             isArray: isArray,
             testRunTimestamp: testRunTimestamp,
-            processAsyncEvent: processAsyncEvent
+            processAsyncEvent: processAsyncEvent,
+            asyncLoop: asyncLoop
         };
     });
 

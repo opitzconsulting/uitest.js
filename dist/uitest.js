@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.2-SNAPSHOT - 2013-04-17
+/*! uitest.js - v0.10.0-SNAPSHOT - 2013-04-18
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -363,10 +363,28 @@ uitest.define('documentUtils', ['global'], function(global) {
     }
 
     function addEventListener(target, type, callback) {
-        if (target.addEventListener) {
+        if (target.nodeName && target.nodeName.toLowerCase() === 'iframe' && type==='load') {
+            // Cross browser way for onload iframe handler
+            if (target.attachEvent) {
+                target.attachEvent('onload', callback);
+            } else {
+                target.onload = callback;
+            }
+        } else if (target.addEventListener) {
             target.addEventListener(type, callback, false);
         } else {
             target.attachEvent("on"+type, callback);
+        }
+    }
+
+    function removeEventListener(target, type, callback) {
+        if (target[type]===callback) {
+            target[type] = null;
+        }
+        if (target.removeEventListener) {
+            target.removeEventListener(type, callback, false);
+        } else {
+            target.detachEvent("on"+type, callback);
         }
     }
 
@@ -389,6 +407,7 @@ uitest.define('documentUtils', ['global'], function(global) {
         evalScript: evalScript,
         loadScript: loadScript,
         addEventListener: addEventListener,
+        removeEventListener: removeEventListener,
         textContent: textContent
     };
 });
@@ -732,7 +751,7 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
                 lastMatchEnd = match.index + match[0].length;
                 groupIndex = 1;
                 for (i = 0; i < types.length; i++) {
-                    if (typeof match[groupIndex] === 'string') {
+                    if (match[groupIndex]) {
                         type = types[i];
                         break;
                     }
@@ -792,46 +811,42 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
 
         function transform(input, state, listeners, doneCallback) {
             var tokens = parse(input),
-                tokenIndex = 0,
-                resultTokens = [],
-                errors = null;
+                resultTokens = [];
             state = state || {};
 
-            nextToken();
-            return;
+            utils.asyncLoop(tokens, tokenHandler, done, stop);
 
-            // --------
-            function nextToken() {
-                var token;
-                if (tokenIndex<tokens.length) {
-                    tokenIndex++;
-                    token = tokens[tokenIndex-1];
-                    utils.processAsyncEvent({
-                        token: token,
-                        state: state,
-                        pushToken: pushToken
-                    },listeners,next,stop);
-                } else {
-                    doneCallback(errors, serialize(resultTokens));
+            function stop(error) {
+                if (error) {
+                    doneCallback(error);
                 }
+            }
 
-                function pushToken(token) {
-                    tokens.splice(tokenIndex,0,token);
-                }
+            function done() {
+                doneCallback(null, serialize(resultTokens));
+            }
 
-                function next() {
+            function tokenHandler(tokenIndex, token, control) {
+                utils.processAsyncEvent({
+                    token: token,
+                    state: state,
+                    pushToken: pushToken
+                },listeners,tokenDone,tokenStop);
+
+                function tokenDone() {
                     resultTokens.push(token);
-                    nextToken();
+                    control.next();
                 }
 
-                function stop(error) {
+                function tokenStop(error) {
                     if (error) {
-                        if (!errors) {
-                            errors = [];
-                        }
-                        errors.push(error);
+                        control.stop(error);
+                    } else {
+                        control.next();
                     }
-                    nextToken();
+                }
+                function pushToken(token) {
+                    tokens.splice(tokenIndex+1,0,token);
                 }
             }
         }
@@ -1063,12 +1078,12 @@ uitest.define('run/feature/jqmAnimationSensor', ['run/config', 'run/ready'], fun
         };
     }
 });
-uitest.define('run/feature/mobileViewport', ['run/config', 'top'], function(runConfig, top) {
+uitest.define('run/feature/mobileViewport', ['run/config', 'global'], function(runConfig, global) {
     runConfig.appends.push(install);
 
     function install(window) {
         var doc = window.document,
-            topDoc = top.document,
+            topDoc = global.top.document,
             viewportMeta = findViewportMeta(doc),
             topViewportMeta = findViewportMeta(topDoc),
             newMeta;
@@ -1225,6 +1240,49 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
         return {
             count: startCounter,
             ready: ready
+        };
+    }
+});
+uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function(htmlInstrumentor, runConfig) {
+    // This needs to be before the normal scriptAdder!
+    preprocessHtml.priority = 9999;
+    htmlInstrumentor.addPreProcessor(preprocessHtml);
+
+    function preprocessHtml(event, control) {
+        var state = event.state,
+            token = event.token;
+
+        if (!state.historyFix) {
+            state.historyFix = true;
+            runConfig.prepends.unshift(fixHistory(state.url));
+        }
+        control.next();
+    }
+
+    function hash(url) {
+        var hashPos = url.indexOf('#');
+        if (hashPos!==-1) {
+            return url.substring(hashPos);
+        } else {
+            return '';
+        }
+    }
+
+    function fixHistory(url) {
+        // Bugs fixed here:
+        // - IE looses the hash when rewriting using a js url
+        // - Rewriting using a js url or doc.open/write/close deletes the current history entry.
+        //   This yields to problems when using history.back()!
+        //   (at least in a fresh Chrome in Inkognito mode)
+        // - PhantomJS: creating a history entry using hash change does not work correctly.
+        //   Using history.pushState however does work...
+        var currHash = hash(url);
+        return function(history, location) {
+            if (history.pushState) {
+                history.pushState(null, "", currHash);
+            } else {
+                location.hash="someUniqueHashToCreateAHistoryEntry";location.hash=currHash;
+            }
         };
     }
 });
@@ -1793,9 +1851,9 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                 src: scriptSrc
             },preProcessors,resultCallback);
 
-            function resultCallback(errors, newScriptContent) {
-                if (errors) {
-                    control.stop(errors);
+            function resultCallback(error, newScriptContent) {
+                if (error) {
+                    control.stop(error);
                     return;
                 }
                 if (newScriptContent===scriptContent) {
@@ -1832,9 +1890,9 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                 src:url
             },preProcessors,resultCallback);
 
-            function resultCallback(errors, newScriptContent) {
-                if (errors) {
-                    control.stop(errors);
+            function resultCallback(error, newScriptContent) {
+                if (error) {
+                    control.stop(error);
                     return;
                 }
                 if (newScriptContent===scriptContent) {
@@ -1842,7 +1900,6 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                     return;
                 }
                 logger.log("intercepting "+url);
-                var error;
                 try {
                     docUtils.evalScript(testframe.win(), newScriptContent);
                 } catch (e) {
@@ -1854,15 +1911,13 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
     }
 });
 
-uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, top, runConfig, injector, logger, docUtils, sniffer) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
     var WINDOW_ID = 'uitestwindow',
         BUTTON_ID = WINDOW_ID+'Btn',
         BUTTON_LISTENER_ID = BUTTON_ID+"Listener",
         frameElement,
         callbacks = {},
         nextCallbackId = 0;
-
-    top.uitest = global.uitest;
 
     injector.addDefaultResolver(function(argName) {
         return getIframeWindow()[argName];
@@ -1883,17 +1938,61 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
         if (sniffer.history) {
             loadUsingHistoryApi(url, html);
         } else {
-            createFrame(url, top);
-            deactivateWindow(getIframeWindow());
-            frameElement.onload = function() {
-                frameElement.onload = null;
-                rewriteDocument(getIframeWindow(), html);
-            };
+            loadWithoutHistoryApi(url, html);
         }
     }
 
-    function createFrame(url, topWindow) {
-        var doc = topWindow.document,
+
+
+    function loadUsingHistoryApi(url, html) {
+        var fr, win;
+        if (sniffer.browser.ff) {
+            // In FF, we can't just juse an empty iframe and rewrite
+            // it's content, as then the history api will throw errors
+            // whenever history.pushState is used within the frame.
+            // We need to do doc.open/write/close in the onload event
+            // to prevent this problem!
+            createFrame(urlParser.uitestUrl());
+            win = getIframeWindow();
+            docUtils.addEventListener(win, 'load', afterFrameCreate);
+        } else {
+            createFrame('');
+            win = getIframeWindow();
+            // Using doc.open/close empties the iframe, gives it a real url
+            // and makes it different compared to about:blank!
+            win.document.open();
+            win.document.close();
+
+            afterFrameCreate();
+        }
+
+        function afterFrameCreate() {
+            var win = getIframeWindow();
+            win.history.pushState(null, '', url);
+            if (false && sniffer.jsUrl) {
+                rewriteUsingJsUrl(win,html);
+            } else {
+                rewriteUsingDocOpen(win, html);
+            }
+        }
+    }
+
+    function loadWithoutHistoryApi(url, html) {
+        createFrame(url);
+        var win = getIframeWindow();
+        docUtils.addEventListener(win, 'load', onload);
+        deactivateWindow(win);
+
+        function onload() {
+            // Need to use javascript urls here to support xhtml,
+            // as we loaded the document into the browser, and in xhtml
+            // documents we can't open/write/close the document after this any more!
+            rewriteUsingJsUrl(win, html);
+        }
+    }
+
+    function createFrame(url) {
+        var doc = global.document,
             wrapper;
         frameElement = doc.getElementById(WINDOW_ID);
         if (frameElement) {
@@ -1911,13 +2010,13 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
         }
         doc.body.appendChild(frameElement);
 
-        createToggleButtonIfNeeded(topWindow);
+        createToggleButtonIfNeeded();
 
         return frameElement;
     }
 
-    function createToggleButtonIfNeeded(topWindow) {
-        var doc = topWindow.document,
+    function createToggleButtonIfNeeded() {
+        var doc = global.document,
             button = doc.getElementById(BUTTON_ID);
 
         if (button) {
@@ -1940,36 +2039,32 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
         }
     }
 
-    function loadUsingHistoryApi(url, html) {
-        var fr, win;
-        if (sniffer.browser.ff) {
-            // In FF, we can't just juse an empty iframe and rewrite
-            // it's content, as then the history api will throw errors
-            // whenever history.pushState is used within the frame...
-            fr = createFrame(urlParser.uitestUrl(), top);
-            fr.onload = function() {
-                fr.onload = null;
-                // now the frame is in a safe state and we can continue...
-                afterFrameCreate();
-            };
-        } else {
-            createFrame('', top);
-            win = getIframeWindow();
-            // open/close assigns the url of the parent frame
-            // to the iframe.
-            // This is needed as we can't use js urls
-            // for frames with about:blank.            
+    function rewriteUsingDocOpen(win, html) {
+        // If the iframe already has a valid url,
+        // wo don't want to change it by this rewrite.
+        // By using an inline script this does what we want.
+        // Calling win.document.open() directly would give the iframe
+        // the url of the current window, i.e. a new url.
+        win.newContent = html;
+        var sn = win.document.createElement("script");
+        sn.setAttribute("id", "rewriteScript");
+        sn.setAttribute("type", "text/javascript");
+        docUtils.textContent(sn, rewrite.toString()+';rewrite(window, window.newContent);');
+
+        win.document.body.appendChild(sn);
+
+        function rewrite(win, newContent) {
+            /*jshint evil:true*/
             win.document.open();
+            win.document.write(newContent);
             win.document.close();
-
-            afterFrameCreate();
         }
+    }
 
-        function afterFrameCreate() {
-            var win = getIframeWindow();
-            win.history.pushState(null, '', url);
-            rewriteDocument(win, html);
-        }
+    function rewriteUsingJsUrl(win, html) {
+        win.newContent = html;
+        /*jshint scripturl:true*/
+        win.location.href = 'javascript:window.newContent';
     }
 
     function deactivateWindow(win) {
@@ -1997,70 +2092,6 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
         }
     }
 
-    function rewriteDocument(win, html) {
-        if (sniffer.jsUrl) {
-            rewriteWithJsUrl();
-        } else {
-            rewriteWithoutJsUrl();
-        }
-
-        function rewriteWithJsUrl() {
-            var currHash = win.location.hash;
-            // Bugs here:
-            // - IE looses the hash when rewriting using a js url
-            // - Rewriting using a js url or doc.open/write/close deletes the current history entry.
-            //   This yields to problems when using history.back()!
-            //   (at least in a fresh Chrome in Inkognito mode)
-            // - PhantomJS: creating a history entry using hash change does not work correctly.
-            //   Using history.pushState however does work...
-            html = html.replace(/<head[^>]*>/i, function(match) {
-                var createHistoryEntryCommand;
-                if (win.history.pushState) {
-                    createHistoryEntryCommand = 'history.pushState(null, "", "'+currHash+'");';
-                } else {
-                    createHistoryEntryCommand = 'location.hash="someUniqueHashToCreateAHistoryEntry";location.hash="'+currHash+'";';
-                }
-                return match+'<script type="text/javascript">'+createHistoryEntryCommand+'</script>';
-            });
-            win.newContent = html;
-            /*jshint scripturl:true*/
-            win.location.href = 'javascript:window.newContent';
-        }
-
-        function rewriteWithoutJsUrl() {
-            // Rewrite using js url does not work, use document.open/write/close
-            // Right now, we only need this for FF, as it does not open javascript urls
-            // with the same url as the previous document.
-            if (win.location.href==='about:blank' || win.location.href==='') {
-                dump("now");
-                rewrite(win, html);
-                return;
-            }
-            // If the iframe already has a valid url,
-            // wo don't want to change it by this rewrite.
-            // By using an inline script this does what we want.
-            // Calling win.document.open() directly would give the iframe
-            // the url of the current window, i.e. a new url.
-            // Note: This does not work for xhtml, as xhtml documents
-            // do not allow document.open/write/close.
-            win.newContent = html;
-            var sn = win.document.createElement("script");
-            sn.setAttribute("id", "rewriteScript");
-            sn.setAttribute("type", "text/javascript");
-            docUtils.textContent(sn, rewrite.toString()+';rewrite(window, window.newContent);');
-
-            win.document.body.appendChild(sn);
-        }
-
-        function rewrite(win, newContent) {
-            /*jshint evil:true*/
-            win.document.open();
-            win.document.write(newContent);
-            win.document.close();
-        }
-    }
-
-
     function createRemoteCallExpression(callback) {
         var argExpressions = global.Array.prototype.slice.call(arguments, 1) || [],
             callbackId = nextCallbackId++;
@@ -2069,27 +2100,25 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
     }
 });
 
-uitest.define('sniffer', ['top'], function(top) {
+uitest.define('sniffer', ['global', 'documentUtils'], function(global, documentUtils) {
 
+    // This is especially for FF, as it does not revert back
+    // to the previous url when using a js url.
     function jsUrlDoesNotChangeLocation(callback) {
-        var tmpFrame = top.document.createElement("iframe");
-        top.document.body.appendChild(tmpFrame);
+        var tmpFrame = global.document.createElement("iframe");
+        global.document.body.appendChild(tmpFrame);
         // Opening and closing applies the
-        // location href from the top window to the iframe.
+        // location href from the parent window to the iframe.
         tmpFrame.contentWindow.document.open();
         tmpFrame.contentWindow.document.close();
         // The timeout is needed as FF triggers the onload
         // from the previous document.open/close
         // even if we set the onload AFTER we did document.open/close!
-        top.setTimeout(changeHrefAndAddOnLoad, 0);
+        global.setTimeout(changeHrefAndAddOnLoad, 0);
 
         function changeHrefAndAddOnLoad() {
             /*jshint scripturl:true*/
-            if (tmpFrame.attachEvent) {
-                tmpFrame.attachEvent("onload", onloadCallback);
-            } else {
-                tmpFrame.onload = onloadCallback;
-            }
+            documentUtils.addEventListener(tmpFrame, "load", onloadCallback);
             tmpFrame.contentWindow.location.href="javascript:'<html><body>Hello</body></html>'";
         }
 
@@ -2102,7 +2131,7 @@ uitest.define('sniffer', ['top'], function(top) {
     }
 
     function browserSniffer() {
-        var useragent = top.navigator.userAgent.toLowerCase(),
+        var useragent = global.navigator.userAgent.toLowerCase(),
             android = /android/i.test(useragent),
             ieMatch = /MSIE\s+(\d+)/i.exec(useragent),
             ff = /firefox/i.test(useragent);
@@ -2120,7 +2149,7 @@ uitest.define('sniffer', ['top'], function(top) {
             readyCallback({
                 jsUrl: jsUrlSupported,
                 browser: browserSniffer(),
-                history: !!top.history.pushState
+                history: !!global.history.pushState
             });
         });
     }
@@ -2199,23 +2228,6 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         }
     };
 });
-uitest.define('top', ['global'], function(global) {
-    try {
-        var res = global.top;
-        // This read access should throw an exception if
-        // we are on different domains...
-        // If the top document contains a frameset, we don't have a body
-        // so we stay to our frame window...
-        var bodies = res.document.getElementsByTagName("body");
-        if (bodies.length === 0) {
-            return global;
-        }
-        return res;
-    } catch (e) {
-        return global;
-    }
-});
-
 uitest.define('urlParser', ['global'], function (global) {
     var UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/,
         NUMBER_RE = /^\d+$/;
@@ -2339,23 +2351,53 @@ uitest.define('urlParser', ['global'], function (global) {
             return now;
         }
 
-        function processAsyncEvent(event, listeners, finalNext, finalStop) {
+        function asyncLoop(items, handler, finalNext, stop) {
             var i = 0,
+                steps = [],
+                loopRunning = false,
                 control = {
-                    next: nextListener,
-                    stop: finalStop
+                    next: nextStep,
+                    stop: stop
                 };
 
-            listeners.sort(compareByPriority);
-            nextListener();
+            nextStep();
 
-            function nextListener() {
-                if (i<listeners.length) {
+            // We are using the trampoline pattern from lisp here,
+            // to prevent long stack calls when the handler
+            // is calling control.next in sync!
+            function loop() {
+                var itemAndIndex;
+                if (loopRunning) {
+                    return;
+                }
+                loopRunning = true;
+                while (steps.length) {
+                    itemAndIndex = steps.shift();
+                    handler(itemAndIndex.index, itemAndIndex.item, control);
+                }
+                loopRunning = false;
+            }
+
+            function nextStep() {
+                if (i<items.length) {
                     i++;
-                    listeners[i-1](event, control);
+                    steps.push({
+                        item: items[i-1],
+                        index: i-1
+                    });
+                    loop();
                 } else {
                     finalNext();
                 }
+            }
+        }
+
+        function processAsyncEvent(event, listeners, finalNext, stop) {
+            listeners.sort(compareByPriority);
+            asyncLoop(listeners, handler, finalNext, stop);
+
+            function handler(index, listener, control) {
+                listener(event, control);
             }
         }
 
@@ -2368,7 +2410,8 @@ uitest.define('urlParser', ['global'], function (global) {
             isFunction: isFunction,
             isArray: isArray,
             testRunTimestamp: testRunTimestamp,
-            processAsyncEvent: processAsyncEvent
+            processAsyncEvent: processAsyncEvent,
+            asyncLoop: asyncLoop
         };
     });
 

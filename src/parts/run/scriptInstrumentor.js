@@ -40,9 +40,9 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                 src: scriptSrc
             },preProcessors,resultCallback);
 
-            function resultCallback(errors, newScriptContent) {
-                if (errors) {
-                    control.stop(errors);
+            function resultCallback(error, newScriptContent) {
+                if (error) {
+                    control.stop(error);
                     return;
                 }
                 if (newScriptContent===scriptContent) {
@@ -79,9 +79,9 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                 src:url
             },preProcessors,resultCallback);
 
-            function resultCallback(errors, newScriptContent) {
-                if (errors) {
-                    control.stop(errors);
+            function resultCallback(error, newScriptContent) {
+                if (error) {
+                    control.stop(error);
                     return;
                 }
                 if (newScriptContent===scriptContent) {
@@ -89,7 +89,6 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                     return;
                 }
                 logger.log("intercepting "+url);
-                var error;
                 try {
                     docUtils.evalScript(testframe.win(), newScriptContent);
                 } catch (e) {

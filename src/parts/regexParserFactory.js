@@ -85,7 +85,7 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
                 lastMatchEnd = match.index + match[0].length;
                 groupIndex = 1;
                 for (i = 0; i < types.length; i++) {
-                    if (typeof match[groupIndex] === 'string') {
+                    if (match[groupIndex]) {
                         type = types[i];
                         break;
                     }
@@ -145,46 +145,42 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
 
         function transform(input, state, listeners, doneCallback) {
             var tokens = parse(input),
-                tokenIndex = 0,
-                resultTokens = [],
-                errors = null;
+                resultTokens = [];
             state = state || {};
 
-            nextToken();
-            return;
+            utils.asyncLoop(tokens, tokenHandler, done, stop);
 
-            // --------
-            function nextToken() {
-                var token;
-                if (tokenIndex<tokens.length) {
-                    tokenIndex++;
-                    token = tokens[tokenIndex-1];
-                    utils.processAsyncEvent({
-                        token: token,
-                        state: state,
-                        pushToken: pushToken
-                    },listeners,next,stop);
-                } else {
-                    doneCallback(errors, serialize(resultTokens));
+            function stop(error) {
+                if (error) {
+                    doneCallback(error);
                 }
+            }
 
-                function pushToken(token) {
-                    tokens.splice(tokenIndex,0,token);
-                }
+            function done() {
+                doneCallback(null, serialize(resultTokens));
+            }
 
-                function next() {
+            function tokenHandler(tokenIndex, token, control) {
+                utils.processAsyncEvent({
+                    token: token,
+                    state: state,
+                    pushToken: pushToken
+                },listeners,tokenDone,tokenStop);
+
+                function tokenDone() {
                     resultTokens.push(token);
-                    nextToken();
+                    control.next();
                 }
 
-                function stop(error) {
+                function tokenStop(error) {
                     if (error) {
-                        if (!errors) {
-                            errors = [];
-                        }
-                        errors.push(error);
+                        control.stop(error);
+                    } else {
+                        control.next();
                     }
-                    nextToken();
+                }
+                function pushToken(token) {
+                    tokens.splice(tokenIndex+1,0,token);
                 }
             }
         }

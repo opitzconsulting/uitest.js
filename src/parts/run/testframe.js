@@ -1,12 +1,10 @@
-uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, top, runConfig, injector, logger, docUtils, sniffer) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
     var WINDOW_ID = 'uitestwindow',
         BUTTON_ID = WINDOW_ID+'Btn',
         BUTTON_LISTENER_ID = BUTTON_ID+"Listener",
         frameElement,
         callbacks = {},
         nextCallbackId = 0;
-
-    top.uitest = global.uitest;
 
     injector.addDefaultResolver(function(argName) {
         return getIframeWindow()[argName];
@@ -27,17 +25,61 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
         if (sniffer.history) {
             loadUsingHistoryApi(url, html);
         } else {
-            createFrame(url, top);
-            deactivateWindow(getIframeWindow());
-            frameElement.onload = function() {
-                frameElement.onload = null;
-                rewriteDocument(getIframeWindow(), html);
-            };
+            loadWithoutHistoryApi(url, html);
         }
     }
 
-    function createFrame(url, topWindow) {
-        var doc = topWindow.document,
+
+
+    function loadUsingHistoryApi(url, html) {
+        var fr, win;
+        if (sniffer.browser.ff) {
+            // In FF, we can't just juse an empty iframe and rewrite
+            // it's content, as then the history api will throw errors
+            // whenever history.pushState is used within the frame.
+            // We need to do doc.open/write/close in the onload event
+            // to prevent this problem!
+            createFrame(urlParser.uitestUrl());
+            win = getIframeWindow();
+            docUtils.addEventListener(win, 'load', afterFrameCreate);
+        } else {
+            createFrame('');
+            win = getIframeWindow();
+            // Using doc.open/close empties the iframe, gives it a real url
+            // and makes it different compared to about:blank!
+            win.document.open();
+            win.document.close();
+
+            afterFrameCreate();
+        }
+
+        function afterFrameCreate() {
+            var win = getIframeWindow();
+            win.history.pushState(null, '', url);
+            if (false && sniffer.jsUrl) {
+                rewriteUsingJsUrl(win,html);
+            } else {
+                rewriteUsingDocOpen(win, html);
+            }
+        }
+    }
+
+    function loadWithoutHistoryApi(url, html) {
+        createFrame(url);
+        var win = getIframeWindow();
+        docUtils.addEventListener(win, 'load', onload);
+        deactivateWindow(win);
+
+        function onload() {
+            // Need to use javascript urls here to support xhtml,
+            // as we loaded the document into the browser, and in xhtml
+            // documents we can't open/write/close the document after this any more!
+            rewriteUsingJsUrl(win, html);
+        }
+    }
+
+    function createFrame(url) {
+        var doc = global.document,
             wrapper;
         frameElement = doc.getElementById(WINDOW_ID);
         if (frameElement) {
@@ -55,13 +97,13 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
         }
         doc.body.appendChild(frameElement);
 
-        createToggleButtonIfNeeded(topWindow);
+        createToggleButtonIfNeeded();
 
         return frameElement;
     }
 
-    function createToggleButtonIfNeeded(topWindow) {
-        var doc = topWindow.document,
+    function createToggleButtonIfNeeded() {
+        var doc = global.document,
             button = doc.getElementById(BUTTON_ID);
 
         if (button) {
@@ -84,36 +126,32 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
         }
     }
 
-    function loadUsingHistoryApi(url, html) {
-        var fr, win;
-        if (sniffer.browser.ff) {
-            // In FF, we can't just juse an empty iframe and rewrite
-            // it's content, as then the history api will throw errors
-            // whenever history.pushState is used within the frame...
-            fr = createFrame(urlParser.uitestUrl(), top);
-            fr.onload = function() {
-                fr.onload = null;
-                // now the frame is in a safe state and we can continue...
-                afterFrameCreate();
-            };
-        } else {
-            createFrame('', top);
-            win = getIframeWindow();
-            // open/close assigns the url of the parent frame
-            // to the iframe.
-            // This is needed as we can't use js urls
-            // for frames with about:blank.            
+    function rewriteUsingDocOpen(win, html) {
+        // If the iframe already has a valid url,
+        // wo don't want to change it by this rewrite.
+        // By using an inline script this does what we want.
+        // Calling win.document.open() directly would give the iframe
+        // the url of the current window, i.e. a new url.
+        win.newContent = html;
+        var sn = win.document.createElement("script");
+        sn.setAttribute("id", "rewriteScript");
+        sn.setAttribute("type", "text/javascript");
+        docUtils.textContent(sn, rewrite.toString()+';rewrite(window, window.newContent);');
+
+        win.document.body.appendChild(sn);
+
+        function rewrite(win, newContent) {
+            /*jshint evil:true*/
             win.document.open();
+            win.document.write(newContent);
             win.document.close();
-
-            afterFrameCreate();
         }
+    }
 
-        function afterFrameCreate() {
-            var win = getIframeWindow();
-            win.history.pushState(null, '', url);
-            rewriteDocument(win, html);
-        }
+    function rewriteUsingJsUrl(win, html) {
+        win.newContent = html;
+        /*jshint scripturl:true*/
+        win.location.href = 'javascript:window.newContent';
     }
 
     function deactivateWindow(win) {
@@ -140,70 +178,6 @@ uitest.define('run/testframe', ['urlParser', 'global', 'top', 'run/config', 'run
             this.cancel=noop;
         }
     }
-
-    function rewriteDocument(win, html) {
-        if (sniffer.jsUrl) {
-            rewriteWithJsUrl();
-        } else {
-            rewriteWithoutJsUrl();
-        }
-
-        function rewriteWithJsUrl() {
-            var currHash = win.location.hash;
-            // Bugs here:
-            // - IE looses the hash when rewriting using a js url
-            // - Rewriting using a js url or doc.open/write/close deletes the current history entry.
-            //   This yields to problems when using history.back()!
-            //   (at least in a fresh Chrome in Inkognito mode)
-            // - PhantomJS: creating a history entry using hash change does not work correctly.
-            //   Using history.pushState however does work...
-            html = html.replace(/<head[^>]*>/i, function(match) {
-                var createHistoryEntryCommand;
-                if (win.history.pushState) {
-                    createHistoryEntryCommand = 'history.pushState(null, "", "'+currHash+'");';
-                } else {
-                    createHistoryEntryCommand = 'location.hash="someUniqueHashToCreateAHistoryEntry";location.hash="'+currHash+'";';
-                }
-                return match+'<script type="text/javascript">'+createHistoryEntryCommand+'</script>';
-            });
-            win.newContent = html;
-            /*jshint scripturl:true*/
-            win.location.href = 'javascript:window.newContent';
-        }
-
-        function rewriteWithoutJsUrl() {
-            // Rewrite using js url does not work, use document.open/write/close
-            // Right now, we only need this for FF, as it does not open javascript urls
-            // with the same url as the previous document.
-            if (win.location.href==='about:blank' || win.location.href==='') {
-                dump("now");
-                rewrite(win, html);
-                return;
-            }
-            // If the iframe already has a valid url,
-            // wo don't want to change it by this rewrite.
-            // By using an inline script this does what we want.
-            // Calling win.document.open() directly would give the iframe
-            // the url of the current window, i.e. a new url.
-            // Note: This does not work for xhtml, as xhtml documents
-            // do not allow document.open/write/close.
-            win.newContent = html;
-            var sn = win.document.createElement("script");
-            sn.setAttribute("id", "rewriteScript");
-            sn.setAttribute("type", "text/javascript");
-            docUtils.textContent(sn, rewrite.toString()+';rewrite(window, window.newContent);');
-
-            win.document.body.appendChild(sn);
-        }
-
-        function rewrite(win, newContent) {
-            /*jshint evil:true*/
-            win.document.open();
-            win.document.write(newContent);
-            win.document.close();
-        }
-    }
-
 
     function createRemoteCallExpression(callback) {
         var argExpressions = global.Array.prototype.slice.call(arguments, 1) || [],

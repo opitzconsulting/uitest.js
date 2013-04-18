@@ -21,6 +21,8 @@ test frameworks.
 * Instrumentations for a page:
     - add a script or function at the beginning/end of the page
     - intercept calls to any named function on the page, no matter if the function is global or not
+    - automatically add workaround for know browser bugs in iframes
+      (e.g. history in IE<10 does not work correctly).
 * Cache busting feature to always fetch the recent versions of scripts in pages.
 * Wait for the end of asynchronous work, e.g. xhr, setTimeout, setInterval, page loading, ...
   This can be easily extended.
@@ -45,18 +47,20 @@ test frameworks.
 ## Usage
 
 1. include uitest.js as library into your test-code.
-2. In the pages that should be tested, include the following line as first line in the header:
-   `<script type="text/javascript">parent.uitest && parent.uitest.instrument(window);</script>`
-2. create a uitest instance calling `uitest()`.
-3. configure the instance, e.g. setting setting `<uitest>.url('someUrl')`.
-4. run the test page, e.g. by calling `<uitest>.ready`.
+1. create a uitest instance calling `uitest()`.
+1. configure the instance, e.g. setting setting `<uitest>.url('someUrl')`.
+1. run the test page, e.g. by calling `<uitest>.ready`.
 
 Preconditions:
 
 * The page to be tested must be loaded from the same domain as the test code.
+* All scripts in the page must either be loaded from the same domain as the page or accessible via the internet.
 
 ## Samples
-See the ui tests under `test/ui/*Spec.js`.
+
+* See the ui tests under `test/ui/*Spec.js`.
+* See [todo-mobile-testdriven](https://github.com/stefanscheidt/todo-mobile-testdriven) for a project that uses uitest.js together with the [karam test runner](https://github.com/karma-runner/karma).
+
 
 ## Reporting Bugs
 Please use this [Plunk](http://plnkr.co/edit/rGCvTXINKVv4B4lqM6gv) as starting point.

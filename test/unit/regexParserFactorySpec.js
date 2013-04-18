@@ -41,12 +41,12 @@ describe('regexParserFactory', function() {
         it('should throw an error if the regex is invalid', function() {
             expect(function() {
                 parser.addTokenType("a", "??", "a", {});
-            }).toThrow(new Error("Invalid regular expression: /^??$/: Nothing to repeat"));
+            }).toThrow();
         });
         it('should throw an error if the template does not match the regex', function() {
             expect(function() {
                 parser.addTokenType("a", "a", "b", {});
-            }).toThrow(new Error("Template 'b' does not match the regex 'a'"));
+            }).toThrow();
         });
     });
 
@@ -176,8 +176,10 @@ describe('regexParserFactory', function() {
             expect(error).toBe(null);
             expect(processedTokens).toEqual([{type:'a',match:'a'},{type:'other', match:'.'}]);
         });
-        it('should collect errors', function() {
+        it('should collect and stop at errors', function() {
+            var tokens = [];
             function listener(event, control) {
+                tokens.push(event.token);
                 if (event.token.type==='other') {
                     control.stop('some Error');
                 } else {
@@ -185,8 +187,8 @@ describe('regexParserFactory', function() {
                 }
             }
             parser.transform('a.b',null,[listener],resultCb);
-            expect(result).toBe('ab');
-            expect(error).toEqual(['some Error']);
+            expect(tokens.length).toBe(2);
+            expect(error).toEqual('some Error');
         });
 
         it('should process the tokens asynchronously', function() {

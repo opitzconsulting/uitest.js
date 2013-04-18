@@ -1,24 +1,22 @@
-uitest.define('sniffer', ['top'], function(top) {
+uitest.define('sniffer', ['global', 'documentUtils'], function(global, documentUtils) {
 
+    // This is especially for FF, as it does not revert back
+    // to the previous url when using a js url.
     function jsUrlDoesNotChangeLocation(callback) {
-        var tmpFrame = top.document.createElement("iframe");
-        top.document.body.appendChild(tmpFrame);
+        var tmpFrame = global.document.createElement("iframe");
+        global.document.body.appendChild(tmpFrame);
         // Opening and closing applies the
-        // location href from the top window to the iframe.
+        // location href from the parent window to the iframe.
         tmpFrame.contentWindow.document.open();
         tmpFrame.contentWindow.document.close();
         // The timeout is needed as FF triggers the onload
         // from the previous document.open/close
         // even if we set the onload AFTER we did document.open/close!
-        top.setTimeout(changeHrefAndAddOnLoad, 0);
+        global.setTimeout(changeHrefAndAddOnLoad, 0);
 
         function changeHrefAndAddOnLoad() {
             /*jshint scripturl:true*/
-            if (tmpFrame.attachEvent) {
-                tmpFrame.attachEvent("onload", onloadCallback);
-            } else {
-                tmpFrame.onload = onloadCallback;
-            }
+            documentUtils.addEventListener(tmpFrame, "load", onloadCallback);
             tmpFrame.contentWindow.location.href="javascript:'<html><body>Hello</body></html>'";
         }
 
@@ -31,7 +29,7 @@ uitest.define('sniffer', ['top'], function(top) {
     }
 
     function browserSniffer() {
-        var useragent = top.navigator.userAgent.toLowerCase(),
+        var useragent = global.navigator.userAgent.toLowerCase(),
             android = /android/i.test(useragent),
             ieMatch = /MSIE\s+(\d+)/i.exec(useragent),
             ff = /firefox/i.test(useragent);
@@ -49,7 +47,7 @@ uitest.define('sniffer', ['top'], function(top) {
             readyCallback({
                 jsUrl: jsUrlSupported,
                 browser: browserSniffer(),
-                history: !!top.history.pushState
+                history: !!global.history.pushState
             });
         });
     }

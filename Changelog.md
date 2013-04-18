@@ -1,6 +1,16 @@
 Changelog
 =====================
 
+0.10.0
+------
+Features:
+
+* No `<script>uitest.parent.instrument(window)</script>` in the application under test needed any more!
+
+Breaking changes:
+
+* Tests that spawn multiple page reloads need to enable this using `feature('multiPage')`.
+
 0.9.1
 ------
 Features:
