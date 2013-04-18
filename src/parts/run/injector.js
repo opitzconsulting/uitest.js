@@ -36,6 +36,7 @@ uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 
 	function addDefaultResolver(resolver) {
 		defaultResolvers.push(resolver);
+		utils.orderByPriority(defaultResolvers);
 	}
 
 	return {

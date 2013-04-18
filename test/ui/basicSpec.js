@@ -24,21 +24,6 @@ describe('basic', function() {
                     expect(window.location.hash).toBe('#page1.html');
                 });
             });
-            describe('not reload page if hash changes', function() {
-                it('part1', function() {
-                    uit.url("../test/ui/fixtures/"+basicUrl+"#123");
-                    uit.runs(function(window) {
-                        window.testFlag = true;
-                    });
-                });
-                it('part1', function() {
-                    uit.url("../test/ui/fixtures/"+basicUrl+"#1234");
-                    uit.runs(function(window) {
-                        expect(window.testFlag).toBeUndefined();
-                    });
-                });
-
-            });
             describe('inject', function() {
                 it('should inject variables from the iframe', function() {
                     var win = window;
@@ -127,17 +112,6 @@ describe('basic', function() {
                     expect(endDate.getTime() - startDate.getTime()).toBeGreaterThan(200);
                 });
             });
-
-            /*TODOit('should wait for page reload', function() {
-                uit.runs(function(window, location) {
-                    window.flag = true;
-                    location.reload();
-                });
-                uit.runsAfterReload(function(window) {
-                    expect(window.flag).toBeUndefined();
-                });
-            });
-*/
 
             describe('cacheBusting', function() {
                 function findHelloScriptUrl(doc) {

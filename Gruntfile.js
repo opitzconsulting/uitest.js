@@ -76,7 +76,7 @@ module.exports = function(grunt) {
       dev: {
         options: {
           singleRun: false,
-          browsers: []
+          browsers: ['PhantomJS']
         },
         background: true
       },

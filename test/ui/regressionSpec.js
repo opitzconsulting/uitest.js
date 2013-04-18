@@ -1,6 +1,23 @@
 describe('regression', function() {
     var uit = uitest.current;
 
+    describe('not reload page if hash changes', function() {
+        var relPath = "../test/ui/fixtures/basic.html";
+        it('part1', function() {
+            uit.url(relPath + "#123");
+            uit.runs(function(window) {
+                window.testFlag = true;
+            });
+        });
+        it('part1', function() {
+            uit.url(relPath + "#1234");
+            uit.runs(function(window) {
+                expect(window.testFlag).toBeUndefined();
+            });
+        });
+
+    });
+
     describe('issue 8 and 9: Setting and returning hash', function() {
         var relPath = "../test/ui/fixtures/basic.html";
         it('should allow to change the hash without a reload', function() {
@@ -16,7 +33,7 @@ describe('regression', function() {
             });
         });
         it('should return "#/page1.html"', function() {
-            uit.url( relPath + "#/page1.html");
+            uit.url(relPath + "#/page1.html");
             uit.runs(function(window) {
                 expect(window.location.hash).toBe('#/page1.html');
             });
@@ -25,10 +42,12 @@ describe('regression', function() {
     describe('issue 14: using $.animate', function() {
         it('should allow $.animate', function() {
             var el;
-            uit.url( "../test/ui/fixtures/animateFixture.html");
+            uit.url("../test/ui/fixtures/animateFixture.html");
             uit.runs(function($) {
                 el = $('#pages');
-                el.animate({'left':'200px'});
+                el.animate({
+                    'left': '200px'
+                });
             });
             uit.runs(function($) {
                 expect(el.css('left')).toBe('200px');
@@ -40,12 +59,12 @@ describe('regression', function() {
         describe('go back to the initial url', function() {
             it('should work using using hashes', function() {
                 var initHref;
-                uit.url( "../test/ui/fixtures/empty.html");
+                uit.url("../test/ui/fixtures/empty.html");
                 uit.runs(function(location, history) {
                     initHref = location.href;
                     location.hash = 'someHash';
                 });
-                uit.runs(function(history,location) {
+                uit.runs(function(history, location) {
                     history.back();
                 });
                 uit.runs(function(location) {
@@ -56,12 +75,12 @@ describe('regression', function() {
             // as freshly opened Chrome in Inkognito mode.
             it('should work when starting at a hash url', function() {
                 var initHref;
-                uit.url( "../test/ui/fixtures/empty.html#someInitHash");
+                uit.url("../test/ui/fixtures/empty.html#someInitHash");
                 uit.runs(function(location, history) {
                     initHref = location.href;
                     location.hash = 'someHash';
                 });
-                uit.runs(function(history,location) {
+                uit.runs(function(history, location) {
                     history.back();
                 });
                 uit.runs(function(location) {
@@ -73,7 +92,7 @@ describe('regression', function() {
             if (window.history.pushState) {
                 it('should work using history.pushState', function() {
                     var initHref;
-                    uit.url( "../test/ui/fixtures/empty.html");
+                    uit.url("../test/ui/fixtures/empty.html");
                     uit.runs(function(location, history) {
                         initHref = location.href;
                         history.pushState(null, '', '#someHash');

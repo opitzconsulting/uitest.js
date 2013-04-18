@@ -1,4 +1,4 @@
-ddescribe("urlParser", function () {
+describe("urlParser", function () {
     var urlParser, global;
     beforeEach(function () {
         global = {

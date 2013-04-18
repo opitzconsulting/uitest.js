@@ -3,19 +3,19 @@ uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModul
 	var count = 0,
 		ready, win, doc, waitForDocComplete;
 
-	init();
 	runConfig.appends.push(function(window, document) {
 		win = window;
 		doc = document;
 		waitForDocComplete = true;
 	});
 
-	loadSensor.reloaded = reloaded;
+	loadSensor.init = init;
 
 	readyModule.addSensor("load", loadSensor);
 	return loadSensor;
 
 	function init() {
+		count++;
 		ready = false;
 		waitForDocComplete = false;
 	}
@@ -37,11 +37,5 @@ uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModul
 
 	function docReady(doc) {
 		return doc.readyState==='complete' || doc.readyState==='interactive';
-	}
-
-	function reloaded(callback) {
-		count++;
-		init();
-		readyModule.ready(callback);
 	}
 });

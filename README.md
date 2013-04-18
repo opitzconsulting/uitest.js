@@ -55,6 +55,7 @@ Preconditions:
 
 * The page to be tested must be loaded from the same domain as the test code.
 * All scripts in the page must either be loaded from the same domain as the page or accessible via the internet.
+* Forms that reload the page using HTTP POSTs are not yet supports (see the Multi Page Feature below).
 
 ## Samples
 
@@ -213,6 +214,17 @@ Somtimes, the cache in the browser keeps an old copy of the scripts that we stor
 Note: If you want to create breakpoints in your browser while cache busting is activated,
 use the `debugger;` statement in your scripts to manually stop the browser.
 
+## Multi Page tests
+If your app reloads the page either by using `location.href` or by links, and you want to write test for this, you need to enable the `feature("multiPage")`. 
+By this, uitest.js intercepts those calls, instruments and loads the new urls.
+
+Notes:
+
+- This is turned off by default, as it yields to some performance overhead (all scripts need to be instrumented that change `location.href`...).
+
+Restrictions:
+
+- We don't yet support forms that reload the page using a HTTP POST request.
 
 ## Supporting libraries
 

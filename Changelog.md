@@ -10,6 +10,7 @@ Features:
 Breaking changes:
 
 * Tests that spawn multiple page reloads need to enable this using `feature('multiPage')`.
+* Tests for pages that reload the page using a form and HTTP POSTs are no more supported!
 
 0.9.1
 ------

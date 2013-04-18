@@ -62,12 +62,16 @@
         }
 
         function processAsyncEvent(event, listeners, finalNext, stop) {
-            listeners.sort(compareByPriority);
+            orderByPriority(listeners);
             asyncLoop(listeners, handler, finalNext, stop);
 
             function handler(index, listener, control) {
                 listener(event, control);
             }
+        }
+
+        function orderByPriority(arr) {
+            return arr.sort(compareByPriority);
         }
 
         function compareByPriority(entry1, entry2) {
@@ -80,7 +84,8 @@
             isArray: isArray,
             testRunTimestamp: testRunTimestamp,
             processAsyncEvent: processAsyncEvent,
-            asyncLoop: asyncLoop
+            asyncLoop: asyncLoop,
+            orderByPriority: orderByPriority
         };
     });
 

@@ -1,12 +1,15 @@
-uitest.define('run/main', ['documentUtils', 'urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe'], function(docUtils, urlParser, global, logger, runConfig, htmlInstrumentor, testframe) {
+uitest.define('run/main', ['documentUtils', 'urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor'], function(docUtils, urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor) {
 
     start(runConfig.url);
-    return;
+    return {
+        start: start
+    };
 
     // -------
 
     function start(url) {
         var now = new global.Date().getTime();
+        loadSensor.init();
         url = urlParser.makeAbsoluteUrl(url, urlParser.uitestUrl());
         url = urlParser.cacheBustingUrl(url, now);
         url = url.replace("{now}",now);

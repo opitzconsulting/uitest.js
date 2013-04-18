@@ -663,6 +663,78 @@ uitest.define('jsParserFactory', ['regexParserFactory'], function(regexParserFac
     }
 });
 
+uitest.define('proxyFactory', ['global'], function(global) {
+
+    return createProxy;
+
+    function createProxy(original, interceptors) {
+        var propName, proxy;
+        proxy = newProxyObject();
+        for (propName in original) {
+            if (typeof original[propName] === 'function') {
+                addFunction(original, proxy, propName, interceptors.fn);
+            } else {
+                addProperty(original, proxy, propName, interceptors.get, interceptors.set);
+            }
+        }
+        return proxy;
+    }
+
+    function newProxyObject() {
+        try {
+            addProperty({}, {}, 'test');
+            return {};
+        } catch (e) {
+            // For IE 8: Getter/Setters only supported on DOM nodes...
+            return global.document.createElement('div');
+        }
+    }
+
+    function addFunction(original, proxy, propName, interceptor) {
+        var oldFn = original[propName];
+        return proxy[propName] = interceptedFn;
+
+        function interceptedFn() {
+            return interceptor({
+                self: original,
+                name: propName,
+                args: arguments,
+                delegate: oldFn
+            });
+        }
+    }
+
+    function addProperty(original, proxy, propName, getInterceptor, setInterceptor) {
+        // Modern browsers, IE9+, and IE8 (must be a DOM object),
+        if (Object.defineProperty) {
+            Object.defineProperty(proxy, propName, {
+                get: getFn,
+                set: setFn
+            });
+            // Older Mozilla
+        } else if (proxy.__defineGetter__) {
+            proxy.__defineGetter__(propName, getFn);
+            proxy.__defineSetter__(propName, setFn);
+        } else {
+            throw new Error("This browser does not support getters or setters!");
+        }
+
+        function getFn() {
+            return getInterceptor({
+                self: original,
+                name: propName
+            });
+        }
+
+        function setFn(value) {
+            return setInterceptor({
+                self: original,
+                name: propName,
+                value: value
+            });
+        }
+    }
+});
 uitest.define('regexParserFactory', ['utils'], function(utils) {
 
     return factory;
@@ -1077,6 +1149,218 @@ uitest.define('run/feature/jqmAnimationSensor', ['run/config', 'run/ready'], fun
         };
     }
 });
+uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe) {
+    var changeListeners = [];
+
+    // Attention: order matters here, as the simple "location" token
+    // is also contained in the "locationAssign" token!
+    scriptInstrumentor.jsParser.addTokenType('locationAssign', '(\\blocation\\s*=)', 'location=', {});
+    scriptInstrumentor.jsParser.addSimpleTokenType('location');
+
+    scriptInstrumentor.addPreProcessor(preProcessScript);
+    runConfig.prepends.unshift(initFrame);
+
+    locationResolver.priority = 9999;
+    injector.addDefaultResolver(locationResolver);
+
+    return {
+        addChangeListener: addChangeListener
+    };
+
+    function addChangeListener(listener) {
+        changeListeners.push(listener);
+    }
+
+    function preProcessScript(event, control) {
+        if (event.token.type === 'location') {
+            event.pushToken({
+                type: 'other',
+                match: '[locationProxy.test()]()'
+            });
+        }
+        control.next();
+    }
+
+    function initFrame(window, location) {
+        instrumentLinks(window);
+        createLocationProxy(window, location);
+    }
+
+    function instrumentLinks(window) {
+        var elProto = window.HTMLElement.prototype,
+            _fireEvent = elProto.fireEvent,
+            _dispatchEvent = elProto.dispatchEvent;
+
+        if (_fireEvent) {
+            elProto.fireEvent = checkAfterClick(_fireEvent);
+        } else if (_dispatchEvent) {
+            elProto.dispatchEvent = checkAfterClick(_dispatchEvent);
+        }
+
+        // Need to instrument click to use triggerEvent / fireEvent,
+        // as .click does not tell us if the default has been prevented!
+        // Note: Some browsers do note support .click, we add it here
+        // for all of them :-)
+        elProto.click = function newClick() {
+            fireEvent(this, 'click');
+        };
+
+        function findLinkInParents(elm) {
+            while (elm !== null) {
+                if (elm.nodeName.toLowerCase() === 'a') {
+                    return elm;
+                }
+                elm = elm.parentNode;
+            }
+            return elm;
+        }
+
+        function checkAfterClick(origTriggerFn) {
+            return function() {
+                var el = this,
+                    link = findLinkInParents(el),
+                    origHref = window.location.href;
+
+                var defaultExecuted = origTriggerFn.apply(this, arguments);
+                if (defaultExecuted && link) {
+                    triggerHrefChange(origHref, el.href);
+                }
+                return defaultExecuted;
+            };
+
+        }
+    }
+
+    function createLocationProxy(window, location) {
+        var urlResolverLink = window.document.createElement('a');
+        var locationProxy = proxyFactory(location, {
+            fn: fnInterceptor,
+            get: getInterceptor,
+            set: setInterceptor
+        });
+        locationProxy.test = createTestFn(window, location, locationProxy);
+        window.locationProxy = locationProxy;
+
+        function makeAbsolute(url) {
+            urlResolverLink.href = url;
+            return urlResolverLink.href;
+        }
+
+        function fnInterceptor(data) {
+            var newHref,
+            replace = false;
+            if (data.name === 'reload') {
+                newHref = location.href;
+            } else if (data.name === 'replace') {
+                newHref = data.args[0] || location.href;
+                replace = true;
+            } else if (data.name === 'assign') {
+                newHref = data.args[0] || location.href;
+            }
+            if (newHref) {
+                triggerLocationChange({
+                    oldHref: location.href,
+                    newHref: makeAbsolute(newHref),
+                    type: 'reload',
+                    replace: replace
+                });
+            }
+            return data.delegate.apply(data.self, data.args);
+        }
+
+        function getInterceptor(data) {
+            return data.self[data.name];
+        }
+
+        function setInterceptor(data) {
+            var value = data.value,
+                oldHref = location.href,
+                absHref,
+                change = false,
+                changeType;
+            if (data.name === 'href') {
+                change = true;
+            } else if (data.name === 'hash') {
+                if (!value) {
+                    value = '#';
+                } else if (value.charAt(0) !== '#') {
+                    value = '#' + value;
+                }
+                change = true;
+            }
+            if (change) {
+                triggerHrefChange(oldHref, makeAbsolute(value));
+            }
+            data.self[data.name] = data.value;
+        }
+    }
+
+    function triggerHrefChange(oldHref, newHref) {
+        var changeType;
+        if (newHref.indexOf('#') === -1 || removeHash(newHref) !== removeHash(oldHref)) {
+            changeType = 'reload';
+        } else {
+            changeType = 'hash';
+        }
+        triggerLocationChange({
+            oldHref: oldHref,
+            newHref: newHref,
+            type: changeType,
+            replace: false
+        });
+    }
+
+    function removeHash(url) {
+        var hashPos = url.indexOf('#');
+        if (hashPos === -1) {
+            return url;
+        }
+        return url.substring(0, hashPos);
+    }
+
+    function triggerLocationChange(changeEvent) {
+        var i;
+        for (i = 0; i < changeListeners.length; i++) {
+            changeListeners[i](changeEvent);
+        }
+    }
+
+    function createTestFn(window, location, locationProxy) {
+        return function() {
+            window.Object.prototype.testLocation = function() {
+                delete window.Object.prototype.testLocation;
+                if (this === location) {
+                    return locationProxy;
+                }
+                return this;
+            };
+
+            return 'testLocation';
+        };
+    }
+
+    function fireEvent(obj, evt) {
+        var fireOnThis = obj,
+            doc = obj.ownerDocument,
+            evtObj;
+
+        if (doc.createEvent) {
+            evtObj = doc.createEvent('MouseEvents');
+            evtObj.initEvent(evt, true, true);
+            return fireOnThis.dispatchEvent(evtObj);
+        } else if (doc.createEventObject) {
+            evtObj = doc.createEventObject();
+            return fireOnThis.fireEvent('on' + evt, evtObj);
+        }
+    }
+
+    function locationResolver(propName) {
+        var locationProxy = testframe.win().locationProxy;
+        if (propName === 'location' && locationProxy) {
+            return locationProxy;
+        }
+    }
+});
 uitest.define('run/feature/mobileViewport', ['run/config', 'global'], function(runConfig, global) {
     runConfig.appends.push(install);
 
@@ -1109,6 +1393,16 @@ uitest.define('run/feature/mobileViewport', ['run/config', 'global'], function(r
             }
         }
         return null;
+    }
+});
+uitest.define('run/feature/multiPage', ['run/feature/locationProxy', 'run/main'], function(locationProxy, main) {
+    locationProxy.addChangeListener(locationChangeListener);
+
+
+    function locationChangeListener(event) {
+        if (event.type === 'reload') {
+            main.start(event.newHref);
+        }
     }
 });
 uitest.define('run/feature/timeoutSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
@@ -1353,6 +1647,7 @@ uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 
 	function addDefaultResolver(resolver) {
 		defaultResolvers.push(resolver);
+		utils.orderByPriority(defaultResolvers);
 	}
 
 	return {
@@ -1365,19 +1660,19 @@ uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModul
 	var count = 0,
 		ready, win, doc, waitForDocComplete;
 
-	init();
 	runConfig.appends.push(function(window, document) {
 		win = window;
 		doc = document;
 		waitForDocComplete = true;
 	});
 
-	loadSensor.reloaded = reloaded;
+	loadSensor.init = init;
 
 	readyModule.addSensor("load", loadSensor);
 	return loadSensor;
 
 	function init() {
+		count++;
 		ready = false;
 		waitForDocComplete = false;
 	}
@@ -1400,12 +1695,6 @@ uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModul
 	function docReady(doc) {
 		return doc.readyState==='complete' || doc.readyState==='interactive';
 	}
-
-	function reloaded(callback) {
-		count++;
-		init();
-		readyModule.ready(callback);
-	}
 });
 
 uitest.define('run/logger', ['global', 'run/config'], function(global, runConfig) {
@@ -1423,15 +1712,18 @@ uitest.define('run/logger', ['global', 'run/config'], function(global, runConfig
     };
 });
 
-uitest.define('run/main', ['documentUtils', 'urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe'], function(docUtils, urlParser, global, logger, runConfig, htmlInstrumentor, testframe) {
+uitest.define('run/main', ['documentUtils', 'urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor'], function(docUtils, urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor) {
 
     start(runConfig.url);
-    return;
+    return {
+        start: start
+    };
 
     // -------
 
     function start(url) {
         var now = new global.Date().getTime();
+        loadSensor.init();
         url = urlParser.makeAbsoluteUrl(url, urlParser.uitestUrl());
         url = urlParser.cacheBustingUrl(url, now);
         url = url.replace("{now}",now);
@@ -1546,6 +1838,7 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 		function ifNoAsyncWorkCallListenerElseRestart() {
 			var currentSensorStatus = aggregateSensorStatus(sensorInstances);
 			if(currentSensorStatus.busySensors.length === 0 && currentSensorStatus.count === sensorStatus.count) {
+				logger.log("ready");
 				injector.inject(listener, null, []);
 			} else {
 				restart();
@@ -2382,12 +2675,16 @@ uitest.define('urlParser', ['global'], function (global) {
         }
 
         function processAsyncEvent(event, listeners, finalNext, stop) {
-            listeners.sort(compareByPriority);
+            orderByPriority(listeners);
             asyncLoop(listeners, handler, finalNext, stop);
 
             function handler(index, listener, control) {
                 listener(event, control);
             }
+        }
+
+        function orderByPriority(arr) {
+            return arr.sort(compareByPriority);
         }
 
         function compareByPriority(entry1, entry2) {
@@ -2400,7 +2697,8 @@ uitest.define('urlParser', ['global'], function (global) {
             isArray: isArray,
             testRunTimestamp: testRunTimestamp,
             processAsyncEvent: processAsyncEvent,
-            asyncLoop: asyncLoop
+            asyncLoop: asyncLoop,
+            orderByPriority: orderByPriority
         };
     });
 

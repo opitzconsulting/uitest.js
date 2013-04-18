@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+
+<body>
+    <button id="refreshByJs" onclick="refreshByJs()">RefreshByJs</button>
+    <a id="refreshByLink" href="?someFlag">RefreshByLink</a>
+    <a id="noRefreshByPreventedLink" href="?someFlag" onclick="return false;">noRefreshByPreventedLink</a>
+    
+
+    <script>
+        function refreshByJs() {
+            location.href = location.href + '&someFlag';
+        }
+
+        function getLocation() {
+            return location;
+        }
+
+        function getFakeLocation() {
+            var location = {};
+            location.href = 'someUrl';
+            return location;
+        }
+    </script>    
+</body>
+</html>
