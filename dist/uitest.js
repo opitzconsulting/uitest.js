@@ -1,4 +1,4 @@
-/*! uitest.js - v0.10.0-SNAPSHOT - 2013-04-18
+/*! uitest.js - v0.10.0-SNAPSHOT - 2013-04-19
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -334,16 +334,30 @@ uitest.define('documentUtils', ['global', 'urlParser'], function(global, urlPars
             xhr = new global.XMLHttpRequest();
             xhr.open("GET", url, true);
         }
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200 || xhr.status === 0) {
-                    resultCallback(null, xhr.responseText);
-                } else {
-                    resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
+        if (typeof xhr.onload !== "undefined") {
+            // For XDomainRequest...
+            xhr.onload = onload;
+            xhr.onerror = function() {
+                resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
+            };
+        } else {
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    onload();
                 }
-            }
-        };
+            };
+        }
         xhr.send();
+
+        function onload() {
+            // Note: for IE XDomainRequest xhr has no status,
+            // and for file access xhr.status is always 0.
+            if (xhr.status === 200 || !xhr.status) {
+                resultCallback(null, xhr.responseText);
+            } else {
+                resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
+            }
+        }
     }
 
     function createCORSRequest(method, url) {
@@ -359,7 +373,7 @@ uitest.define('documentUtils', ['global', 'urlParser'], function(global, urlPars
             xhr.open(method, url);
         } else {
             // Otherwise, CORS is not supported by the browser.
-            xhr = null;
+            throw new Error("No CORS support in this browser!");
         }
         return xhr;
     }
@@ -1149,7 +1163,7 @@ uitest.define('run/feature/jqmAnimationSensor', ['run/config', 'run/ready'], fun
         };
     }
 });
-uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe) {
+uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe', 'run/sniffer'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe, sniffer) {
     var changeListeners = [];
 
     // Attention: order matters here, as the simple "location" token
@@ -1187,23 +1201,34 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function instrumentLinks(window) {
-        var elProto = window.HTMLElement.prototype,
-            _fireEvent = elProto.fireEvent,
-            _dispatchEvent = elProto.dispatchEvent;
-
-        if (_fireEvent) {
-            elProto.fireEvent = checkAfterClick(_fireEvent);
-        } else if (_dispatchEvent) {
-            elProto.dispatchEvent = checkAfterClick(_dispatchEvent);
+        if (window.HTMLElement) {
+            instrumentElementProto(window.HTMLElement.prototype);
+        } else if (window.Element) {
+            instrumentElementProto(window.Element.prototype);
+        }
+        if (window.HTMLButtonElement) {
+            // In FF, Buttons have their own dispatchEvent, ... methods
+            instrumentElementProto(window.HTMLButtonElement.prototype);
         }
 
-        // Need to instrument click to use triggerEvent / fireEvent,
-        // as .click does not tell us if the default has been prevented!
-        // Note: Some browsers do note support .click, we add it here
-        // for all of them :-)
-        elProto.click = function newClick() {
+        function instrumentElementProto(elProto) {
+            var _fireEvent = elProto.fireEvent,
+                _dispatchEvent = elProto.dispatchEvent;
+            if (_fireEvent) {
+                elProto.fireEvent = checkAfterClick(fixFF684208(_fireEvent));
+            } else if (_dispatchEvent) {
+                elProto.dispatchEvent = checkAfterClick(fixFF684208(_dispatchEvent));
+            }
+            // Need to instrument click to use triggerEvent / fireEvent,
+            // as .click does not tell us if the default has been prevented!
+            // Note: Some browsers do note support .click, we add it here
+            // for all of them :-)
+            elProto.click = newClick;
+        }
+
+        function newClick() {
             fireEvent(this, 'click');
-        };
+        }
 
         function findLinkInParents(elm) {
             while (elm !== null) {
@@ -1215,15 +1240,43 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
             return elm;
         }
 
+        // temporary fix for https://bugzilla.mozilla.org/show_bug.cgi?id=684208:
+        // ff always returns false for links...
+        function fixFF684208(origTriggerFn) {
+            if (!sniffer.browser.ff) {
+                return origTriggerFn;
+            }
+            return function() {
+                var el = this,
+                    defaultPrevented = false,
+                    originalDefaultExecuted,
+                    evtObj = typeof arguments[0]==='object'?arguments[0]:arguments[1];
+
+                // TODO care for DOM-Level-0 handlers that return false!
+                var _preventDefault = evtObj.preventDefault;
+                evtObj.preventDefault = function() {
+                    defaultPrevented = true;
+                    return _preventDefault.apply(this, arguments);
+                };
+                origTriggerFn.apply(this, arguments);
+                return !defaultPrevented;
+            };
+        }
+
         function checkAfterClick(origTriggerFn) {
             return function() {
                 var el = this,
                     link = findLinkInParents(el),
-                    origHref = window.location.href;
-
-                var defaultExecuted = origTriggerFn.apply(this, arguments);
+                    origHref = window.location.href,
+                    defaultExecuted;
+                defaultExecuted = origTriggerFn.apply(this, arguments);
                 if (defaultExecuted && link) {
-                    triggerHrefChange(origHref, el.href);
+                    // Note: calling stopPropagation on a click event that has
+                    // been triggered for a child of a link still fires up
+                    // the link, although the event is not propagated to the
+                    // listeners of the link!
+                    // So we don't need to check for stopPropagation here!
+                    triggerHrefChange(origHref, link.href);
                 }
                 return defaultExecuted;
             };
@@ -1297,6 +1350,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
 
     function triggerHrefChange(oldHref, newHref) {
         var changeType;
+
         if (newHref.indexOf('#') === -1 || removeHash(newHref) !== removeHash(oldHref)) {
             changeType = 'reload';
         } else {
@@ -1326,17 +1380,30 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function createTestFn(window, location, locationProxy) {
+        // In IE8: location does not inherit from Object.prototype...
+        location.testLocation = testLocation;
+
         return function() {
-            window.Object.prototype.testLocation = function() {
-                delete window.Object.prototype.testLocation;
-                if (this === location) {
+            window.Object.prototype.testLocation = testLocation;
+            return 'testLocation';
+
+        };
+        function testLocation() {
+            // Note: Calling delete location.testLocation yields
+            // to an Error in IE8...
+            delete window.Object.prototype.testLocation;
+            // Note: In IE8 we can't do a this === location,
+            // as this seems to be some wrapper object...
+            this.testFlag = true;
+            try {
+                if (location.testFlag) {
                     return locationProxy;
                 }
-                return this;
-            };
-
-            return 'testLocation';
-        };
+            } finally {
+                delete this.testFlag;
+            }
+            return this;
+        }
     }
 
     function fireEvent(obj, evt) {
@@ -2270,6 +2337,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     function loadWithoutHistoryApi(url, html) {
         createFrame(url);
         var win = getIframeWindow();
+        win.tbo = true;
         docUtils.addEventListener(win, 'load', onload);
         deactivateWindow(win);
 
@@ -2283,21 +2351,21 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function createFrame(url) {
         var doc = global.document,
-            wrapper;
+            wrapper,
+            zIndex = 100;
         frameElement = doc.getElementById(WINDOW_ID);
         if (frameElement) {
+            zIndex = frameElement.style.zIndex;
             frameElement.parentNode.removeChild(frameElement);
-            frameElement.src = url;
-        } else {
-            wrapper = doc.createElement("div");
-            wrapper.innerHTML = '<iframe id="'+WINDOW_ID+'" '+
-                                'src="'+url+'" '+
-                                'width="100%" height="100%" '+
-                                'style="position: absolute; top: 0; left: 0; background-color:white; border: 0px;"></iframe>';
-
-            frameElement = wrapper.firstChild;
-            frameElement.style.zIndex = 100;
         }
+        wrapper = doc.createElement("div");
+        wrapper.innerHTML = '<iframe id="'+WINDOW_ID+'" '+
+                            'src="'+url+'" '+
+                            'width="100%" height="100%" '+
+                            'style="position: absolute; top: 0; left: 0; background-color:white; border: 0px;"></iframe>';
+
+        frameElement = wrapper.firstChild;
+        frameElement.style.zIndex = zIndex;
         doc.body.appendChild(frameElement);
 
         createToggleButtonIfNeeded();
@@ -2358,22 +2426,45 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 
     function deactivateWindow(win) {
-        win.setTimeout = noop;
-        win.clearTimeout = noop;
-        win.setInterval = noop;
-        win.clearInterval = noop;
+        noop(win, 'setTimeout');
+        noop(win, 'clearTimeout');
+        noop(win, 'setInterval');
+        noop(win, 'clearInterval');
         win.XMLHttpRequest = noopXhr;
+        var eventFnNames = [];
         if (win.attachEvent) {
-            win.attachEvent = noop;
-            win.Element.prototype.attachEvent = noop;
-            win.HTMLDocument.prototype.attachEvent = noop;
+            eventFnNames.push('attachEvent');
+            eventFnNames.push('detachEvent');
         } else {
-            win.addEventListener = noop;
-            win.Element.prototype.addEventListener = noop;
-            win.HTMLDocument.prototype.addEventListener = noop;
+            eventFnNames.push('addEventListener');
+            eventFnNames.push('removeEventListener');
+        }
+        var eventSources = [win, win.HTMLDocument.prototype];
+        if (win.Element) {
+            eventSources.push(win.Element.prototype);
+        } else if (win.HTMLElement) {
+            eventSources.push(win.HTMLElement.prototype);
+        }
+        var eventFnIndex, eventSourceIndex;
+        for (eventFnIndex = 0; eventFnIndex<eventFnNames.length; eventFnIndex++) {
+            for (eventSourceIndex=0; eventSourceIndex<eventSources.lenght; eventSourceIndex++) {
+                noop(eventSources[eventSourceIndex], eventFnNames[eventFnIndex]);
+            }
         }
 
-        function noop() { }
+        function noop(obj, name) {
+            // Note: Preserve the toString() as some frameworks react on it
+            // (e.g. requirejs...)
+            var original = obj[name];
+            var oldToString = ""+original;
+            res.toString = function() {
+                return oldToString();
+            };
+            obj[name] = res;
+            return res;
+
+            function res() { }
+        }
         function noopXhr() {
             this.open=noop;
             this.send=noop;

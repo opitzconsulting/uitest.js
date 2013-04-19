@@ -1,4 +1,4 @@
-describe('history', function() {
+xdescribe('history', function() {
     var uit = uitest.current;
     uit.url( "../test/ui/fixtures/empty.html");
     // Android: this tests makes testacular reload the page. WHY?

@@ -65,6 +65,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     function loadWithoutHistoryApi(url, html) {
         createFrame(url);
         var win = getIframeWindow();
+        win.tbo = true;
         docUtils.addEventListener(win, 'load', onload);
         deactivateWindow(win);
 
@@ -78,21 +79,21 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function createFrame(url) {
         var doc = global.document,
-            wrapper;
+            wrapper,
+            zIndex = 100;
         frameElement = doc.getElementById(WINDOW_ID);
         if (frameElement) {
+            zIndex = frameElement.style.zIndex;
             frameElement.parentNode.removeChild(frameElement);
-            frameElement.src = url;
-        } else {
-            wrapper = doc.createElement("div");
-            wrapper.innerHTML = '<iframe id="'+WINDOW_ID+'" '+
-                                'src="'+url+'" '+
-                                'width="100%" height="100%" '+
-                                'style="position: absolute; top: 0; left: 0; background-color:white; border: 0px;"></iframe>';
-
-            frameElement = wrapper.firstChild;
-            frameElement.style.zIndex = 100;
         }
+        wrapper = doc.createElement("div");
+        wrapper.innerHTML = '<iframe id="'+WINDOW_ID+'" '+
+                            'src="'+url+'" '+
+                            'width="100%" height="100%" '+
+                            'style="position: absolute; top: 0; left: 0; background-color:white; border: 0px;"></iframe>';
+
+        frameElement = wrapper.firstChild;
+        frameElement.style.zIndex = zIndex;
         doc.body.appendChild(frameElement);
 
         createToggleButtonIfNeeded();
@@ -153,22 +154,45 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 
     function deactivateWindow(win) {
-        win.setTimeout = noop;
-        win.clearTimeout = noop;
-        win.setInterval = noop;
-        win.clearInterval = noop;
+        noop(win, 'setTimeout');
+        noop(win, 'clearTimeout');
+        noop(win, 'setInterval');
+        noop(win, 'clearInterval');
         win.XMLHttpRequest = noopXhr;
+        var eventFnNames = [];
         if (win.attachEvent) {
-            win.attachEvent = noop;
-            win.Element.prototype.attachEvent = noop;
-            win.HTMLDocument.prototype.attachEvent = noop;
+            eventFnNames.push('attachEvent');
+            eventFnNames.push('detachEvent');
         } else {
-            win.addEventListener = noop;
-            win.Element.prototype.addEventListener = noop;
-            win.HTMLDocument.prototype.addEventListener = noop;
+            eventFnNames.push('addEventListener');
+            eventFnNames.push('removeEventListener');
+        }
+        var eventSources = [win, win.HTMLDocument.prototype];
+        if (win.Element) {
+            eventSources.push(win.Element.prototype);
+        } else if (win.HTMLElement) {
+            eventSources.push(win.HTMLElement.prototype);
+        }
+        var eventFnIndex, eventSourceIndex;
+        for (eventFnIndex = 0; eventFnIndex<eventFnNames.length; eventFnIndex++) {
+            for (eventSourceIndex=0; eventSourceIndex<eventSources.lenght; eventSourceIndex++) {
+                noop(eventSources[eventSourceIndex], eventFnNames[eventFnIndex]);
+            }
         }
 
-        function noop() { }
+        function noop(obj, name) {
+            // Note: Preserve the toString() as some frameworks react on it
+            // (e.g. requirejs...)
+            var original = obj[name];
+            var oldToString = ""+original;
+            res.toString = function() {
+                return oldToString();
+            };
+            obj[name] = res;
+            return res;
+
+            function res() { }
+        }
         function noopXhr() {
             this.open=noop;
             this.send=noop;

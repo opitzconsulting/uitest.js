@@ -9,6 +9,7 @@ Features:
 
 Breaking changes:
 
+* The iframe for the application under test is no more added to the top most iframe (e.g. if using Karma Runner) as this resulted in memory problems on iOS.
 * Tests that spawn multiple page reloads need to enable this using `feature('multiPage')`.
 * Tests for pages that reload the page using a form and HTTP POSTs are no more supported!
 

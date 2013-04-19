@@ -1,4 +1,4 @@
-uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe) {
+uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe', 'run/sniffer'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe, sniffer) {
     var changeListeners = [];
 
     // Attention: order matters here, as the simple "location" token
@@ -36,23 +36,34 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function instrumentLinks(window) {
-        var elProto = window.HTMLElement.prototype,
-            _fireEvent = elProto.fireEvent,
-            _dispatchEvent = elProto.dispatchEvent;
-
-        if (_fireEvent) {
-            elProto.fireEvent = checkAfterClick(_fireEvent);
-        } else if (_dispatchEvent) {
-            elProto.dispatchEvent = checkAfterClick(_dispatchEvent);
+        if (window.HTMLElement) {
+            instrumentElementProto(window.HTMLElement.prototype);
+        } else if (window.Element) {
+            instrumentElementProto(window.Element.prototype);
+        }
+        if (window.HTMLButtonElement) {
+            // In FF, Buttons have their own dispatchEvent, ... methods
+            instrumentElementProto(window.HTMLButtonElement.prototype);
         }
 
-        // Need to instrument click to use triggerEvent / fireEvent,
-        // as .click does not tell us if the default has been prevented!
-        // Note: Some browsers do note support .click, we add it here
-        // for all of them :-)
-        elProto.click = function newClick() {
+        function instrumentElementProto(elProto) {
+            var _fireEvent = elProto.fireEvent,
+                _dispatchEvent = elProto.dispatchEvent;
+            if (_fireEvent) {
+                elProto.fireEvent = checkAfterClick(fixFF684208(_fireEvent));
+            } else if (_dispatchEvent) {
+                elProto.dispatchEvent = checkAfterClick(fixFF684208(_dispatchEvent));
+            }
+            // Need to instrument click to use triggerEvent / fireEvent,
+            // as .click does not tell us if the default has been prevented!
+            // Note: Some browsers do note support .click, we add it here
+            // for all of them :-)
+            elProto.click = newClick;
+        }
+
+        function newClick() {
             fireEvent(this, 'click');
-        };
+        }
 
         function findLinkInParents(elm) {
             while (elm !== null) {
@@ -64,15 +75,43 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
             return elm;
         }
 
+        // temporary fix for https://bugzilla.mozilla.org/show_bug.cgi?id=684208:
+        // ff always returns false for links...
+        function fixFF684208(origTriggerFn) {
+            if (!sniffer.browser.ff) {
+                return origTriggerFn;
+            }
+            return function() {
+                var el = this,
+                    defaultPrevented = false,
+                    originalDefaultExecuted,
+                    evtObj = typeof arguments[0]==='object'?arguments[0]:arguments[1];
+
+                // TODO care for DOM-Level-0 handlers that return false!
+                var _preventDefault = evtObj.preventDefault;
+                evtObj.preventDefault = function() {
+                    defaultPrevented = true;
+                    return _preventDefault.apply(this, arguments);
+                };
+                origTriggerFn.apply(this, arguments);
+                return !defaultPrevented;
+            };
+        }
+
         function checkAfterClick(origTriggerFn) {
             return function() {
                 var el = this,
                     link = findLinkInParents(el),
-                    origHref = window.location.href;
-
-                var defaultExecuted = origTriggerFn.apply(this, arguments);
+                    origHref = window.location.href,
+                    defaultExecuted;
+                defaultExecuted = origTriggerFn.apply(this, arguments);
                 if (defaultExecuted && link) {
-                    triggerHrefChange(origHref, el.href);
+                    // Note: calling stopPropagation on a click event that has
+                    // been triggered for a child of a link still fires up
+                    // the link, although the event is not propagated to the
+                    // listeners of the link!
+                    // So we don't need to check for stopPropagation here!
+                    triggerHrefChange(origHref, link.href);
                 }
                 return defaultExecuted;
             };
@@ -146,6 +185,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
 
     function triggerHrefChange(oldHref, newHref) {
         var changeType;
+
         if (newHref.indexOf('#') === -1 || removeHash(newHref) !== removeHash(oldHref)) {
             changeType = 'reload';
         } else {
@@ -175,17 +215,30 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function createTestFn(window, location, locationProxy) {
+        // In IE8: location does not inherit from Object.prototype...
+        location.testLocation = testLocation;
+
         return function() {
-            window.Object.prototype.testLocation = function() {
-                delete window.Object.prototype.testLocation;
-                if (this === location) {
+            window.Object.prototype.testLocation = testLocation;
+            return 'testLocation';
+
+        };
+        function testLocation() {
+            // Note: Calling delete location.testLocation yields
+            // to an Error in IE8...
+            delete window.Object.prototype.testLocation;
+            // Note: In IE8 we can't do a this === location,
+            // as this seems to be some wrapper object...
+            this.testFlag = true;
+            try {
+                if (location.testFlag) {
                     return locationProxy;
                 }
-                return this;
-            };
-
-            return 'testLocation';
-        };
+            } finally {
+                delete this.testFlag;
+            }
+            return this;
+        }
     }
 
     function fireEvent(obj, evt) {

@@ -1,4 +1,4 @@
-describe('regression', function() {
+xdescribe('regression', function() {
     var uit = uitest.current;
 
     describe('not reload page if hash changes', function() {

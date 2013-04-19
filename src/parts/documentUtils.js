@@ -25,16 +25,30 @@ uitest.define('documentUtils', ['global', 'urlParser'], function(global, urlPars
             xhr = new global.XMLHttpRequest();
             xhr.open("GET", url, true);
         }
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200 || xhr.status === 0) {
-                    resultCallback(null, xhr.responseText);
-                } else {
-                    resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
+        if (typeof xhr.onload !== "undefined") {
+            // For XDomainRequest...
+            xhr.onload = onload;
+            xhr.onerror = function() {
+                resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
+            };
+        } else {
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    onload();
                 }
-            }
-        };
+            };
+        }
         xhr.send();
+
+        function onload() {
+            // Note: for IE XDomainRequest xhr has no status,
+            // and for file access xhr.status is always 0.
+            if (xhr.status === 200 || !xhr.status) {
+                resultCallback(null, xhr.responseText);
+            } else {
+                resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
+            }
+        }
     }
 
     function createCORSRequest(method, url) {
@@ -50,7 +64,7 @@ uitest.define('documentUtils', ['global', 'urlParser'], function(global, urlPars
             xhr.open(method, url);
         } else {
             // Otherwise, CORS is not supported by the browser.
-            xhr = null;
+            throw new Error("No CORS support in this browser!");
         }
         return xhr;
     }

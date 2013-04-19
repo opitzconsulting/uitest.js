@@ -1,16 +1,39 @@
 <!DOCTYPE html>
 <html>
 <body>
-    <script>
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'http://www.corsproxy.com/en.wikipedia.org/wiki/Http', true);
-        xhr.setRequestHeader("Accept","*/*");
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState===4) {
-                console.log(xhr.responseText);
-            }
+
+    <a href="#test">
+        <button onclick="load()">Test</button>
+    </a>
+    
+    <script>    
+
+
+    function load() {
+        var url = 'http://www.corsproxy.com/ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.js';
+        var xhr = new XDomainRequest();
+        xhr.open('GET',url);
+        xhr.onload = function() {
+            alert("nowload"+xhr.responseText.substring(0,100));
+        };
+        xhr.send();
+    }
+
+    function fireEvent(obj, evt) {
+        var fireOnThis = obj,
+            doc = obj.ownerDocument,
+            evtObj;
+
+        if (doc.createEvent) {
+            evtObj = doc.createEvent('MouseEvents');
+            evtObj.initEvent(evt, true, true);
+            return fireOnThis.dispatchEvent(evtObj);
+        } else if (doc.createEventObject) {
+            evtObj = doc.createEventObject();
+            return fireOnThis.fireEvent('on' + evt, evtObj);
         }
-        xhr.send(null);
+    }
+
 
     </script>
 

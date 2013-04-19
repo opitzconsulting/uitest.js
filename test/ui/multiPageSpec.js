@@ -14,7 +14,7 @@ describe('run/feature/multiPage', function() {
 
     it('should replace the location object by a proxy in page scripts', function() {
         uit.runs(function(window, location, locationProxy) {
-            expect(window.getLocation()).toBe(locationProxy);
+            expect(window.getLocation() === locationProxy).toBe(true);
         });
     });
 
@@ -45,6 +45,20 @@ describe('run/feature/multiPage', function() {
             window.reloadFlag = true;
             expect(location.href.indexOf('someFlag')).toBe(-1);
             var btn = document.getElementById('refreshByLink');
+            btn.click();
+        });
+        uit.runs(function(window, location, locationProxy) {
+            expect(window.reloadFlag).toBeUndefined();
+            expect(location.href.indexOf('someFlag')!==-1).toBe(true);
+            expect(window.getLocation()).toBe(locationProxy);
+        });
+    });
+
+    it('should allow reloads using children of links', function() {
+        uit.runs(function(window, document, location) {
+            window.reloadFlag = true;
+            expect(location.href.indexOf('someFlag')).toBe(-1);
+            var btn = document.getElementById('refreshByChildOfLink');
             btn.click();
         });
         uit.runs(function(window, location, locationProxy) {

@@ -1,16 +1,8 @@
 <!DOCTYPE html>
 <html>
 <body>
-    <button onclick="location.href+='#test';">Hello</button>
 
-    <script>        
-        var ifr = document.createElement("iframe");
-        ifr.src = 'test.html';
-        document.body.appendChild(ifr);
-        ifr.contentWindow.setTimeout = function(a) {
-            console.log("setTimeout"+a);
-        };
-    </script>
+    <iframe src="test.html"></iframe
 
 </body>
 </html>
