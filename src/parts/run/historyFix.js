@@ -1,7 +1,11 @@
 uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function(htmlInstrumentor, runConfig) {
+    var currentUrl;
+
     // This needs to be before the normal scriptAdder!
     preprocessHtml.priority = 9999;
     htmlInstrumentor.addPreProcessor(preprocessHtml);
+
+    runConfig.prepends.unshift(fixHistory);
 
     function preprocessHtml(event, control) {
         var state = event.state,
@@ -9,7 +13,7 @@ uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function
 
         if (!state.historyFix) {
             state.historyFix = true;
-            runConfig.prepends.unshift(fixHistory(state.url));
+            currentUrl = state.url;
         }
         control.next();
     }
@@ -23,7 +27,7 @@ uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function
         }
     }
 
-    function fixHistory(url) {
+    function fixHistory(history, location) {
         // Bugs fixed here:
         // - IE looses the hash when rewriting using a js url
         // - Rewriting using a js url or doc.open/write/close deletes the current history entry.
@@ -31,13 +35,11 @@ uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function
         //   (at least in a fresh Chrome in Inkognito mode)
         // - PhantomJS: creating a history entry using hash change does not work correctly.
         //   Using history.pushState however does work...
-        var currHash = hash(url);
-        return function(history, location) {
-            if (history.pushState) {
-                history.pushState(null, "", currHash);
-            } else {
-                location.hash="someUniqueHashToCreateAHistoryEntry";location.hash=currHash;
-            }
-        };
+        if (history.pushState) {
+            history.pushState(null, "", currentUrl);
+        } else {
+            var currHash = hash(currentUrl);
+            location.hash="someUniqueHashToCreateAHistoryEntry";location.hash=currHash;
+        }
     }
 });

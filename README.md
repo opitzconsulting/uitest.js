@@ -40,7 +40,7 @@ test frameworks.
     * No additional JS libs required
     * Does not need any additional test server, only a browser to execute the tests
 * Supports xhtml on most browsers:
-    * Not on IE<=8, as IE<=8 is not able to load xhtml in an iframe
+    * Not on IE8, as IE8 is not able to load xhtml in an iframe
       (error XML5632: only one root element is allowed).
 
 

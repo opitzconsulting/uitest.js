@@ -1,4 +1,4 @@
-uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe', 'run/sniffer'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe, sniffer) {
+uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe', 'sniffer'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe, sniffer) {
     var changeListeners = [];
 
     // Attention: order matters here, as the simple "location" token
@@ -36,22 +36,22 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function instrumentLinks(window) {
-        if (window.HTMLElement) {
-            instrumentElementProto(window.HTMLElement.prototype);
-        } else if (window.Element) {
-            instrumentElementProto(window.Element.prototype);
-        }
+        var elProto = window.HTMLElement?window.HTMLElement.prototype:window.Element.prototype;
+        instrumentElementProto(elProto);
         if (window.HTMLButtonElement) {
             // In FF, Buttons have their own dispatchEvent, ... methods
+            // In IE10, HTMLButtonElement exists but has the same methods
+            // as HTMLElement.
             instrumentElementProto(window.HTMLButtonElement.prototype);
         }
 
         function instrumentElementProto(elProto) {
             var _fireEvent = elProto.fireEvent,
                 _dispatchEvent = elProto.dispatchEvent;
-            if (_fireEvent) {
+            if (_fireEvent && !_fireEvent.uitest) {
                 elProto.fireEvent = checkAfterClick(fixFF684208(_fireEvent));
-            } else if (_dispatchEvent) {
+            }
+            if (_dispatchEvent && !_dispatchEvent.uitest) {
                 elProto.dispatchEvent = checkAfterClick(fixFF684208(_dispatchEvent));
             }
             // Need to instrument click to use triggerEvent / fireEvent,
@@ -81,7 +81,10 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
             if (!sniffer.browser.ff) {
                 return origTriggerFn;
             }
-            return function() {
+            result.uitest = true;
+            return result;
+
+            function result() {
                 var el = this,
                     defaultPrevented = false,
                     originalDefaultExecuted,
@@ -95,11 +98,14 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
                 };
                 origTriggerFn.apply(this, arguments);
                 return !defaultPrevented;
-            };
+            }
         }
 
         function checkAfterClick(origTriggerFn) {
-            return function() {
+            result.uitest = true;
+            return result;
+
+            function result() {
                 var el = this,
                     link = findLinkInParents(el),
                     origHref = window.location.href,
@@ -114,7 +120,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
                     triggerHrefChange(origHref, link.href);
                 }
                 return defaultExecuted;
-            };
+            }
 
         }
     }
@@ -185,7 +191,6 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
 
     function triggerHrefChange(oldHref, newHref) {
         var changeType;
-
         if (newHref.indexOf('#') === -1 || removeHash(newHref) !== removeHash(oldHref)) {
             changeType = 'reload';
         } else {

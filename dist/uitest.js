@@ -307,88 +307,18 @@ uitest.define('config', [], function() {
 		create: create
 	};
 });
-uitest.define('documentUtils', ['global', 'urlParser'], function(global, urlParser) {
-    var jsonpResultCallbacks = [];
-    global.uitest.jsonpResultCallbacks = jsonpResultCallbacks;
+uitest.define('documentUtils', ['global'], function(global) {
     return {
-        loadFile: loadFile,
         evalScript: evalScript,
-        loadScript: loadScript,
         addEventListener: addEventListener,
         removeEventListener: removeEventListener,
         textContent: textContent
     };
 
-    function loadFile(url, resultCallback) {
-        var xhr;
-        if (!urlParser.isAbsoluteUrl(url)) {
-            throw new Error("expected an absolute url!");
+    function evalScript(win, scriptUrl, scriptContent) { /*jshint evil:true*/
+        if (scriptUrl) {
+            scriptContent += "//@ sourceURL=" + scriptUrl;
         }
-        var parsedBaseUrl = urlParser.parseUrl(global.location.href),
-            parsedLoadUrl = urlParser.parseUrl(url);
-        if (parsedBaseUrl.domain && parsedLoadUrl.domain && parsedBaseUrl.domain !== parsedLoadUrl.domain) {
-            parsedLoadUrl.path = '/' + parsedLoadUrl.domain + parsedLoadUrl.path;
-            parsedLoadUrl.domain = "www.corsproxy.com";
-            xhr = createCORSRequest('GET', urlParser.serializeUrl(parsedLoadUrl));
-        } else {
-            xhr = new global.XMLHttpRequest();
-            xhr.open("GET", url, true);
-        }
-        if (typeof xhr.onload !== "undefined") {
-            // For XDomainRequest...
-            xhr.onload = onload;
-            xhr.onerror = function() {
-                resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
-            };
-        } else {
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    onload();
-                }
-            };
-        }
-        xhr.send();
-
-        function onload() {
-            // Note: for IE XDomainRequest xhr has no status,
-            // and for file access xhr.status is always 0.
-            if (xhr.status === 200 || !xhr.status) {
-                resultCallback(null, xhr.responseText);
-            } else {
-                resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
-            }
-        }
-    }
-
-    function createCORSRequest(method, url) {
-        var xhr = new global.XMLHttpRequest();
-        if ("withCredentials" in xhr) {
-            // Check if the XMLHttpRequest object has a "withCredentials" property.
-            // "withCredentials" only exists on XMLHTTPRequest2 objects.
-            xhr.open(method, url, true);
-        } else if (typeof global.XDomainRequest !== "undefined") {
-            // Otherwise, check if XDomainRequest.
-            // XDomainRequest only exists in IE, and is IE's way of making CORS requests.
-            xhr = new global.XDomainRequest();
-            xhr.open(method, url);
-        } else {
-            // Otherwise, CORS is not supported by the browser.
-            throw new Error("No CORS support in this browser!");
-        }
-        return xhr;
-    }
-
-    function loadScript(url, resultCallback) {
-        loadFile(url, function(error, data) {
-            if (!error) {
-                resultCallback(null, data + "//@ sourceURL=" + url);
-            } else {
-                resultCallback(error, data);
-            }
-        });
-    }
-
-    function evalScript(win, scriptContent) { /*jshint evil:true*/
         win["eval"].call(win, scriptContent);
     }
 
@@ -431,7 +361,7 @@ uitest.define('documentUtils', ['global', 'urlParser'], function(global, urlPars
     }
 
 });
-uitest.define('facade', ['config', 'global', 'sniffer'], function(config, global, sniffer) {
+uitest.define('facade', ['config', 'global'], function(config, global) {
     var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'feature', 'append', 'prepend', 'intercept', 'trace'],
         _currentIdAccessor = function() { return ''; }, current;
 
@@ -545,33 +475,28 @@ uitest.define('facade', ['config', 'global', 'sniffer'], function(config, global
 
     function run(self, finishedCb) {
         var config, featureName, featureModules, i;
-        sniffer(function(sniffedData) {
-            self._config.sealed(true);
-            config = self._config.buildConfig();
-            self._runModules = {
-                "run/config": config,
-                "run/sniffer": sniffedData
-            };
+        self._config.sealed(true);
+        config = self._config.buildConfig();
+        self._runModules = {
+            "run/config": config
+        };
 
-            uitest.require(self._runModules, function(moduleName) {
-                if (moduleName.indexOf('run/')!==0) {
-                    return false;
-                }
-                if (moduleName.indexOf('run/feature/')===0) {
-                    return false;
-                }
-                return true;
-            });
-            featureModules = [];
-            for (i=0; i<config.features.length; i++) {
-                featureName = config.features[i];
-                featureModules.push(featureModule(featureName));
+        uitest.require(self._runModules, function(moduleName) {
+            if (moduleName.indexOf('run/')!==0) {
+                return false;
             }
-            uitest.require(self._runModules, featureModules);
-            finishedCb();
+            if (moduleName.indexOf('run/feature/')===0) {
+                return false;
+            }
+            return true;
         });
-
-
+        featureModules = [];
+        for (i=0; i<config.features.length; i++) {
+            featureName = config.features[i];
+            featureModules.push(featureModule(featureName));
+        }
+        uitest.require(self._runModules, featureModules);
+        finishedCb();
     }
 
     function featureModule(featureName) {
@@ -603,6 +528,78 @@ uitest.define('facade', ['config', 'global', 'sniffer'], function(config, global
             }
         }
     };
+});
+uitest.define('fileLoader', ['global','sniffer','urlParser'], function(global, sniffer, urlParser) {
+    var jsonpResultCallbacks = [];
+    global.uitest.jsonpResultCallbacks = jsonpResultCallbacks;
+
+    return loadFile;
+
+    // ---------
+    function loadFile(url, resultCallback) {
+        var xhr;
+        if (!urlParser.isAbsoluteUrl(url)) {
+            throw new Error("expected an absolute url!");
+        }
+        var parsedBaseUrl = urlParser.parseUrl(global.location.href),
+            parsedLoadUrl = urlParser.parseUrl(url);
+        if (parsedBaseUrl.domain && parsedLoadUrl.domain && parsedBaseUrl.domain !== parsedLoadUrl.domain) {
+            parsedLoadUrl.path = '/' + parsedLoadUrl.domain + parsedLoadUrl.path;
+            parsedLoadUrl.domain = "www.corsproxy.com";
+            xhr = createCORSRequest('GET', urlParser.serializeUrl(parsedLoadUrl));
+        } else {
+            xhr = new global.XMLHttpRequest();
+            xhr.open("GET", url, true);
+        }
+        if (typeof xhr.onload !== "undefined") {
+            // For XDomainRequest...
+            xhr.onload = onload;
+            xhr.onerror = function(error) {
+                resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
+            };
+        } else {
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    onload();
+                }
+            };
+        }
+        xhr.send();
+
+        function onload() {
+            // Note: for IE XDomainRequest xhr has no status,
+            // and for file access xhr.status is always 0.
+            if (xhr.status === 200 || !xhr.status) {
+                resultCallback(null, xhr.responseText);
+            } else {
+                resultCallback(new Error("Error loading url " + url + ":" + xhr.statusText));
+            }
+        }
+    }
+
+    function createCORSRequest(method, url) {
+        // android has problems with internal caching when 
+        // doing cors requests. So we need to do cache busting every time!
+        // See http://opensourcehacker.com/2011/03/20/android-webkit-xhr-status-code-0-and-expires-headers/
+        if (sniffer.browser.android) {
+            url = urlParser.cacheBustingUrl(url, new global.Date().getTime());
+        }
+        var xhr = new global.XMLHttpRequest();
+        if ("withCredentials" in xhr) {
+            // Check if the XMLHttpRequest object has a "withCredentials" property.
+            // "withCredentials" only exists on XMLHTTPRequest2 objects.
+            xhr.open(method, url, true);
+        } else if (typeof global.XDomainRequest !== "undefined") {
+            // Otherwise, check if XDomainRequest.
+            // XDomainRequest only exists in IE, and is IE's way of making CORS requests.
+            xhr = new global.XDomainRequest();
+            xhr.open(method, url);
+        } else {
+            // Otherwise, CORS is not supported by the browser.
+            throw new Error("No CORS support in this browser!");
+        }
+        return xhr;
+    }
 });
 uitest.define('global', [], function() {
 	return window;
@@ -1163,7 +1160,7 @@ uitest.define('run/feature/jqmAnimationSensor', ['run/config', 'run/ready'], fun
         };
     }
 });
-uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe', 'run/sniffer'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe, sniffer) {
+uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe', 'sniffer'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe, sniffer) {
     var changeListeners = [];
 
     // Attention: order matters here, as the simple "location" token
@@ -1201,22 +1198,22 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function instrumentLinks(window) {
-        if (window.HTMLElement) {
-            instrumentElementProto(window.HTMLElement.prototype);
-        } else if (window.Element) {
-            instrumentElementProto(window.Element.prototype);
-        }
+        var elProto = window.HTMLElement?window.HTMLElement.prototype:window.Element.prototype;
+        instrumentElementProto(elProto);
         if (window.HTMLButtonElement) {
             // In FF, Buttons have their own dispatchEvent, ... methods
+            // In IE10, HTMLButtonElement exists but has the same methods
+            // as HTMLElement.
             instrumentElementProto(window.HTMLButtonElement.prototype);
         }
 
         function instrumentElementProto(elProto) {
             var _fireEvent = elProto.fireEvent,
                 _dispatchEvent = elProto.dispatchEvent;
-            if (_fireEvent) {
+            if (_fireEvent && !_fireEvent.uitest) {
                 elProto.fireEvent = checkAfterClick(fixFF684208(_fireEvent));
-            } else if (_dispatchEvent) {
+            }
+            if (_dispatchEvent && !_dispatchEvent.uitest) {
                 elProto.dispatchEvent = checkAfterClick(fixFF684208(_dispatchEvent));
             }
             // Need to instrument click to use triggerEvent / fireEvent,
@@ -1246,7 +1243,10 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
             if (!sniffer.browser.ff) {
                 return origTriggerFn;
             }
-            return function() {
+            result.uitest = true;
+            return result;
+
+            function result() {
                 var el = this,
                     defaultPrevented = false,
                     originalDefaultExecuted,
@@ -1260,11 +1260,14 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
                 };
                 origTriggerFn.apply(this, arguments);
                 return !defaultPrevented;
-            };
+            }
         }
 
         function checkAfterClick(origTriggerFn) {
-            return function() {
+            result.uitest = true;
+            return result;
+
+            function result() {
                 var el = this,
                     link = findLinkInParents(el),
                     origHref = window.location.href,
@@ -1279,7 +1282,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
                     triggerHrefChange(origHref, link.href);
                 }
                 return defaultExecuted;
-            };
+            }
 
         }
     }
@@ -1350,7 +1353,6 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
 
     function triggerHrefChange(oldHref, newHref) {
         var changeType;
-
         if (newHref.indexOf('#') === -1 || removeHash(newHref) !== removeHash(oldHref)) {
             changeType = 'reload';
         } else {
@@ -1604,9 +1606,13 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
     }
 });
 uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function(htmlInstrumentor, runConfig) {
+    var currentUrl;
+
     // This needs to be before the normal scriptAdder!
     preprocessHtml.priority = 9999;
     htmlInstrumentor.addPreProcessor(preprocessHtml);
+
+    runConfig.prepends.unshift(fixHistory);
 
     function preprocessHtml(event, control) {
         var state = event.state,
@@ -1614,7 +1620,7 @@ uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function
 
         if (!state.historyFix) {
             state.historyFix = true;
-            runConfig.prepends.unshift(fixHistory(state.url));
+            currentUrl = state.url;
         }
         control.next();
     }
@@ -1628,7 +1634,7 @@ uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function
         }
     }
 
-    function fixHistory(url) {
+    function fixHistory(history, location) {
         // Bugs fixed here:
         // - IE looses the hash when rewriting using a js url
         // - Rewriting using a js url or doc.open/write/close deletes the current history entry.
@@ -1636,17 +1642,15 @@ uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function
         //   (at least in a fresh Chrome in Inkognito mode)
         // - PhantomJS: creating a history entry using hash change does not work correctly.
         //   Using history.pushState however does work...
-        var currHash = hash(url);
-        return function(history, location) {
-            if (history.pushState) {
-                history.pushState(null, "", currHash);
-            } else {
-                location.hash="someUniqueHashToCreateAHistoryEntry";location.hash=currHash;
-            }
-        };
+        if (history.pushState) {
+            history.pushState(null, "", currentUrl);
+        } else {
+            var currHash = hash(currentUrl);
+            location.hash="someUniqueHashToCreateAHistoryEntry";location.hash=currHash;
+        }
     }
 });
-uitest.define('run/htmlInstrumentor', ['documentUtils', 'run/config', 'run/logger', 'global', 'run/testframe', 'run/sniffer', 'htmlParserFactory'], function(docUtils, runConfig, logger, global, testframe, sniffer, htmlParserFactory) {
+uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/config', 'run/logger', 'global', 'run/testframe', 'sniffer', 'htmlParserFactory'], function(fileLoader, runConfig, logger, global, testframe, sniffer, htmlParserFactory) {
 
     var exports,
         preProcessors = [],
@@ -1660,7 +1664,7 @@ uitest.define('run/htmlInstrumentor', ['documentUtils', 'run/config', 'run/logge
     return exports;
 
     function processHtml(url, finishedCallback) {
-        docUtils.loadFile(url, function(error, html) {
+        fileLoader(url, function(error, html) {
             if (error) {
                 finishedCallback(error);
                 return;
@@ -1797,6 +1801,7 @@ uitest.define('run/main', ['documentUtils', 'urlParser', 'global','run/logger', 
         logger.log("opening url "+url);
         htmlInstrumentor.processHtml(url, function(error, html) {
             if (error) {
+                logger.log("Error: "+JSON.stringify(error));
                 throw error;
             }
             logger.log("rewriting url "+url);
@@ -2168,7 +2173,7 @@ uitest.define('run/scriptAdder', ['run/config', 'run/htmlInstrumentor', 'documen
         handleAppends: handleAppends
     };
 });
-uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector', 'documentUtils', 'run/logger', 'run/testframe', 'jsParserFactory', 'run/requirejsInstrumentor', 'urlParser'], function(docInstrumentor, injector, docUtils, logger, testframe, jsParserFactory, requirejsInstrumentor, urlParser) {
+uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector', 'documentUtils', 'fileLoader', 'run/logger', 'run/testframe', 'jsParserFactory', 'run/requirejsInstrumentor', 'urlParser'], function(docInstrumentor, injector, docUtils, fileLoader, logger, testframe, jsParserFactory, requirejsInstrumentor, urlParser) {
     var preProcessors = [],
         jsParser = jsParserFactory();
 
@@ -2191,7 +2196,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
 
         if (token.type==='urlscript') {
             absUrl = urlParser.makeAbsoluteUrl(token.src, state.url);
-            docUtils.loadScript(absUrl, function(error, scriptContent) {
+            fileLoader(absUrl, function(error, scriptContent) {
                 if (error) {
                     control.stop(error);
                 } else {
@@ -2223,7 +2228,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                 event.pushToken({
                     type: 'contentscript',
                     content: testframe.createRemoteCallExpression(function(win) {
-                        docUtils.evalScript(win, newScriptContent);
+                        docUtils.evalScript(win, scriptSrc, newScriptContent);
                     }, "window"),
                     attrs: scriptAttrs
                 });
@@ -2241,7 +2246,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
             docUrl = testframe.win().document.location.href,
             absUrl = urlParser.makeAbsoluteUrl(url, docUrl);
 
-        docUtils.loadScript(absUrl, function(error, scriptContent) {
+        fileLoader(absUrl, function(error, scriptContent) {
             if (error) {
                 control.stop(error);
             }
@@ -2260,7 +2265,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                 }
                 logger.log("intercepting "+url);
                 try {
-                    docUtils.evalScript(testframe.win(), newScriptContent);
+                    docUtils.evalScript(testframe.win(), absUrl, newScriptContent);
                 } catch (e) {
                     error = e;
                 }
@@ -2270,7 +2275,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
     }
 });
 
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
     var WINDOW_ID = 'uitestwindow',
         BUTTON_ID = WINDOW_ID+'Btn',
         BUTTON_LISTENER_ID = BUTTON_ID+"Listener",
@@ -2326,7 +2331,11 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         function afterFrameCreate() {
             var win = getIframeWindow();
             win.history.pushState(null, '', url);
-            if (false && sniffer.jsUrl) {
+            // Firefox does not support js urls:
+            // - it does not revert back to the previous url
+            // Android does not set the location correctly when
+            // using js urls and a pushState before.
+            if (!sniffer.browser.android && !sniffer.browser.ff) {
                 rewriteUsingJsUrl(win,html);
             } else {
                 rewriteUsingDocOpen(win, html);
@@ -2337,7 +2346,6 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     function loadWithoutHistoryApi(url, html) {
         createFrame(url);
         var win = getIframeWindow();
-        win.tbo = true;
         docUtils.addEventListener(win, 'load', onload);
         deactivateWindow(win);
 
@@ -2345,6 +2353,8 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
             // Need to use javascript urls here to support xhtml,
             // as we loaded the document into the browser, and in xhtml
             // documents we can't open/write/close the document after this any more!
+            // Note: Older browser (e.g. IE8) tend to implement js urls better
+            // than new ones (e.g. FF oder Android) :-(
             rewriteUsingJsUrl(win, html);
         }
     }
@@ -2426,24 +2436,22 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 
     function deactivateWindow(win) {
+        var elProto = win.HTMLElement?win.HTMLElement.prototype:win.Element.prototype,
+            docProto = win.HTMLDocument?win.HTMLDocument.prototype:win.Document.prototype,
+            eventSources = [win, elProto, docProto],
+            eventFnNames = [];
+
         noop(win, 'setTimeout');
         noop(win, 'clearTimeout');
         noop(win, 'setInterval');
         noop(win, 'clearInterval');
         win.XMLHttpRequest = noopXhr;
-        var eventFnNames = [];
         if (win.attachEvent) {
             eventFnNames.push('attachEvent');
             eventFnNames.push('detachEvent');
         } else {
             eventFnNames.push('addEventListener');
             eventFnNames.push('removeEventListener');
-        }
-        var eventSources = [win, win.HTMLDocument.prototype];
-        if (win.Element) {
-            eventSources.push(win.Element.prototype);
-        } else if (win.HTMLElement) {
-            eventSources.push(win.HTMLElement.prototype);
         }
         var eventFnIndex, eventSourceIndex;
         for (eventFnIndex = 0; eventFnIndex<eventFnNames.length; eventFnIndex++) {
@@ -2483,33 +2491,10 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
 uitest.define('sniffer', ['global', 'documentUtils'], function(global, documentUtils) {
 
-    // This is especially for FF, as it does not revert back
-    // to the previous url when using a js url.
-    function jsUrlDoesNotChangeLocation(callback) {
-        var tmpFrame = global.document.createElement("iframe");
-        global.document.body.appendChild(tmpFrame);
-        // Opening and closing applies the
-        // location href from the parent window to the iframe.
-        tmpFrame.contentWindow.document.open();
-        tmpFrame.contentWindow.document.close();
-        // The timeout is needed as FF triggers the onload
-        // from the previous document.open/close
-        // even if we set the onload AFTER we did document.open/close!
-        global.setTimeout(changeHrefAndAddOnLoad, 0);
-
-        function changeHrefAndAddOnLoad() {
-            /*jshint scripturl:true*/
-            documentUtils.addEventListener(tmpFrame, "load", onloadCallback);
-            tmpFrame.contentWindow.location.href="javascript:'<html><body>Hello</body></html>'";
-        }
-
-        function onloadCallback(){
-            /*jshint scripturl:true*/
-            var result = tmpFrame.contentWindow.location.href.indexOf('javascript:')===-1;
-            tmpFrame.parentNode.removeChild(tmpFrame);
-            callback(result);
-        }
-    }
+    return {
+        browser: browserSniffer(),
+        history: !!global.history.pushState
+    };
 
     function browserSniffer() {
         var useragent = global.navigator.userAgent.toLowerCase(),
@@ -2523,19 +2508,6 @@ uitest.define('sniffer', ['global', 'documentUtils'], function(global, documentU
             ff: ff
         };
     }
-
-
-    function detectFeatures(readyCallback) {
-        jsUrlDoesNotChangeLocation(function(jsUrlSupported) {
-            readyCallback({
-                jsUrl: jsUrlSupported,
-                browser: browserSniffer(),
-                history: !!global.history.pushState
-            });
-        });
-    }
-
-    return detectFeatures;
 });
 uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
 

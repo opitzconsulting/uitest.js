@@ -1,4 +1,4 @@
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'run/sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
     var WINDOW_ID = 'uitestwindow',
         BUTTON_ID = WINDOW_ID+'Btn',
         BUTTON_LISTENER_ID = BUTTON_ID+"Listener",
@@ -54,7 +54,11 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         function afterFrameCreate() {
             var win = getIframeWindow();
             win.history.pushState(null, '', url);
-            if (false && sniffer.jsUrl) {
+            // Firefox does not support js urls:
+            // - it does not revert back to the previous url
+            // Android does not set the location correctly when
+            // using js urls and a pushState before.
+            if (!sniffer.browser.android && !sniffer.browser.ff) {
                 rewriteUsingJsUrl(win,html);
             } else {
                 rewriteUsingDocOpen(win, html);
@@ -65,7 +69,6 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     function loadWithoutHistoryApi(url, html) {
         createFrame(url);
         var win = getIframeWindow();
-        win.tbo = true;
         docUtils.addEventListener(win, 'load', onload);
         deactivateWindow(win);
 
@@ -73,6 +76,8 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
             // Need to use javascript urls here to support xhtml,
             // as we loaded the document into the browser, and in xhtml
             // documents we can't open/write/close the document after this any more!
+            // Note: Older browser (e.g. IE8) tend to implement js urls better
+            // than new ones (e.g. FF oder Android) :-(
             rewriteUsingJsUrl(win, html);
         }
     }
@@ -154,24 +159,22 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 
     function deactivateWindow(win) {
+        var elProto = win.HTMLElement?win.HTMLElement.prototype:win.Element.prototype,
+            docProto = win.HTMLDocument?win.HTMLDocument.prototype:win.Document.prototype,
+            eventSources = [win, elProto, docProto],
+            eventFnNames = [];
+
         noop(win, 'setTimeout');
         noop(win, 'clearTimeout');
         noop(win, 'setInterval');
         noop(win, 'clearInterval');
         win.XMLHttpRequest = noopXhr;
-        var eventFnNames = [];
         if (win.attachEvent) {
             eventFnNames.push('attachEvent');
             eventFnNames.push('detachEvent');
         } else {
             eventFnNames.push('addEventListener');
             eventFnNames.push('removeEventListener');
-        }
-        var eventSources = [win, win.HTMLDocument.prototype];
-        if (win.Element) {
-            eventSources.push(win.Element.prototype);
-        } else if (win.HTMLElement) {
-            eventSources.push(win.HTMLElement.prototype);
         }
         var eventFnIndex, eventSourceIndex;
         for (eventFnIndex = 0; eventFnIndex<eventFnNames.length; eventFnIndex++) {

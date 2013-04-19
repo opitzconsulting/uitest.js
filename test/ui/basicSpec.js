@@ -1,4 +1,4 @@
-describe('basic', function() {
+ddescribe('basic', function() {
     function endsWith(string, end) {
         return string.substring(string.length - end.length) === end;
     }

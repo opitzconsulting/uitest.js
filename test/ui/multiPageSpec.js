@@ -36,7 +36,7 @@ describe('run/feature/multiPage', function() {
         uit.runs(function(window, location, locationProxy) {
             expect(window.reloadFlag).toBeUndefined();
             expect(location.href.indexOf('someFlag')!==-1).toBe(true);
-            expect(window.getLocation()).toBe(locationProxy);
+            expect(window.getLocation() === locationProxy).toBe(true);
         });
     });
 
@@ -50,7 +50,7 @@ describe('run/feature/multiPage', function() {
         uit.runs(function(window, location, locationProxy) {
             expect(window.reloadFlag).toBeUndefined();
             expect(location.href.indexOf('someFlag')!==-1).toBe(true);
-            expect(window.getLocation()).toBe(locationProxy);
+            expect(window.getLocation() === locationProxy).toBe(true);
         });
     });
 
@@ -64,7 +64,7 @@ describe('run/feature/multiPage', function() {
         uit.runs(function(window, location, locationProxy) {
             expect(window.reloadFlag).toBeUndefined();
             expect(location.href.indexOf('someFlag')!==-1).toBe(true);
-            expect(window.getLocation()).toBe(locationProxy);
+            expect(window.getLocation() === locationProxy).toBe(true);
         });
     });
 

@@ -16,6 +16,7 @@ uitest.define('run/main', ['documentUtils', 'urlParser', 'global','run/logger', 
         logger.log("opening url "+url);
         htmlInstrumentor.processHtml(url, function(error, html) {
             if (error) {
+                logger.log("Error: "+JSON.stringify(error));
                 throw error;
             }
             logger.log("rewriting url "+url);

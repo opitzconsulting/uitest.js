@@ -10,12 +10,23 @@
 
 
     function load() {
-        var url = 'http://www.corsproxy.com/ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.js';
-        var xhr = new XDomainRequest();
-        xhr.open('GET',url);
+        var url = 'http://www.corsproxy.com/ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.js?8';
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET',url,true);
+        xhr.onreadystatechange = function() {
+            console.log("readystatechange");
+            if (xhr.readyState===4) {
+                console.log(xhr.responseText);
+            }
+        }
+        /*
         xhr.onload = function() {
             alert("nowload"+xhr.responseText.substring(0,100));
         };
+        xhr.onerror = function() {
+            alert("error "+JSON.stringify(xhr));
+        };
+        */
         xhr.send();
     }
 

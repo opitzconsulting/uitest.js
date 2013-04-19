@@ -1,4 +1,4 @@
-uitest.define('run/htmlInstrumentor', ['documentUtils', 'run/config', 'run/logger', 'global', 'run/testframe', 'run/sniffer', 'htmlParserFactory'], function(docUtils, runConfig, logger, global, testframe, sniffer, htmlParserFactory) {
+uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/config', 'run/logger', 'global', 'run/testframe', 'sniffer', 'htmlParserFactory'], function(fileLoader, runConfig, logger, global, testframe, sniffer, htmlParserFactory) {
 
     var exports,
         preProcessors = [],
@@ -12,7 +12,7 @@ uitest.define('run/htmlInstrumentor', ['documentUtils', 'run/config', 'run/logge
     return exports;
 
     function processHtml(url, finishedCallback) {
-        docUtils.loadFile(url, function(error, html) {
+        fileLoader(url, function(error, html) {
             if (error) {
                 finishedCallback(error);
                 return;

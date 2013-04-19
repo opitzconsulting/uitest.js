@@ -1,4 +1,4 @@
-uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector', 'documentUtils', 'run/logger', 'run/testframe', 'jsParserFactory', 'run/requirejsInstrumentor', 'urlParser'], function(docInstrumentor, injector, docUtils, logger, testframe, jsParserFactory, requirejsInstrumentor, urlParser) {
+uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector', 'documentUtils', 'fileLoader', 'run/logger', 'run/testframe', 'jsParserFactory', 'run/requirejsInstrumentor', 'urlParser'], function(docInstrumentor, injector, docUtils, fileLoader, logger, testframe, jsParserFactory, requirejsInstrumentor, urlParser) {
     var preProcessors = [],
         jsParser = jsParserFactory();
 
@@ -21,7 +21,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
 
         if (token.type==='urlscript') {
             absUrl = urlParser.makeAbsoluteUrl(token.src, state.url);
-            docUtils.loadScript(absUrl, function(error, scriptContent) {
+            fileLoader(absUrl, function(error, scriptContent) {
                 if (error) {
                     control.stop(error);
                 } else {
@@ -53,7 +53,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                 event.pushToken({
                     type: 'contentscript',
                     content: testframe.createRemoteCallExpression(function(win) {
-                        docUtils.evalScript(win, newScriptContent);
+                        docUtils.evalScript(win, scriptSrc, newScriptContent);
                     }, "window"),
                     attrs: scriptAttrs
                 });
@@ -71,7 +71,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
             docUrl = testframe.win().document.location.href,
             absUrl = urlParser.makeAbsoluteUrl(url, docUrl);
 
-        docUtils.loadScript(absUrl, function(error, scriptContent) {
+        fileLoader(absUrl, function(error, scriptContent) {
             if (error) {
                 control.stop(error);
             }
@@ -90,7 +90,7 @@ uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector',
                 }
                 logger.log("intercepting "+url);
                 try {
-                    docUtils.evalScript(testframe.win(), newScriptContent);
+                    docUtils.evalScript(testframe.win(), absUrl, newScriptContent);
                 } catch (e) {
                     error = e;
                 }

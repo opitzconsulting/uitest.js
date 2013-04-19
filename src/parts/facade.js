@@ -1,4 +1,4 @@
-uitest.define('facade', ['config', 'global', 'sniffer'], function(config, global, sniffer) {
+uitest.define('facade', ['config', 'global'], function(config, global) {
     var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'feature', 'append', 'prepend', 'intercept', 'trace'],
         _currentIdAccessor = function() { return ''; }, current;
 
@@ -112,33 +112,28 @@ uitest.define('facade', ['config', 'global', 'sniffer'], function(config, global
 
     function run(self, finishedCb) {
         var config, featureName, featureModules, i;
-        sniffer(function(sniffedData) {
-            self._config.sealed(true);
-            config = self._config.buildConfig();
-            self._runModules = {
-                "run/config": config,
-                "run/sniffer": sniffedData
-            };
+        self._config.sealed(true);
+        config = self._config.buildConfig();
+        self._runModules = {
+            "run/config": config
+        };
 
-            uitest.require(self._runModules, function(moduleName) {
-                if (moduleName.indexOf('run/')!==0) {
-                    return false;
-                }
-                if (moduleName.indexOf('run/feature/')===0) {
-                    return false;
-                }
-                return true;
-            });
-            featureModules = [];
-            for (i=0; i<config.features.length; i++) {
-                featureName = config.features[i];
-                featureModules.push(featureModule(featureName));
+        uitest.require(self._runModules, function(moduleName) {
+            if (moduleName.indexOf('run/')!==0) {
+                return false;
             }
-            uitest.require(self._runModules, featureModules);
-            finishedCb();
+            if (moduleName.indexOf('run/feature/')===0) {
+                return false;
+            }
+            return true;
         });
-
-
+        featureModules = [];
+        for (i=0; i<config.features.length; i++) {
+            featureName = config.features[i];
+            featureModules.push(featureModule(featureName));
+        }
+        uitest.require(self._runModules, featureModules);
+        finishedCb();
     }
 
     function featureModule(featureName) {

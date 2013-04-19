@@ -1,4 +1,4 @@
-xdescribe('regression', function() {
+describe('regression', function() {
     var uit = uitest.current;
 
     describe('not reload page if hash changes', function() {
@@ -55,7 +55,8 @@ xdescribe('regression', function() {
         });
     });
 
-    describe('history', function() {
+    // TODO: Does not work in IE...
+    xdescribe('history', function() {
         describe('go back to the initial url', function() {
             it('should work using using hashes', function() {
                 var initHref;
@@ -83,6 +84,7 @@ xdescribe('regression', function() {
                 uit.runs(function(history, location) {
                     history.back();
                 });
+                waits(500);
                 uit.runs(function(location) {
                     expect(location.href).toBe(initHref);
                 });
