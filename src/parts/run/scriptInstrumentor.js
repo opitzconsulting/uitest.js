@@ -1,101 +1,40 @@
-uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector', 'documentUtils', 'fileLoader', 'run/logger', 'run/testframe', 'jsParserFactory', 'run/requirejsInstrumentor', 'urlParser'], function(docInstrumentor, injector, docUtils, fileLoader, logger, testframe, jsParserFactory, requirejsInstrumentor, urlParser) {
-    var preProcessors = [],
-        jsParser = jsParserFactory();
+uitest.define('run/scriptInstrumentor', ['run/eventSource', 'fileLoader', 'run/logger', 'jsParserFactory'], function(eventSource, fileLoader, logger, jsParserFactory) {
+    var jsParser = jsParserFactory();
 
-    docInstrumentor.addPreProcessor(preprocessHtml);
-    requirejsInstrumentor.addEventListener(requirejsEventHandler);
+    eventSource.on('instrumentScript', instrumentScript);
 
     return {
-        addPreProcessor: addPreProcessor,
         jsParser: jsParser
     };
 
-    function addPreProcessor(processor) {
-        preProcessors.push(processor);
-    }
-
-    function preprocessHtml(event, control) {
-        var token = event.token,
-            state = event.state,
-            absUrl;
-
-        if (token.type==='urlscript') {
-            absUrl = urlParser.makeAbsoluteUrl(token.src, state.url);
-            fileLoader(absUrl, function(error, scriptContent) {
+    function instrumentScript(event, done) {
+        if (!event.content && event.src) {
+            fileLoader(event.src, function(error, scriptContent) {
                 if (error) {
-                    control.stop(error);
+                    done(error);
                 } else {
-                    onScriptLoaded(token.src, token.preAttrs + token.postAttrs, scriptContent);
+                    scriptContentLoaded(scriptContent);
                 }
             });
-        } else if (token.type === 'contentscript') {
-            onScriptLoaded(null, token.attrs, token.content);
         } else {
-            control.next();
+            scriptContentLoaded(event.content);
         }
-        return;
 
-        function onScriptLoaded(scriptSrc, scriptAttrs, scriptContent) {
-            jsParser.transform(scriptContent,{
-                src: scriptSrc
-            },preProcessors,resultCallback);
+        function scriptContentLoaded(scriptContent) {
+            jsParser.transform({
+                input: scriptContent,
+                eventSource: eventSource,
+                eventPrefix: 'js:',
+                state: {
+                    scriptUrl: event.src
+                }
+            }, jsTransformDone);
 
-            function resultCallback(error, newScriptContent) {
-                if (error) {
-                    control.stop(error);
-                    return;
-                }
-                if (newScriptContent===scriptContent) {
-                    control.next();
-                    return;
-                }
-                logger.log("intercepting "+scriptSrc);
-                event.pushToken({
-                    type: 'contentscript',
-                    content: testframe.createRemoteCallExpression(function(win) {
-                        docUtils.evalScript(win, scriptSrc, newScriptContent);
-                    }, "window"),
-                    attrs: scriptAttrs
-                });
-                control.stop();
+            function jsTransformDone(error, newScriptContent) {
+                event.content = newScriptContent;
+                event.changed = newScriptContent !== scriptContent;
+                done(error, event);
             }
         }
-    }
-
-    function requirejsEventHandler(event, control) {
-        if (event.type !== 'load') {
-            control.next();
-            return;
-        }
-        var url = event.url,
-            docUrl = testframe.win().document.location.href,
-            absUrl = urlParser.makeAbsoluteUrl(url, docUrl);
-
-        fileLoader(absUrl, function(error, scriptContent) {
-            if (error) {
-                control.stop(error);
-            }
-            jsParser.transform(scriptContent,{
-                src:url
-            },preProcessors,resultCallback);
-
-            function resultCallback(error, newScriptContent) {
-                if (error) {
-                    control.stop(error);
-                    return;
-                }
-                if (newScriptContent===scriptContent) {
-                    control.next();
-                    return;
-                }
-                logger.log("intercepting "+url);
-                try {
-                    docUtils.evalScript(testframe.win(), absUrl, newScriptContent);
-                } catch (e) {
-                    error = e;
-                }
-                control.stop(error);
-            }
-        });
     }
 });

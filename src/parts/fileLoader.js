@@ -47,10 +47,7 @@ uitest.define('fileLoader', ['global','sniffer','urlParser'], function(global, s
     }
 
     function createCORSRequest(method, url) {
-        // android has problems with internal caching when 
-        // doing cors requests. So we need to do cache busting every time!
-        // See http://opensourcehacker.com/2011/03/20/android-webkit-xhr-status-code-0-and-expires-headers/
-        if (sniffer.browser.android) {
+        if (sniffer.corsXhrForceCacheBusting) {
             url = urlParser.cacheBustingUrl(url, new global.Date().getTime());
         }
         var xhr = new global.XMLHttpRequest();

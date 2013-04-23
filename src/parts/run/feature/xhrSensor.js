@@ -1,9 +1,12 @@
-uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
+uitest.define('run/feature/xhrSensor', ['run/eventSource', 'run/ready'], function(eventSource, readyModule) {
 
     var ready = true,
         startCounter = 0;
 
-    runConfig.prepends.unshift(install);
+    eventSource.on('addPrepends', function(event, done) {
+        event.handlers.push(install);
+        done();
+    });
 
     readyModule.addSensor('xhr', state);
     return state;

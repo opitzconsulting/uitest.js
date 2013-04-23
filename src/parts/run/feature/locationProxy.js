@@ -1,34 +1,25 @@
-uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe', 'sniffer'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe, sniffer) {
-    var changeListeners = [];
-
+uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/eventSource', 'run/injector', 'run/testframe', 'sniffer'], function(proxyFactory, scriptInstrumentor, eventSource, injector, testframe, sniffer) {
     // Attention: order matters here, as the simple "location" token
     // is also contained in the "locationAssign" token!
     scriptInstrumentor.jsParser.addTokenType('locationAssign', '(\\blocation\\s*=)', 'location=', {});
     scriptInstrumentor.jsParser.addSimpleTokenType('location');
 
-    scriptInstrumentor.addPreProcessor(preProcessScript);
-    runConfig.prepends.unshift(initFrame);
-
-    locationResolver.priority = 9999;
+    eventSource.on('addPrepends', function(event, done) {
+        event.handlers.push(initFrame);
+        done();
+    });
+    eventSource.on('js:location', function(event, done) {
+        event.pushToken({
+            type: 'other',
+            match: '[locationProxy.test()]()'
+        });
+        done();
+    });
+    // Override window.location!
+    locationResolver.priority = 99999;
     injector.addDefaultResolver(locationResolver);
 
-    return {
-        addChangeListener: addChangeListener
-    };
-
-    function addChangeListener(listener) {
-        changeListeners.push(listener);
-    }
-
-    function preProcessScript(event, control) {
-        if (event.token.type === 'location') {
-            event.pushToken({
-                type: 'other',
-                match: '[locationProxy.test()]()'
-            });
-        }
-        control.next();
-    }
+    return;
 
     function initFrame(window, location) {
         instrumentLinks(window);
@@ -36,7 +27,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function instrumentLinks(window) {
-        var elProto = window.HTMLElement?window.HTMLElement.prototype:window.Element.prototype;
+        var elProto = window.HTMLElement ? window.HTMLElement.prototype : window.Element.prototype;
         instrumentElementProto(elProto);
         if (window.HTMLButtonElement) {
             // In FF, Buttons have their own dispatchEvent, ... methods
@@ -75,10 +66,8 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
             return elm;
         }
 
-        // temporary fix for https://bugzilla.mozilla.org/show_bug.cgi?id=684208:
-        // ff always returns false for links...
         function fixFF684208(origTriggerFn) {
-            if (!sniffer.browser.ff) {
+            if (!sniffer.dispatchEventDoesNotReturnPreventDefault) {
                 return origTriggerFn;
             }
             result.uitest = true;
@@ -88,7 +77,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
                 var el = this,
                     defaultPrevented = false,
                     originalDefaultExecuted,
-                    evtObj = typeof arguments[0]==='object'?arguments[0]:arguments[1];
+                    evtObj = typeof arguments[0] === 'object' ? arguments[0] : arguments[1];
 
                 // TODO care for DOM-Level-0 handlers that return false!
                 var _preventDefault = evtObj.preventDefault;
@@ -155,7 +144,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
                 triggerLocationChange({
                     oldHref: location.href,
                     newHref: makeAbsolute(newHref),
-                    type: 'reload',
+                    type: 'loc:reload',
                     replace: replace
                 });
             }
@@ -192,9 +181,9 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     function triggerHrefChange(oldHref, newHref) {
         var changeType;
         if (newHref.indexOf('#') === -1 || removeHash(newHref) !== removeHash(oldHref)) {
-            changeType = 'reload';
+            changeType = 'loc:reload';
         } else {
-            changeType = 'hash';
+            changeType = 'loc:hash';
         }
         triggerLocationChange({
             oldHref: oldHref,
@@ -213,10 +202,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function triggerLocationChange(changeEvent) {
-        var i;
-        for (i = 0; i < changeListeners.length; i++) {
-            changeListeners[i](changeEvent);
-        }
+        eventSource.emit(changeEvent);
     }
 
     function createTestFn(window, location, locationProxy) {
@@ -228,6 +214,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
             return 'testLocation';
 
         };
+
         function testLocation() {
             // Note: Calling delete location.testLocation yields
             // to an Error in IE8...

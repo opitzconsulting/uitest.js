@@ -1,5 +1,9 @@
-uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], function(injector, runConfig) {
-    runConfig.appends.push(install);
+uitest.define("run/feature/angularIntegration", ["run/injector", "run/eventSource"], function(injector, eventSource) {
+
+    eventSource.on('addAppends', function addAppends(event, done) {
+        event.handlers.push(install);
+        done();
+    });
 
     function install(angular, window) {
         if(!angular) {

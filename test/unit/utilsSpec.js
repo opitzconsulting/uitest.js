@@ -1,4 +1,4 @@
-describe('utils', function() {
+ddescribe('utils', function() {
     var utils;
     beforeEach(function() {
         utils = uitest.require({
@@ -11,33 +11,71 @@ describe('utils', function() {
 
         });
     });
-    describe('processAsyncEvent', function() {
-        it('should be tested', function() {
-            throw new Error("implemet me!");
+    describe('asyncLoop', function() {
+        var loopDone;
+        beforeEach(function() {
+            loopDone = jasmine.createSpy('done');
         });
-        /*
-        it('should order the processors by their priorty', function() {
-            var allTokens = [];
-            processor1.priority = 0;
-            processor2.priority = 1;
+        it('should call the handler for every item', function() {
+            var items = ['a','b'],
+                receivedItems = [],
+                receivedItemIndices = [];
+            utils.asyncLoop(items, loopHandler, loopDone);
+            expect(receivedItems).toEqual(items);
+            expect(receivedItemIndices).toEqual([0,1]);
 
-            function processor1(token, state, emitter) {
-                emitter.emit(token);
-                emitter.emit({type:'other', match:'1'});
-                emitter.next();
+            function loopHandler(entry, done) {
+                receivedItems.push(entry.item);
+                receivedItemIndices.push(entry.index);
+                done();
             }
-            function processor2(token, state, emitter) {
-                emitter.emit(token);
-                emitter.emit({type:'other', match:'2'});
-                emitter.next();
-            }
-            parser.transform({
-                input: 'a',
-                processors: [processor1,processor2],
-                done: resultCb
-            });
-            expect(result).toEqual('a121');
         });
-        */
+        it('should call the handlers asynchronously', function() {
+            var items = ['a','b'],
+                loopHandler = jasmine.createSpy('loopHandler');
+            utils.asyncLoop(items, loopHandler, loopDone);
+            expect(loopHandler.callCount).toBe(1);
+            expect(loopDone).not.toHaveBeenCalled();
+            loopHandler.mostRecentCall.args[1]();
+            expect(loopHandler.callCount).toBe(2);
+            expect(loopDone).not.toHaveBeenCalled();
+            loopHandler.mostRecentCall.args[1]();
+            expect(loopDone).toHaveBeenCalled();
+        });
+        it('should stop on an error and return it', function() {
+            var items = ['a','b'],
+                error = {},
+                loopHandler = jasmine.createSpy('loopHandler');
+            utils.asyncLoop(items, loopHandler, loopDone);
+            loopHandler.mostRecentCall.args[1](error);
+            expect(loopHandler.callCount).toBe(1);
+            expect(loopDone).toHaveBeenCalledWith(error);
+        });
+        it('should stop when entry.stop is called', function() {
+            var items = ['a','b'],
+                error = {},
+                loopHandler = jasmine.createSpy('loopHandler');
+            utils.asyncLoop(items, loopHandler, loopDone);
+            loopHandler.mostRecentCall.args[0].stop();
+            expect(loopDone).not.toHaveBeenCalled();
+            loopHandler.mostRecentCall.args[1]();
+            expect(loopHandler.callCount).toBe(1);
+            expect(loopDone).toHaveBeenCalled();
+        });
+        it('should not call synchronous handlers recursivly', function() {
+            var reentryCount = 0,
+                maxReentryCount = 0;
+
+            utils.asyncLoop(['a','b'], loopHandler, loopDone);
+            expect(loopDone).toHaveBeenCalled();
+            expect(maxReentryCount).toBe(1);
+
+            function loopHandler(entry, done) {
+                reentryCount++;
+                maxReentryCount = Math.max(maxReentryCount,reentryCount);
+                done();
+                reentryCount--;
+            }
+        });
     });
 });

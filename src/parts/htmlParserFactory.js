@@ -26,9 +26,9 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
             return _parse(input);
         };
 
-        parser.transform = function(input, state, processors, resultCallback) {
-            input = makeEmptyTagsToOpenCloseTags(input);
-            return _transform(input, state, processors, resultCallback);
+        parser.transform = function(data) {
+            data.input = makeEmptyTagsToOpenCloseTags(data.input);
+            return _transform.apply(this, arguments);
         };
 
         return parser;

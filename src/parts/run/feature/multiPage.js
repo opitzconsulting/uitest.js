@@ -1,10 +1,6 @@
-uitest.define('run/feature/multiPage', ['run/feature/locationProxy', 'run/main'], function(locationProxy, main) {
-    locationProxy.addChangeListener(locationChangeListener);
-
-
-    function locationChangeListener(event) {
-        if (event.type === 'reload') {
-            main.start(event.newHref);
-        }
-    }
+uitest.define('run/feature/multiPage', ['run/eventSource', 'run/main', 'run/feature/locationProxy'], function(eventSource, main, locationProxy) {
+    eventSource.on('loc:reload', function(event, done) {
+        main.start(event.newHref);
+        done();
+    });
 });

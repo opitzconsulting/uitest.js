@@ -1,4 +1,4 @@
-/*! uitest.js - v0.10.0-SNAPSHOT - 2013-04-19
+/*! uitest.js - v0.10.0-SNAPSHOT - 2013-04-23
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -307,59 +307,64 @@ uitest.define('config', [], function() {
 		create: create
 	};
 });
-uitest.define('documentUtils', ['global'], function(global) {
-    return {
-        evalScript: evalScript,
-        addEventListener: addEventListener,
-        removeEventListener: removeEventListener,
-        textContent: textContent
-    };
+uitest.define('eventSourceFactory', ['utils'], function(utils) {
 
-    function evalScript(win, scriptUrl, scriptContent) { /*jshint evil:true*/
-        if (scriptUrl) {
-            scriptContent += "//@ sourceURL=" + scriptUrl;
-        }
-        win["eval"].call(win, scriptContent);
+    function noop() {
+
     }
 
-    function addEventListener(target, type, callback) {
-        if (target.nodeName && target.nodeName.toLowerCase() === 'iframe' && type === 'load') {
-            // Cross browser way for onload iframe handler
-            if (target.attachEvent) {
-                target.attachEvent('onload', callback);
+    return eventSourceFactory;
+
+    function eventSourceFactory() {
+        var listeners = {};
+        return {
+            on: on,
+            emit: emit
+        };
+
+
+        function on(eventName, listener) {
+            var eventListeners = listeners[eventName] = listeners[eventName] || [];
+            eventListeners.push(listener);
+            utils.orderByPriority(eventListeners);
+        }
+
+        function emit(event, emitDone) {
+            var eventName,
+                eventListeners,
+                anyEventListeners = listeners['*'],
+                i;
+            event = event || {};
+            if (typeof event === "string") {
+                eventName = event;
+                event = {
+                    type: eventName
+                };
             } else {
-                target.onload = callback;
+                eventName = event.type;
             }
-        } else if (target.addEventListener) {
-            target.addEventListener(type, callback, false);
-        } else {
-            target.attachEvent("on" + type, callback);
-        }
-    }
-
-    function removeEventListener(target, type, callback) {
-        if (target[type] === callback) {
-            target[type] = null;
-        }
-        if (target.removeEventListener) {
-            target.removeEventListener(type, callback, false);
-        } else {
-            target.detachEvent("on" + type, callback);
-        }
-    }
-
-    function textContent(el, val) {
-        if ("text" in el) {
-            el.text = val;
-        } else {
-            if ("innerText" in el) {
-                el.innerHTML = val;
-            } else {
-                el.textContent = val;
+            if (!eventName) {
+                throw new Error("No event type given");
             }
+            eventListeners = listeners[eventName] || [];
+            if (anyEventListeners) {
+                eventListeners = anyEventListeners.concat(eventListeners);
+            }
+            emitDone = emitDone || noop;
+            utils.asyncLoop(eventListeners, asyncLoopHandler, asyncLoopDone);
+
+            function asyncLoopHandler(loopData, done) {
+                var eventListener = loopData.item;
+                event.stop = loopData.stop;
+                eventListener(event, done);
+            }
+
+            function asyncLoopDone(error) {
+                emitDone(error, event);
+            }
+
         }
     }
-
 });
 uitest.define('facade', ['config', 'global'], function(config, global) {
     var CONFIG_FUNCTIONS = ['parent', 'url', 'loadMode', 'feature', 'append', 'prepend', 'intercept', 'trace'],
@@ -578,10 +583,7 @@ uitest.define('fileLoader', ['global','sniffer','urlParser'], function(global, s
     }
 
     function createCORSRequest(method, url) {
-        // android has problems with internal caching when 
-        // doing cors requests. So we need to do cache busting every time!
-        // See http://opensourcehacker.com/2011/03/20/android-webkit-xhr-status-code-0-and-expires-headers/
-        if (sniffer.browser.android) {
+        if (sniffer.corsXhrForceCacheBusting) {
             url = urlParser.cacheBustingUrl(url, new global.Date().getTime());
         }
         var xhr = new global.XMLHttpRequest();
@@ -633,9 +635,9 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
             return _parse(input);
         };
 
-        parser.transform = function(input, state, processors, resultCallback) {
-            input = makeEmptyTagsToOpenCloseTags(input);
-            return _transform(input, state, processors, resultCallback);
+        parser.transform = function(data) {
+            data.input = makeEmptyTagsToOpenCloseTags(data.input);
+            return _transform.apply(this, arguments);
         };
 
         return parser;
@@ -891,42 +893,37 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
             }
         }
 
-        function transform(input, state, listeners, doneCallback) {
-            var tokens = parse(input),
+        function transform(data, transformDone) {
+            var input = data.input,
+                state = data.state || {},
+                eventSource = data.eventSource,
+                eventPrefix = data.eventPrefix || '',
+                tokens = parse(input),
                 resultTokens = [];
-            state = state || {};
 
-            utils.asyncLoop(tokens, tokenHandler, done, stop);
+            utils.asyncLoop(tokens, loopHandler, loopDone);
 
-            function stop(error) {
-                if (error) {
-                    doneCallback(error);
-                }
+            function loopDone(error) {
+                transformDone(error, serialize(resultTokens));
             }
 
-            function done() {
-                doneCallback(null, serialize(resultTokens));
-            }
-
-            function tokenHandler(tokenIndex, token, control) {
-                utils.processAsyncEvent({
+            function loopHandler(entry, loopHandlerDone) {
+                var token = entry.item,
+                    tokenIndex = entry.index;
+                eventSource.emit({
+                    type: eventPrefix+token.type,
                     token: token,
                     state: state,
                     pushToken: pushToken
-                },listeners,tokenDone,tokenStop);
+                }, eventDone);
 
-                function tokenDone() {
-                    resultTokens.push(token);
-                    control.next();
-                }
-
-                function tokenStop(error) {
-                    if (error) {
-                        control.stop(error);
-                    } else {
-                        control.next();
+                function eventDone(error, event) {
+                    if (!event.stopped && !error) {
+                        resultTokens.push(token);
                     }
+                    loopHandlerDone(error);
                 }
+
                 function pushToken(token) {
                     tokens.splice(tokenIndex+1,0,token);
                 }
@@ -976,8 +973,16 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
         }
     }
 });
-uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], function(injector, runConfig) {
-    runConfig.appends.push(install);
+uitest.define('run/eventSource', ['eventSourceFactory'], function(eventSourceFactory) {
+    return eventSourceFactory();
+});
+
+uitest.define("run/feature/angularIntegration", ["run/injector", "run/eventSource"], function(injector, eventSource) {
+
+    eventSource.on('addAppends', function addAppends(event, done) {
+        event.handlers.push(install);
+        done();
+    });
 
     function install(angular, window) {
         if(!angular) {
@@ -1054,42 +1059,31 @@ uitest.define("run/feature/angularIntegration", ["run/injector", "run/config"], 
         });
     }
 });
-uitest.define('run/feature/cacheBuster', ['documentUtils', 'run/htmlInstrumentor', 'run/logger', 'utils', 'urlParser', 'run/requirejsInstrumentor'], function(docUtils, docInstrumentor, logger, utils, urlParser, requirejsInstrumentor) {
+uitest.define('run/feature/cacheBuster', ['run/eventSource', 'run/logger', 'utils', 'urlParser'], function(eventSource, logger, utils, urlParser) {
 
     var now = utils.testRunTimestamp();
     logger.log("forcing script refresh with timestamp "+now);
+    eventSource.on('instrumentScript', instrumentScript);
 
-    htmlPreProcessor.priority = 9999;
-    docInstrumentor.addPreProcessor(htmlPreProcessor);
-    requirejsEventHandler.priority = 9999;
-    requirejsInstrumentor.addEventListener(requirejsEventHandler);
+    return instrumentScript;
 
-    return {
-        htmlPreProcessor: htmlPreProcessor,
-        requirejsEventHandler: requirejsEventHandler
-    };
-
-    function requirejsEventHandler(event, control) {
-        if (event.type==='load') {
-            event.url = urlParser.cacheBustingUrl(event.url, now);
+    function instrumentScript(event, done) {
+        if (event.src) {
+            event.src = urlParser.cacheBustingUrl(event.src, now);
         }
-        control.next();
-    }
-
-    function htmlPreProcessor(event, control) {
-        if (event.token.type==='urlscript') {
-            event.token.src = urlParser.cacheBustingUrl(event.token.src, now);
-        }
-        control.next();
+        done();
     }
 });
 
 
-uitest.define('run/feature/intervalSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
+uitest.define('run/feature/intervalSensor', ['run/eventSource', 'run/ready'], function(eventSource, readyModule) {
     var intervals = {},
         intervalStartCounter = 0;
 
-    runConfig.prepends.unshift(install);
+    eventSource.on('addPrepends', function(event, done) {
+        event.handlers.push(install);
+        done();
+    });
     readyModule.addSensor('interval', state);
     return state;
 
@@ -1125,12 +1119,15 @@ uitest.define('run/feature/intervalSensor', ['run/config', 'run/ready'], functio
     }
 });
 
-uitest.define('run/feature/jqmAnimationSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
+uitest.define('run/feature/jqmAnimationSensor', ['run/eventSource', 'run/ready'], function(eventSource, readyModule) {
 
     var ready = true,
         startCounter = 0;
 
-    runConfig.appends.unshift(install);
+    eventSource.on('addPrepends', function(event,done) {
+        event.handlers.push(install);
+        done();
+    });
 
     readyModule.addSensor('jqmAnimationSensor', state);
 
@@ -1160,37 +1157,28 @@ uitest.define('run/feature/jqmAnimationSensor', ['run/config', 'run/ready'], fun
         };
     }
 });
-uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/config', 'run/injector', 'run/testframe', 'sniffer'], function(proxyFactory, scriptInstrumentor, runConfig, injector, testframe, sniffer) {
-    var changeListeners = [];
-
+uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/eventSource', 'run/injector', 'run/testframe', 'sniffer'], function(proxyFactory, scriptInstrumentor, eventSource, injector, testframe, sniffer) {
     // Attention: order matters here, as the simple "location" token
     // is also contained in the "locationAssign" token!
     scriptInstrumentor.jsParser.addTokenType('locationAssign', '(\\blocation\\s*=)', 'location=', {});
     scriptInstrumentor.jsParser.addSimpleTokenType('location');
 
-    scriptInstrumentor.addPreProcessor(preProcessScript);
-    runConfig.prepends.unshift(initFrame);
-
-    locationResolver.priority = 9999;
+    eventSource.on('addPrepends', function(event, done) {
+        event.handlers.push(initFrame);
+        done();
+    });
+    eventSource.on('js:location', function(event, done) {
+        event.pushToken({
+            type: 'other',
+            match: '[locationProxy.test()]()'
+        });
+        done();
+    });
+    // Override window.location!
+    locationResolver.priority = 99999;
     injector.addDefaultResolver(locationResolver);
 
-    return {
-        addChangeListener: addChangeListener
-    };
-
-    function addChangeListener(listener) {
-        changeListeners.push(listener);
-    }
-
-    function preProcessScript(event, control) {
-        if (event.token.type === 'location') {
-            event.pushToken({
-                type: 'other',
-                match: '[locationProxy.test()]()'
-            });
-        }
-        control.next();
-    }
+    return;
 
     function initFrame(window, location) {
         instrumentLinks(window);
@@ -1198,7 +1186,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function instrumentLinks(window) {
-        var elProto = window.HTMLElement?window.HTMLElement.prototype:window.Element.prototype;
+        var elProto = window.HTMLElement ? window.HTMLElement.prototype : window.Element.prototype;
         instrumentElementProto(elProto);
         if (window.HTMLButtonElement) {
             // In FF, Buttons have their own dispatchEvent, ... methods
@@ -1237,10 +1225,8 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
             return elm;
         }
 
-        // temporary fix for https://bugzilla.mozilla.org/show_bug.cgi?id=684208:
-        // ff always returns false for links...
         function fixFF684208(origTriggerFn) {
-            if (!sniffer.browser.ff) {
+            if (!sniffer.dispatchEventDoesNotReturnPreventDefault) {
                 return origTriggerFn;
             }
             result.uitest = true;
@@ -1250,7 +1236,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
                 var el = this,
                     defaultPrevented = false,
                     originalDefaultExecuted,
-                    evtObj = typeof arguments[0]==='object'?arguments[0]:arguments[1];
+                    evtObj = typeof arguments[0] === 'object' ? arguments[0] : arguments[1];
 
                 // TODO care for DOM-Level-0 handlers that return false!
                 var _preventDefault = evtObj.preventDefault;
@@ -1317,7 +1303,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
                 triggerLocationChange({
                     oldHref: location.href,
                     newHref: makeAbsolute(newHref),
-                    type: 'reload',
+                    type: 'loc:reload',
                     replace: replace
                 });
             }
@@ -1354,9 +1340,9 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     function triggerHrefChange(oldHref, newHref) {
         var changeType;
         if (newHref.indexOf('#') === -1 || removeHash(newHref) !== removeHash(oldHref)) {
-            changeType = 'reload';
+            changeType = 'loc:reload';
         } else {
-            changeType = 'hash';
+            changeType = 'loc:hash';
         }
         triggerLocationChange({
             oldHref: oldHref,
@@ -1375,10 +1361,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
     }
 
     function triggerLocationChange(changeEvent) {
-        var i;
-        for (i = 0; i < changeListeners.length; i++) {
-            changeListeners[i](changeEvent);
-        }
+        eventSource.emit(changeEvent);
     }
 
     function createTestFn(window, location, locationProxy) {
@@ -1390,6 +1373,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
             return 'testLocation';
 
         };
+
         function testLocation() {
             // Note: Calling delete location.testLocation yields
             // to an Error in IE8...
@@ -1430,8 +1414,11 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
         }
     }
 });
-uitest.define('run/feature/mobileViewport', ['run/config', 'global'], function(runConfig, global) {
-    runConfig.appends.push(install);
+uitest.define('run/feature/mobileViewport', ['run/eventSource', 'global'], function(eventSource, global) {
+    eventSource.on('addAppends', function(event, done) {
+        event.handlers.push(install);
+        done();
+    });
 
     function install(window) {
         var doc = window.document,
@@ -1464,22 +1451,21 @@ uitest.define('run/feature/mobileViewport', ['run/config', 'global'], function(r
         return null;
     }
 });
-uitest.define('run/feature/multiPage', ['run/feature/locationProxy', 'run/main'], function(locationProxy, main) {
-    locationProxy.addChangeListener(locationChangeListener);
-
-
-    function locationChangeListener(event) {
-        if (event.type === 'reload') {
-            main.start(event.newHref);
-        }
-    }
+uitest.define('run/feature/multiPage', ['run/eventSource', 'run/main', 'run/feature/locationProxy'], function(eventSource, main, locationProxy) {
+    eventSource.on('loc:reload', function(event, done) {
+        main.start(event.newHref);
+        done();
+    });
 });
-uitest.define('run/feature/timeoutSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
+uitest.define('run/feature/timeoutSensor', ['run/eventSource', 'run/ready'], function(eventSource, readyModule) {
 
     var timeouts = {},
         timoutStartCounter = 0;
 
-    runConfig.prepends.unshift(install);
+    eventSource.on('addPrepends', function(event, done) {
+        event.handlers.push(install);
+        done();
+    });
     readyModule.addSensor('timeout', state);
     return state;
 
@@ -1525,12 +1511,15 @@ uitest.define('run/feature/timeoutSensor', ['run/config', 'run/ready'], function
     }
 });
 
-uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(runConfig, readyModule) {
+uitest.define('run/feature/xhrSensor', ['run/eventSource', 'run/ready'], function(eventSource, readyModule) {
 
     var ready = true,
         startCounter = 0;
 
-    runConfig.prepends.unshift(install);
+    eventSource.on('addPrepends', function(event, done) {
+        event.handlers.push(install);
+        done();
+    });
 
     readyModule.addSensor('xhr', state);
     return state;
@@ -1605,63 +1594,127 @@ uitest.define('run/feature/xhrSensor', ['run/config', 'run/ready'], function(run
         };
     }
 });
-uitest.define('run/historyFix', ['run/htmlInstrumentor', 'run/config'], function(htmlInstrumentor, runConfig) {
-    var currentUrl;
-
-    // This needs to be before the normal scriptAdder!
-    preprocessHtml.priority = 9999;
-    htmlInstrumentor.addPreProcessor(preprocessHtml);
-
-    runConfig.prepends.unshift(fixHistory);
-
-    function preprocessHtml(event, control) {
-        var state = event.state,
-            token = event.token;
-
-        if (!state.historyFix) {
-            state.historyFix = true;
-            currentUrl = state.url;
-        }
-        control.next();
-    }
-
-    function hash(url) {
-        var hashPos = url.indexOf('#');
-        if (hashPos!==-1) {
-            return url.substring(hashPos);
-        } else {
-            return '';
-        }
-    }
-
-    function fixHistory(history, location) {
-        // Bugs fixed here:
-        // - IE looses the hash when rewriting using a js url
-        // - Rewriting using a js url or doc.open/write/close deletes the current history entry.
-        //   This yields to problems when using history.back()!
-        //   (at least in a fresh Chrome in Inkognito mode)
-        // - PhantomJS: creating a history entry using hash change does not work correctly.
-        //   Using history.pushState however does work...
-        if (history.pushState) {
-            history.pushState(null, "", currentUrl);
-        } else {
-            var currHash = hash(currentUrl);
-            location.hash="someUniqueHashToCreateAHistoryEntry";location.hash=currHash;
-        }
-    }
-});
-uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/config', 'run/logger', 'global', 'run/testframe', 'sniffer', 'htmlParserFactory'], function(fileLoader, runConfig, logger, global, testframe, sniffer, htmlParserFactory) {
+uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'htmlParserFactory', 'run/eventSource', 'run/testframe', 'urlParser', 'utils', 'run/injector'], function(fileLoader, logger, global, htmlParserFactory, eventSource, testframe, urlParser, utils, injector) {
 
     var exports,
-        preProcessors = [],
         htmlParser = htmlParserFactory();
 
     exports = {
-        addPreProcessor: addPreProcessor,
         htmlParser: htmlParser,
         processHtml: processHtml
     };
+    eventSource.on('html:headstart', emitAddPrepends);
+    eventSource.on('html:bodystart', emitAddPrepends);
+    eventSource.on('html:bodyend', emitAddAppends);
+    eventSource.on('html:urlscript', emitInstrumentScript);
+    eventSource.on('html:contentscript', emitInstrumentScript);
+
     return exports;
+
+    function emitAddPrepends(htmlEvent, htmlEventDone) {
+        var state = htmlEvent.state;
+        if (state.addedPrepends) {
+            htmlEventDone();
+            return;
+        }
+        state.addedPrepends = true;
+        emitAddPrependsAndAppends(htmlEvent, htmlEventDone, 'addPrepends');
+    }
+
+    function emitAddAppends(htmlEvent, htmlEventDone) {
+        emitAddPrependsAndAppends(htmlEvent, htmlEventDone, 'addAppends');
+    }
+
+    function emitAddPrependsAndAppends(htmlEvent, htmlEventDone, type) {
+        logger.log(type+" after "+htmlEvent.type);
+        eventSource.emit({
+            type: type,
+            handlers: [],
+            state: htmlEvent.state
+        }, done);
+
+        function done(error, addPrependsOrAppendsEvent) {
+            var i, handler;
+            if (error) {
+                htmlEventDone(error);
+                return;
+            }
+            createScriptTokensForPrependsOrAppends(htmlEvent.pushToken, addPrependsOrAppendsEvent.handlers);
+            htmlEventDone();
+        }
+    }
+
+    function createScriptTokensForPrependsOrAppends(pushToken, prependsOrAppends) {
+        var i, prependOrAppend, lastCallbackArr;
+        for(i = 0; i < prependsOrAppends.length; i++) {
+            prependOrAppend = prependsOrAppends[i];
+            if(utils.isString(prependOrAppend)) {
+                pushToken({
+                    type: 'urlscript',
+                    src: prependOrAppend
+                });
+                lastCallbackArr = null;
+            } else {
+                if(!lastCallbackArr) {
+                    lastCallbackArr = [];
+                    pushToken({
+                        type: 'contentscript',
+                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')
+                    });
+                }
+                lastCallbackArr.push(prependOrAppend);
+            }
+        }
+    }
+
+    function injectedCallbacks(callbacks) {
+        return function(win) {
+            var i;
+            for(i = 0; i < callbacks.length; i++) {
+                injector.inject(callbacks[i], win, [win]);
+            }
+        };
+    }
+
+    function emitInstrumentScript(htmlEvent, htmlEventDone) {
+        var absUrl;
+        if (htmlEvent.token.src) {
+            absUrl = urlParser.makeAbsoluteUrl(htmlEvent.token.src, htmlEvent.state.htmlUrl);
+        }
+        eventSource.emit({
+            type: 'instrumentScript',
+            content: htmlEvent.token.content,
+            src: absUrl,
+            contentChanged: false
+        }, done);
+
+        function done(error, instrumentScriptEvent) {
+            // Allow event listeners to change the src of the script
+            // TODO makeAbsoluteUrl does not work correct for hash urls with a slash
+            htmlEvent.token.src = instrumentScriptEvent.src;
+            if (error || !instrumentScriptEvent.changed) {
+                htmlEventDone(error);
+                return;
+            }
+            var scriptAttrs;
+            if (htmlEvent.token.type==='contentscript') {
+                scriptAttrs = htmlEvent.token.attrs;
+            } else {
+                scriptAttrs = htmlEvent.token.preAttrs+htmlEvent.token.postAttrs;
+            }
+            htmlEvent.stop();
+            htmlEvent.pushToken({
+                type: 'contentscript',
+                attrs: scriptAttrs,
+                content: testframe.createRemoteCallExpression(execScript)
+            });
+            htmlEventDone();
+
+            function execScript() {
+                utils.evalScript(testframe.win(), absUrl, instrumentScriptEvent.content);
+            }
+        }
+    }
 
     function processHtml(url, finishedCallback) {
         fileLoader(url, function(error, html) {
@@ -1670,14 +1723,52 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/config', 'run/logger',
                 return;
             }
 
-            htmlParser.transform(html,{
-                url: url
-            },preProcessors,finishedCallback);
+            htmlParser.transform({
+                input: html,
+                state: {
+                    htmlUrl: url
+                },
+                eventPrefix: 'html:',
+                eventSource: eventSource
+            },finishedCallback);
         });
     }
+});
+uitest.define('run/initialHistoryFix', ['run/eventSource'], function(eventSource) {
+    // needs to be executed before the normal prepends
+    addPrepends.priority = 99999;
+    eventSource.on("addPrepends", addPrepends);
 
-    function addPreProcessor(preProcessor) {
-        preProcessors.push(preProcessor);
+    function addPrepends(event, done) {
+        var originalUrl = event.state.htmlUrl;
+        event.handlers.unshift(fixHistory);
+        done();
+
+        function fixHistory(history, location) {
+            // Bugs fixed here:
+            // - IE looses the hash when rewriting using a js url
+            // - Rewriting using a js url or doc.open/write/close deletes the current history entry.
+            //   This yields to problems when using history.back()!
+            //   (at least in a fresh Chrome in Inkognito mode)
+            // - PhantomJS: creating a history entry using hash change does not work correctly.
+            //   Using history.pushState however does work...
+            if (history.pushState) {
+                history.pushState(null, "", originalUrl);
+            } else {
+                var currHash = hash(originalUrl);
+                location.hash = "someUniqueHashToCreateAHistoryEntry";
+                location.hash = currHash;
+            }
+        }
+    }
+
+    function hash(url) {
+        var hashPos = url.indexOf('#');
+        if (hashPos !== -1) {
+            return url.substring(hashPos);
+        } else {
+            return '';
+        }
     }
 });
 uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
@@ -1726,15 +1817,18 @@ uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 		addDefaultResolver: addDefaultResolver
 	};
 });
-uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModule, runConfig) {
+uitest.define('run/loadSensor', ['run/ready', 'run/eventSource'], function(readyModule, eventSource) {
 
 	var count = 0,
 		ready, win, doc, waitForDocComplete;
 
-	runConfig.appends.push(function(window, document) {
-		win = window;
-		doc = document;
-		waitForDocComplete = true;
+	eventSource.on('addAppends', function(event, done) {
+		event.handlers.push(function(window, document) {
+			win = window;
+			doc = document;
+			waitForDocComplete = true;
+		});
+		done();
 	});
 
 	loadSensor.init = init;
@@ -1783,7 +1877,7 @@ uitest.define('run/logger', ['global', 'run/config'], function(global, runConfig
     };
 });
 
-uitest.define('run/main', ['documentUtils', 'urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor'], function(docUtils, urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor) {
+uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor'], function(urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor) {
 
     start(runConfig.url);
     return {
@@ -1810,29 +1904,25 @@ uitest.define('run/main', ['documentUtils', 'urlParser', 'global','run/logger', 
     }
 
 });
-uitest.define('run/namedFunctionInstrumentor', ['run/scriptInstrumentor', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe'], function(scriptInstrumentor, injector, annotate, runConfig, urlParser, testframe) {
-    scriptInstrumentor.addPreProcessor(preProcessJavaScript);
+uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe'], function(eventSource, injector, annotate, runConfig, urlParser, testframe) {
 
-    return preProcessJavaScript;
+    eventSource.on('js:functionstart', onFunctionStart);
 
-    function preProcessJavaScript(event, control) {
+    return onFunctionStart;
+
+    function onFunctionStart(event, done) {
         var token = event.token,
             state = event.state;
-
-        if (token.type!=='functionstart') {
-            control.next();
-            return;
-        }
-        var intercept = findMatchingInterceptByName(token.name, state.src);
+        var intercept = findMatchingInterceptByName(token.name, state.scriptUrl);
         if (!intercept) {
-            control.next();
+            done();
             return;
         }
         event.pushToken({
             type: 'other',
             match: 'if (!' + token.name + '.delegate)return ' + testframe.createRemoteCallExpression(fnCallback, "window", token.name, "this", "arguments")
         });
-        control.next();
+        done();
         return;
 
         function fnCallback(win, fn, self, args) {
@@ -1943,52 +2033,52 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 		ready: ready
 	};
 });
-uitest.define('run/requirejsInstrumentor', ['run/htmlInstrumentor', 'documentUtils', 'run/injector', 'run/logger', 'utils', 'urlParser', 'run/testframe'], function(docInstrumentor, docUtils, injector, logger, utils, urlParser, testframe) {
+uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', 'run/logger', 'utils', 'run/testframe', 'urlParser'], function(eventSource, injector, logger, utils, testframe, urlParser) {
     var REQUIRE_JS_RE = /require[\W]/,
         eventHandlers = [];
 
-    // Needs to be executed before the scriptAdder!
-    preprocessHtml.priority = 20;
-    docInstrumentor.addPreProcessor(preprocessHtml);
+    // Needs to be before any other listener for 'addAppends',
+    // as it stops the event if the page is using requirejs.
+    addAppendsSuppressor.priority = 99999;
+    eventSource.on('addAppends', addAppendsSuppressor);
 
-    return {
-        preprocessHtml: preprocessHtml,
-        addEventListener: addEventListener
-    };
+    eventSource.on('html:urlscript', checkAndHandleRequireJsScriptToken);
 
-    function addEventListener(handler) {
-        eventHandlers.push(handler);
+    return;
+
+    function addAppendsSuppressor(event, done) {
+        if (event.state && event.state.requirejs) {
+            event.stop();
+        }
+        done();
     }
 
-    function preprocessHtml(event, control) {
-        var token = event.token,
-            state = event.state;
+    function checkAndHandleRequireJsScriptToken(htmlEvent, htmlEventDone) {
+        var token = htmlEvent.token,
+            state = htmlEvent.state;
 
-        if (token.type==='urlscript' && token.src.match(REQUIRE_JS_RE)) {
-            handleRequireJsScriptToken();
+        if (!token.src.match(REQUIRE_JS_RE)) {
+            htmlEventDone();
+            return;
         }
-        control.next();
-        return;
+        logger.log("detected requirejs with script url " + token.src);
 
-        function handleRequireJsScriptToken() {
-            logger.log("detected requirejs with script url "+token.src);
+        var content = testframe.createRemoteCallExpression(function(win) {
+            afterRequireJsScript(win);
+        }, "window");
 
-            var content = testframe.createRemoteCallExpression(function(win) {
-                afterRequireJsScript(win);
-            }, "window");
-
-            // needed by the scriptAdder to detect
-            // where to append the appends!
-            state.requirejs = true;
-            event.pushToken({
-                type: 'contentscript',
-                content: content
-            });
-        }
+        // Used by addAppendsSuppressor to see if
+        // requirejs is used.
+        state.requirejs = true;
+        htmlEvent.pushToken({
+            type: 'contentscript',
+            content: content
+        });
+        htmlEventDone();
     }
 
     function afterRequireJsScript(win) {
-        if(!win.require) {
+        if (!win.require) {
             throw new Error("requirejs script was detected by url matching, but no global require function found!");
         }
 
@@ -2001,281 +2091,152 @@ uitest.define('run/requirejsInstrumentor', ['run/htmlInstrumentor', 'documentUti
         win.require = function(deps, originalCallback) {
             _require.onResourceLoad = win.require.onResourceLoad;
             _require(deps, function() {
-                var event = {
-                    type: 'require',
-                    deps: deps,
-                    depsValues:arguments,
-                    callback: originalCallback,
-                    win:win,
-                    require:_require
-                };
-                utils.processAsyncEvent(event, eventHandlers, defaultHandler, doneHandler);
-
-                function defaultHandler() {
-                    event.callback.apply(event.win, event.depsValues);
-                }
-
-                function doneHandler(error) {
+                var depsValues = arguments;
+                collectAndExecuteAppends(_require, win, function(error) {
                     if (error) {
                         throw error;
                     }
-                }
+                    originalCallback.apply(win, depsValues);
+                });
             });
         };
         win.require.config = _require.config;
         return _require;
     }
 
+    function collectAndExecuteAppends(require, win, done) {
+        logger.log("adding appends using requirejs");
+
+        eventSource.emit({
+            type: 'addAppends',
+            handlers: []
+        }, addAppendsDone);
+
+        function addAppendsDone(error, addAppendsEvent) {
+            var appends = addAppendsEvent.handlers,
+                i = 0;
+            if (error) {
+                done(error);
+            }
+            logger.log("adding appends using requirejs");
+            execNext();
+
+            function execNext() {
+                var append;
+                if (i >= appends.length) {
+                    done();
+                } else {
+                    append = appends[i++];
+                    if (utils.isString(append)) {
+                        require([append], execNext);
+                    } else {
+                        injector.inject(append, win, [win]);
+                        execNext();
+                    }
+                }
+            }
+        }
+    }
+
     function patchLoad(_require) {
         var _load = _require.load;
         _require.load = function(context, moduleName, url) {
             var self = this;
-            var event = {
-                type:'load',
-                url: url
-            };
-            utils.processAsyncEvent(event, eventHandlers, defaultHandler,doneHandler);
+            var absUrl = urlParser.makeAbsoluteUrl(url, testframe.win().location.href);
+            eventSource.emit({
+                type: 'instrumentScript',
+                src: absUrl,
+                content: null,
+                changed: false
+            }, instrumentScriptDone);
 
-            function defaultHandler() {
-                _load.call(self, context, moduleName, event.url);
-            }
-
-            function doneHandler(error) {
+            function instrumentScriptDone(error, instrumentScriptEvent) {
+                var src = instrumentScriptEvent.src;
                 if (error) {
                     //Set error on module, so it skips timeout checks.
                     context.registry[moduleName].error = true;
                     throw error;
+                }
+                if (instrumentScriptEvent.changed) {
+                    try {
+                        utils.evalScript(testframe.win(), src, instrumentScriptEvent.content);
+                        context.completeLoad(moduleName);
+                    } catch (e) {
+                        //Set error on module, so it skips timeout checks.
+                        context.registry[moduleName].error = true;
+                        throw e;
+                    }
                 } else {
-                    context.completeLoad(moduleName);
+                    // use the src from the event
+                    // so listeners are able to change this.
+                    _load.call(self, context, moduleName, src);
                 }
             }
         };
     }
-
 });
-uitest.define('run/scriptAdder', ['run/config', 'run/htmlInstrumentor', 'documentUtils', 'run/injector', 'annotate', 'run/logger', 'urlParser', 'utils', 'run/requirejsInstrumentor', 'run/testframe'], function(runConfig, docInstrumentor, docUtils, injector, annotate, logger, urlParser, utils, requirejsInstrumentor, testframe) {
-    // This needs to be before the scriptInstrumentor, so
-    // the added scripts are also processed!
-    preprocessHtml.priority = 10;
-    docInstrumentor.addPreProcessor(preprocessHtml);
-    requirejsInstrumentor.addEventListener(requirejsEventListener);
+uitest.define('run/scriptAdder', ['run/config', 'run/eventSource'], function(runConfig, eventSource) {
+    eventSource.on('addPrepends', addPrepends);
+    eventSource.on('addAppends', addAppends);
+    return;
 
-    function preprocessHtml(event, control) {
-        if (handlePrepends(event, control)) {
-            return;
+    function addPrepends(event, done) {
+        var i;
+        for (i=0; i<runConfig.prepends.length; i++) {
+            event.handlers.push(runConfig.prepends[i]);
         }
-        if (handleAppends(event, control)) {
-            return;
-        }
-        control.next();
+        done();
     }
 
-    function handlePrepends(event, control) {
-        var state = event.state,
-            token = event.token;
-
-        if (state.addedPrepends) {
-            return;
+    function addAppends(event, done) {
+        var i;
+        for (i=0; i<runConfig.appends.length; i++) {
+            event.handlers.push(runConfig.appends[i]);
         }
-        if (!runConfig.prepends || !runConfig.prepends.length) {
-            return;
-        }
-        if (token.type !== 'headstart' && token.type !== 'bodystart') {
-            return;
-        }
-        logger.log("adding prepends after "+token.type);
-        state.addedPrepends = true;
-        createScriptTokensForPrependsOrAppends(event.pushToken, runConfig.prepends);
-        control.next();
-        return true;
+        done();
     }
+});
+uitest.define('run/scriptInstrumentor', ['run/eventSource', 'fileLoader', 'run/logger', 'jsParserFactory'], function(eventSource, fileLoader, logger, jsParserFactory) {
+    var jsParser = jsParserFactory();
 
-    function handleAppends(event, control) {
-        var state = event.state,
-            token = event.token;
-
-        if (token.type!=='bodyend') {
-            return;
-        }
-        if (!runConfig.appends || !runConfig.appends.length || state.requirejs) {
-            return;
-        }
-        logger.log("adding appends before "+token.type);
-        createScriptTokensForPrependsOrAppends(event.pushToken, runConfig.appends);
-        control.next();
-        return true;
-    }
-
-    function createScriptTokensForPrependsOrAppends(pushToken, prependsOrAppends) {
-        var i, prependOrAppend, lastCallbackArr;
-        for(i = 0; i < prependsOrAppends.length; i++) {
-            prependOrAppend = prependsOrAppends[i];
-            if(utils.isString(prependOrAppend)) {
-                pushToken({
-                    type: 'urlscript',
-                    src: prependOrAppend
-                });
-                lastCallbackArr = null;
-            } else {
-                if(!lastCallbackArr) {
-                    lastCallbackArr = [];
-                    pushToken({
-                        type: 'contentscript',
-                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')
-                    });
-                }
-                lastCallbackArr.push(prependOrAppend);
-            }
-        }
-    }
-
-    function injectedCallbacks(callbacks) {
-        return function(win) {
-            var i;
-            for(i = 0; i < callbacks.length; i++) {
-                injector.inject(callbacks[i], win, [win]);
-            }
-        };
-    }
-
-    function requirejsEventListener(event, control) {
-        if (event.type!=='require') {
-            control.next();
-            return;
-        }
-        var i = 0,
-            appends = runConfig.appends,
-            win = event.win;
-
-        logger.log("adding appends using requirejs");
-        execNext();
-
-        function execNext() {
-            var append;
-            if(i >= appends.length) {
-                control.next();
-            } else {
-                append = appends[i++];
-                if(utils.isString(append)) {
-                    event.require([append], execNext);
-                } else {
-                    injector.inject(append, win, [win]);
-                    execNext();
-                }
-            }
-        }
-    }
+    eventSource.on('instrumentScript', instrumentScript);
 
     return {
-        preprocessHtml: preprocessHtml,
-        requirejsEventListener: requirejsEventListener,
-        handlePrepends: handlePrepends,
-        handleAppends: handleAppends
-    };
-});
-uitest.define('run/scriptInstrumentor', ['run/htmlInstrumentor', 'run/injector', 'documentUtils', 'fileLoader', 'run/logger', 'run/testframe', 'jsParserFactory', 'run/requirejsInstrumentor', 'urlParser'], function(docInstrumentor, injector, docUtils, fileLoader, logger, testframe, jsParserFactory, requirejsInstrumentor, urlParser) {
-    var preProcessors = [],
-        jsParser = jsParserFactory();
-
-    docInstrumentor.addPreProcessor(preprocessHtml);
-    requirejsInstrumentor.addEventListener(requirejsEventHandler);
-
-    return {
-        addPreProcessor: addPreProcessor,
         jsParser: jsParser
     };
 
-    function addPreProcessor(processor) {
-        preProcessors.push(processor);
-    }
-
-    function preprocessHtml(event, control) {
-        var token = event.token,
-            state = event.state,
-            absUrl;
-
-        if (token.type==='urlscript') {
-            absUrl = urlParser.makeAbsoluteUrl(token.src, state.url);
-            fileLoader(absUrl, function(error, scriptContent) {
+    function instrumentScript(event, done) {
+        if (!event.content && event.src) {
+            fileLoader(event.src, function(error, scriptContent) {
                 if (error) {
-                    control.stop(error);
+                    done(error);
                 } else {
-                    onScriptLoaded(token.src, token.preAttrs + token.postAttrs, scriptContent);
+                    scriptContentLoaded(scriptContent);
                 }
             });
-        } else if (token.type === 'contentscript') {
-            onScriptLoaded(null, token.attrs, token.content);
         } else {
-            control.next();
+            scriptContentLoaded(event.content);
         }
-        return;
 
-        function onScriptLoaded(scriptSrc, scriptAttrs, scriptContent) {
-            jsParser.transform(scriptContent,{
-                src: scriptSrc
-            },preProcessors,resultCallback);
+        function scriptContentLoaded(scriptContent) {
+            jsParser.transform({
+                input: scriptContent,
+                eventSource: eventSource,
+                eventPrefix: 'js:',
+                state: {
+                    scriptUrl: event.src
+                }
+            }, jsTransformDone);
 
-            function resultCallback(error, newScriptContent) {
-                if (error) {
-                    control.stop(error);
-                    return;
-                }
-                if (newScriptContent===scriptContent) {
-                    control.next();
-                    return;
-                }
-                logger.log("intercepting "+scriptSrc);
-                event.pushToken({
-                    type: 'contentscript',
-                    content: testframe.createRemoteCallExpression(function(win) {
-                        docUtils.evalScript(win, scriptSrc, newScriptContent);
-                    }, "window"),
-                    attrs: scriptAttrs
-                });
-                control.stop();
+            function jsTransformDone(error, newScriptContent) {
+                event.content = newScriptContent;
+                event.changed = newScriptContent !== scriptContent;
+                done(error, event);
             }
         }
-    }
-
-    function requirejsEventHandler(event, control) {
-        if (event.type !== 'load') {
-            control.next();
-            return;
-        }
-        var url = event.url,
-            docUrl = testframe.win().document.location.href,
-            absUrl = urlParser.makeAbsoluteUrl(url, docUrl);
-
-        fileLoader(absUrl, function(error, scriptContent) {
-            if (error) {
-                control.stop(error);
-            }
-            jsParser.transform(scriptContent,{
-                src:url
-            },preProcessors,resultCallback);
-
-            function resultCallback(error, newScriptContent) {
-                if (error) {
-                    control.stop(error);
-                    return;
-                }
-                if (newScriptContent===scriptContent) {
-                    control.next();
-                    return;
-                }
-                logger.log("intercepting "+url);
-                try {
-                    docUtils.evalScript(testframe.win(), absUrl, newScriptContent);
-                } catch (e) {
-                    error = e;
-                }
-                control.stop(error);
-            }
-        });
     }
 });
-
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/injector', 'run/logger', 'utils', 'sniffer'], function(urlParser, global, injector, logger, utils, sniffer) {
     var WINDOW_ID = 'uitestwindow',
         BUTTON_ID = WINDOW_ID+'Btn',
         BUTTON_LISTENER_ID = BUTTON_ID+"Listener",
@@ -2308,15 +2269,10 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function loadUsingHistoryApi(url, html) {
         var fr, win;
-        if (sniffer.browser.ff) {
-            // In FF, we can't just juse an empty iframe and rewrite
-            // it's content, as then the history api will throw errors
-            // whenever history.pushState is used within the frame.
-            // We need to do doc.open/write/close in the onload event
-            // to prevent this problem!
+        if (sniffer.documentWriteOnlyInOnload) {
             createFrame(urlParser.uitestUrl());
             win = getIframeWindow();
-            docUtils.addEventListener(win, 'load', afterFrameCreate);
+            utils.addEventListener(win, 'load', afterFrameCreate);
         } else {
             createFrame('');
             win = getIframeWindow();
@@ -2331,11 +2287,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         function afterFrameCreate() {
             var win = getIframeWindow();
             win.history.pushState(null, '', url);
-            // Firefox does not support js urls:
-            // - it does not revert back to the previous url
-            // Android does not set the location correctly when
-            // using js urls and a pushState before.
-            if (!sniffer.browser.android && !sniffer.browser.ff) {
+            if (sniffer.browser.jsUrlWithPushState) {
                 rewriteUsingJsUrl(win,html);
             } else {
                 rewriteUsingDocOpen(win, html);
@@ -2346,7 +2298,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     function loadWithoutHistoryApi(url, html) {
         createFrame(url);
         var win = getIframeWindow();
-        docUtils.addEventListener(win, 'load', onload);
+        utils.addEventListener(win, 'load', onload);
         deactivateWindow(win);
 
         function onload() {
@@ -2417,7 +2369,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         var sn = win.document.createElement("script");
         sn.setAttribute("id", "rewriteScript");
         sn.setAttribute("type", "text/javascript");
-        docUtils.textContent(sn, rewrite.toString()+';rewrite(window, window.newContent);');
+        utils.textContent(sn, rewrite.toString()+';rewrite(window, window.newContent);');
 
         win.document.body.appendChild(sn);
 
@@ -2489,11 +2441,30 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     }
 });
 
-uitest.define('sniffer', ['global', 'documentUtils'], function(global, documentUtils) {
+uitest.define('sniffer', ['global'], function(global) {
 
+    var browser = browserSniffer();
     return {
-        browser: browserSniffer(),
-        history: !!global.history.pushState
+        browser: browser,
+        history: !!global.history.pushState,
+        // android has problems with internal caching when 
+        // doing cors requests. So we need to do cache busting every time!
+        // See http://opensourcehacker.com/2011/03/20/android-webkit-xhr-status-code-0-and-expires-headers/
+        corsXhrForceCacheBusting: browser.android,
+        // ff always returns false when calling dispatchEvent on links.
+        // See https://bugzilla.mozilla.org/show_bug.cgi?id=684208:        
+        dispatchEventDoesNotReturnPreventDefault: browser.ff,
+        // In FF, we can't just juse an empty iframe and rewrite
+        // it's content, as then the history api will throw errors
+        // whenever history.pushState is used within the frame.
+        // We need to do doc.open/write/close in the onload event
+        // to prevent this problem!        
+        documentWriteOnlyInOnload: browser.ff,
+        // Firefox does not support javascript urls for rewriting documents:
+        // it does not revert back to the previous url
+        // Android does not set the location correctly when
+        // using js urls and a pushState before.
+        jsUrlWithPushState: !browser.ff && !browser.android
     };
 
     function browserSniffer() {
@@ -2680,6 +2651,19 @@ uitest.define('urlParser', ['global'], function (global) {
     var now = new Date().getTime();
 
     uitest.define('utils', ['global'], function(global) {
+        return {
+            isString: isString,
+            isFunction: isFunction,
+            isArray: isArray,
+            testRunTimestamp: testRunTimestamp,
+            asyncLoop: asyncLoop,
+            orderByPriority: orderByPriority,
+            evalScript: evalScript,
+            addEventListener: addEventListener,
+            removeEventListener: removeEventListener,
+            textContent: textContent
+        };
+
         function isString(obj) {
             return obj && obj.slice;
         }
@@ -2696,73 +2680,114 @@ uitest.define('urlParser', ['global'], function (global) {
             return now;
         }
 
-        function asyncLoop(items, handler, finalNext, stop) {
+        function compareByPriority(entry1, entry2) {
+            return (entry2.priority || 0) - (entry1.priority || 0);
+        }
+
+        function orderByPriority(arr) {
+            arr.sort(compareByPriority);
+            return arr;
+        }
+
+        function asyncLoop(items, handler, loopDone) {
             var i = 0,
                 steps = [],
-                loopRunning = false,
-                control = {
-                    next: nextStep,
-                    stop: stop
-                };
+                trampolineRunning = false;
 
             nextStep();
 
             // We are using the trampoline pattern from lisp here,
             // to prevent long stack calls when the handler
-            // is calling control.next in sync!
-            function loop() {
-                var itemAndIndex;
-                if (loopRunning) {
+            // is calling handlerDone in sync!
+
+            function trampoline() {
+                if (trampolineRunning) {
                     return;
                 }
-                loopRunning = true;
+                trampolineRunning = true;
                 while (steps.length) {
-                    itemAndIndex = steps.shift();
-                    handler(itemAndIndex.index, itemAndIndex.item, control);
+                    execStep(steps.shift());
                 }
-                loopRunning = false;
+                trampolineRunning = false;
+            }
+
+            function execStep(step) {
+                handler(step, handlerDone);
+
+                function handlerDone(error) {
+                    if (error || step.stopped) {
+                        loopDone(error);
+                    } else {
+                        nextStep();
+                    }
+                }
             }
 
             function nextStep() {
-                if (i<items.length) {
+                var step;
+                if (i < items.length) {
                     i++;
-                    steps.push({
-                        item: items[i-1],
-                        index: i-1
-                    });
-                    loop();
+                    step = {
+                        item: items[i - 1],
+                        index: i - 1,
+                        stop: function() {
+                            step.stopped = true;
+                            this.stopped = true;
+                        }
+                    };
+                    steps.push(step);
+                    trampoline();
                 } else {
-                    finalNext();
+                    loopDone();
                 }
             }
         }
 
-        function processAsyncEvent(event, listeners, finalNext, stop) {
-            orderByPriority(listeners);
-            asyncLoop(listeners, handler, finalNext, stop);
+        function evalScript(win, scriptUrl, scriptContent) { /*jshint evil:true*/
+            if (scriptUrl) {
+                scriptContent += "//@ sourceURL=" + scriptUrl;
+            }
+            win["eval"].call(win, scriptContent);
+        }
 
-            function handler(index, listener, control) {
-                listener(event, control);
+        function addEventListener(target, type, callback) {
+            if (target.nodeName && target.nodeName.toLowerCase() === 'iframe' && type === 'load') {
+                // Cross browser way for onload iframe handler
+                if (target.attachEvent) {
+                    target.attachEvent('onload', callback);
+                } else {
+                    target.onload = callback;
+                }
+            } else if (target.addEventListener) {
+                target.addEventListener(type, callback, false);
+            } else {
+                target.attachEvent("on" + type, callback);
             }
         }
 
-        function orderByPriority(arr) {
-            return arr.sort(compareByPriority);
+        function removeEventListener(target, type, callback) {
+            if (target[type] === callback) {
+                target[type] = null;
+            }
+            if (target.removeEventListener) {
+                target.removeEventListener(type, callback, false);
+            } else {
+                target.detachEvent("on" + type, callback);
+            }
         }
 
-        function compareByPriority(entry1, entry2) {
-            return (entry2.priority || 0) - (entry1.priority || 0);
+        function textContent(el, val) {
+            if ("text" in el) {
+                el.text = val;
+            } else {
+                if ("innerText" in el) {
+                    el.innerHTML = val;
+                } else {
+                    el.textContent = val;
+                }
+            }
         }
 
-        return {
-            isString: isString,
-            isFunction: isFunction,
-            isArray: isArray,
-            testRunTimestamp: testRunTimestamp,
-            processAsyncEvent: processAsyncEvent,
-            asyncLoop: asyncLoop,
-            orderByPriority: orderByPriority
-        };
     });
 
 })();

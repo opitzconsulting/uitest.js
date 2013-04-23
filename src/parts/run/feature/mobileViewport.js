@@ -1,5 +1,8 @@
-uitest.define('run/feature/mobileViewport', ['run/config', 'global'], function(runConfig, global) {
-    runConfig.appends.push(install);
+uitest.define('run/feature/mobileViewport', ['run/eventSource', 'global'], function(eventSource, global) {
+    eventSource.on('addAppends', function(event, done) {
+        event.handlers.push(install);
+        done();
+    });
 
     function install(window) {
         var doc = window.document,

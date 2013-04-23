@@ -1,30 +1,16 @@
-uitest.define('run/feature/cacheBuster', ['documentUtils', 'run/htmlInstrumentor', 'run/logger', 'utils', 'urlParser', 'run/requirejsInstrumentor'], function(docUtils, docInstrumentor, logger, utils, urlParser, requirejsInstrumentor) {
+uitest.define('run/feature/cacheBuster', ['run/eventSource', 'run/logger', 'utils', 'urlParser'], function(eventSource, logger, utils, urlParser) {
 
     var now = utils.testRunTimestamp();
     logger.log("forcing script refresh with timestamp "+now);
+    eventSource.on('instrumentScript', instrumentScript);
 
-    htmlPreProcessor.priority = 9999;
-    docInstrumentor.addPreProcessor(htmlPreProcessor);
-    requirejsEventHandler.priority = 9999;
-    requirejsInstrumentor.addEventListener(requirejsEventHandler);
+    return instrumentScript;
 
-    return {
-        htmlPreProcessor: htmlPreProcessor,
-        requirejsEventHandler: requirejsEventHandler
-    };
-
-    function requirejsEventHandler(event, control) {
-        if (event.type==='load') {
-            event.url = urlParser.cacheBustingUrl(event.url, now);
+    function instrumentScript(event, done) {
+        if (event.src) {
+            event.src = urlParser.cacheBustingUrl(event.src, now);
         }
-        control.next();
-    }
-
-    function htmlPreProcessor(event, control) {
-        if (event.token.type==='urlscript') {
-            event.token.src = urlParser.cacheBustingUrl(event.token.src, now);
-        }
-        control.next();
+        done();
     }
 });
 

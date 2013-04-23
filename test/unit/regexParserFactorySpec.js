@@ -1,7 +1,9 @@
-describe('regexParserFactory', function() {
-    var factory, parser, parse, serialize;
+ddescribe('regexParserFactory', function() {
+    var factory, parser, parse, serialize, eventSource;
     beforeEach(function() {
-        factory = uitest.require(["regexParserFactory"]).regexParserFactory;
+        var modules = uitest.require(["regexParserFactory","eventSourceFactory"]);
+        factory = modules.regexParserFactory;
+        eventSource = modules.eventSourceFactory();
         parser = factory();
         parse = parser.parse;
         serialize = parser.serialize;
@@ -134,34 +136,45 @@ describe('regexParserFactory', function() {
             result = null;
         });
         it('should return the input string if no listeners are given', function() {
-            parser.transform('a',{},[],resultCb);
+            parser.transform({input: 'a', eventSource: eventSource},resultCb);
             expect(result).toBe('a');
-            expect(error).toBe(null);
+            expect(error).toBeFalsy();
+        });
+        it('should use the given prefix for events', function() {
+            var listener = jasmine.createSpy('listener');
+            eventSource.on('*', listener);
+            parser.transform({
+                input: 'a',
+                eventSource: eventSource,
+                eventPrefix: 'html:'
+            },resultCb);
+            expect(listener.mostRecentCall.args[0].type).toBe('html:a');
         });
         it('should pass the parsed tokens to the listeners', function() {
             var processedTokens = [];
-            function listener(event, control) {
+            function listener(event, done) {
                 processedTokens.push(event.token);
-                control.next();
+                done();
             }
-            parser.transform('a.b',null,[listener],resultCb);
+            eventSource.on('*', listener);
+            parser.transform({input: 'a.b',eventSource:eventSource},resultCb);
             expect(processedTokens).toEqual([{type:'a',match:'a'},{type:'other',match:'.'},{type:'b',match:'b'}]);
         });
         it('should remove stopped tokens', function() {
-            function listener(event, control) {
+            function listener(event, done) {
                 if (event.token.type==='other') {
-                    control.stop();
-                } else {
-                    control.next();
+                    event.stop();
                 }
+                done();
             }
-            parser.transform('a.b',null,[listener],resultCb);
+            eventSource.on('*', listener);
+            parser.transform({input: 'a.b',eventSource:eventSource},resultCb);
             expect(result).toBe('ab');
-            expect(error).toBe(null);
+            expect(error).toBeFalsy();
         });
         it('should add input tokens using event.pushToken', function() {
             var processedTokens = [];
-            function listener(event, control) {
+            function listener(event, done) {
                 processedTokens.push(event.token);
                 if (event.token.match==='a') {
                     event.pushToken({
@@ -169,52 +182,57 @@ describe('regexParserFactory', function() {
                         match: '.'
                     });
                 }
-                control.next();
+                done();
             }
-            parser.transform('a',null,[listener],resultCb);
+            eventSource.on('*', listener);
+            parser.transform({input:'a',eventSource:eventSource},resultCb);
             expect(result).toBe('a.');
-            expect(error).toBe(null);
+            expect(error).toBeFalsy();
             expect(processedTokens).toEqual([{type:'a',match:'a'},{type:'other', match:'.'}]);
         });
-        it('should collect and stop at errors', function() {
+        it('should stop at and return errors', function() {
             var tokens = [];
-            function listener(event, control) {
+            function listener(event, done) {
                 tokens.push(event.token);
                 if (event.token.type==='other') {
-                    control.stop('some Error');
+                    done('some Error');
                 } else {
-                    control.next();
+                    done();
                 }
             }
-            parser.transform('a.b',null,[listener],resultCb);
+            eventSource.on('*', listener);
+            parser.transform({input: 'a.b',eventSource:eventSource},resultCb);
             expect(tokens.length).toBe(2);
             expect(error).toEqual('some Error');
         });
 
         it('should process the tokens asynchronously', function() {
-            var control;
-            function listener(event, _control) {
-                control = _control;
+            var listenerDone;
+            function listener(event, _done) {
+                listenerDone = _done;
             }
-            parser.transform('a',null,[listener],resultCb);
+            eventSource.on('*', listener);
+            parser.transform({input: 'a',eventSource:eventSource},resultCb);
             expect(resultCb).not.toHaveBeenCalled();
-            control.next();
-            expect(resultCb).toHaveBeenCalledWith(null, 'a');
+            listenerDone();
+            expect(resultCb).toHaveBeenCalledWith(undefined, 'a');
         });
 
         it('should share the state for all tokens and all listeners', function() {
             var state = {},
                 states = [],
                 i;
-            function listener1(event, control) {
+            function listener1(event, done) {
                 states.push(event.state);
-                control.next();
+                done();
             }
-            function listener2(event, control) {
+            function listener2(event, done) {
                 states.push(event.state);
-                control.next();
+                done();
             }
-            parser.transform('a.b', state, [listener1, listener2], resultCb);
+            eventSource.on('*', listener1);
+            eventSource.on('*', listener2);
+            parser.transform({input:'a.b', state:state, eventSource:eventSource}, resultCb);
             for (i=0; i<states.length; i++) {
                 expect(states[i]).toBe(state);
             }

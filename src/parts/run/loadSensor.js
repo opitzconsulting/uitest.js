@@ -1,12 +1,15 @@
-uitest.define('run/loadSensor', ['run/ready', 'run/config'], function(readyModule, runConfig) {
+uitest.define('run/loadSensor', ['run/ready', 'run/eventSource'], function(readyModule, eventSource) {
 
 	var count = 0,
 		ready, win, doc, waitForDocComplete;
 
-	runConfig.appends.push(function(window, document) {
-		win = window;
-		doc = document;
-		waitForDocComplete = true;
+	eventSource.on('addAppends', function(event, done) {
+		event.handlers.push(function(window, document) {
+			win = window;
+			doc = document;
+			waitForDocComplete = true;
+		});
+		done();
 	});
 
 	loadSensor.init = init;

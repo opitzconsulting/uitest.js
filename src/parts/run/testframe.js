@@ -1,4 +1,4 @@
-uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/injector', 'run/logger', 'documentUtils', 'sniffer'], function(urlParser, global, runConfig, injector, logger, docUtils, sniffer) {
+uitest.define('run/testframe', ['urlParser', 'global', 'run/injector', 'run/logger', 'utils', 'sniffer'], function(urlParser, global, injector, logger, utils, sniffer) {
     var WINDOW_ID = 'uitestwindow',
         BUTTON_ID = WINDOW_ID+'Btn',
         BUTTON_LISTENER_ID = BUTTON_ID+"Listener",
@@ -31,15 +31,10 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
 
     function loadUsingHistoryApi(url, html) {
         var fr, win;
-        if (sniffer.browser.ff) {
-            // In FF, we can't just juse an empty iframe and rewrite
-            // it's content, as then the history api will throw errors
-            // whenever history.pushState is used within the frame.
-            // We need to do doc.open/write/close in the onload event
-            // to prevent this problem!
+        if (sniffer.documentWriteOnlyInOnload) {
             createFrame(urlParser.uitestUrl());
             win = getIframeWindow();
-            docUtils.addEventListener(win, 'load', afterFrameCreate);
+            utils.addEventListener(win, 'load', afterFrameCreate);
         } else {
             createFrame('');
             win = getIframeWindow();
@@ -54,11 +49,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         function afterFrameCreate() {
             var win = getIframeWindow();
             win.history.pushState(null, '', url);
-            // Firefox does not support js urls:
-            // - it does not revert back to the previous url
-            // Android does not set the location correctly when
-            // using js urls and a pushState before.
-            if (!sniffer.browser.android && !sniffer.browser.ff) {
+            if (sniffer.browser.jsUrlWithPushState) {
                 rewriteUsingJsUrl(win,html);
             } else {
                 rewriteUsingDocOpen(win, html);
@@ -69,7 +60,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
     function loadWithoutHistoryApi(url, html) {
         createFrame(url);
         var win = getIframeWindow();
-        docUtils.addEventListener(win, 'load', onload);
+        utils.addEventListener(win, 'load', onload);
         deactivateWindow(win);
 
         function onload() {
@@ -140,7 +131,7 @@ uitest.define('run/testframe', ['urlParser', 'global', 'run/config', 'run/inject
         var sn = win.document.createElement("script");
         sn.setAttribute("id", "rewriteScript");
         sn.setAttribute("type", "text/javascript");
-        docUtils.textContent(sn, rewrite.toString()+';rewrite(window, window.newContent);');
+        utils.textContent(sn, rewrite.toString()+';rewrite(window, window.newContent);');
 
         win.document.body.appendChild(sn);
 

@@ -1,17 +1,17 @@
 describe('script form public url', function() {
     it('should be able to load pages with script from public urls', function() {
         var processedJQuery;
-        uitest.define('run/test', ['run/scriptInstrumentor'],function(scriptInstrumentor) {
+        uitest.define('run/test', ['run/eventSource'],function(eventSource) {
             processedJQuery = false;
-            scriptInstrumentor.addPreProcessor(scriptPreProcessor);
+            eventSource.on('js:blockcomment', scriptPreProcessor);
         });
 
-        function scriptPreProcessor(event, control) {
-            if (event.state.src && event.state.src.indexOf('jquery')!==-1 &&
+        function scriptPreProcessor(event, done) {
+            if (event.state.scriptUrl && event.state.scriptUrl.indexOf('jquery')!==-1 &&
                 event.token.match.indexOf('Released under the MIT license')!==-1) {
                 processedJQuery = true;
             }
-            control.next();
+            done();
         }
 
         var uit = uitest.current;

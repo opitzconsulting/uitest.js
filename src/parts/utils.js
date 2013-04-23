@@ -4,6 +4,19 @@
     var now = new Date().getTime();
 
     uitest.define('utils', ['global'], function(global) {
+        return {
+            isString: isString,
+            isFunction: isFunction,
+            isArray: isArray,
+            testRunTimestamp: testRunTimestamp,
+            asyncLoop: asyncLoop,
+            orderByPriority: orderByPriority,
+            evalScript: evalScript,
+            addEventListener: addEventListener,
+            removeEventListener: removeEventListener,
+            textContent: textContent
+        };
+
         function isString(obj) {
             return obj && obj.slice;
         }
@@ -20,73 +33,114 @@
             return now;
         }
 
-        function asyncLoop(items, handler, finalNext, stop) {
+        function compareByPriority(entry1, entry2) {
+            return (entry2.priority || 0) - (entry1.priority || 0);
+        }
+
+        function orderByPriority(arr) {
+            arr.sort(compareByPriority);
+            return arr;
+        }
+
+        function asyncLoop(items, handler, loopDone) {
             var i = 0,
                 steps = [],
-                loopRunning = false,
-                control = {
-                    next: nextStep,
-                    stop: stop
-                };
+                trampolineRunning = false;
 
             nextStep();
 
             // We are using the trampoline pattern from lisp here,
             // to prevent long stack calls when the handler
-            // is calling control.next in sync!
-            function loop() {
-                var itemAndIndex;
-                if (loopRunning) {
+            // is calling handlerDone in sync!
+
+            function trampoline() {
+                if (trampolineRunning) {
                     return;
                 }
-                loopRunning = true;
+                trampolineRunning = true;
                 while (steps.length) {
-                    itemAndIndex = steps.shift();
-                    handler(itemAndIndex.index, itemAndIndex.item, control);
+                    execStep(steps.shift());
                 }
-                loopRunning = false;
+                trampolineRunning = false;
+            }
+
+            function execStep(step) {
+                handler(step, handlerDone);
+
+                function handlerDone(error) {
+                    if (error || step.stopped) {
+                        loopDone(error);
+                    } else {
+                        nextStep();
+                    }
+                }
             }
 
             function nextStep() {
-                if (i<items.length) {
+                var step;
+                if (i < items.length) {
                     i++;
-                    steps.push({
-                        item: items[i-1],
-                        index: i-1
-                    });
-                    loop();
+                    step = {
+                        item: items[i - 1],
+                        index: i - 1,
+                        stop: function() {
+                            step.stopped = true;
+                            this.stopped = true;
+                        }
+                    };
+                    steps.push(step);
+                    trampoline();
                 } else {
-                    finalNext();
+                    loopDone();
                 }
             }
         }
 
-        function processAsyncEvent(event, listeners, finalNext, stop) {
-            orderByPriority(listeners);
-            asyncLoop(listeners, handler, finalNext, stop);
+        function evalScript(win, scriptUrl, scriptContent) { /*jshint evil:true*/
+            if (scriptUrl) {
+                scriptContent += "//@ sourceURL=" + scriptUrl;
+            }
+            win["eval"].call(win, scriptContent);
+        }
 
-            function handler(index, listener, control) {
-                listener(event, control);
+        function addEventListener(target, type, callback) {
+            if (target.nodeName && target.nodeName.toLowerCase() === 'iframe' && type === 'load') {
+                // Cross browser way for onload iframe handler
+                if (target.attachEvent) {
+                    target.attachEvent('onload', callback);
+                } else {
+                    target.onload = callback;
+                }
+            } else if (target.addEventListener) {
+                target.addEventListener(type, callback, false);
+            } else {
+                target.attachEvent("on" + type, callback);
             }
         }
 
-        function orderByPriority(arr) {
-            return arr.sort(compareByPriority);
+        function removeEventListener(target, type, callback) {
+            if (target[type] === callback) {
+                target[type] = null;
+            }
+            if (target.removeEventListener) {
+                target.removeEventListener(type, callback, false);
+            } else {
+                target.detachEvent("on" + type, callback);
+            }
         }
 
-        function compareByPriority(entry1, entry2) {
-            return (entry2.priority || 0) - (entry1.priority || 0);
+        function textContent(el, val) {
+            if ("text" in el) {
+                el.text = val;
+            } else {
+                if ("innerText" in el) {
+                    el.innerHTML = val;
+                } else {
+                    el.textContent = val;
+                }
+            }
         }
 
-        return {
-            isString: isString,
-            isFunction: isFunction,
-            isArray: isArray,
-            testRunTimestamp: testRunTimestamp,
-            processAsyncEvent: processAsyncEvent,
-            asyncLoop: asyncLoop,
-            orderByPriority: orderByPriority
-        };
     });
 
 })();

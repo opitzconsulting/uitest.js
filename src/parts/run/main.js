@@ -1,4 +1,4 @@
-uitest.define('run/main', ['documentUtils', 'urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor'], function(docUtils, urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor) {
+uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor'], function(urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor) {
 
     start(runConfig.url);
     return {

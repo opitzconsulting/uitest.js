@@ -143,42 +143,37 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
             }
         }
 
-        function transform(input, state, listeners, doneCallback) {
-            var tokens = parse(input),
+        function transform(data, transformDone) {
+            var input = data.input,
+                state = data.state || {},
+                eventSource = data.eventSource,
+                eventPrefix = data.eventPrefix || '',
+                tokens = parse(input),
                 resultTokens = [];
-            state = state || {};
 
-            utils.asyncLoop(tokens, tokenHandler, done, stop);
+            utils.asyncLoop(tokens, loopHandler, loopDone);
 
-            function stop(error) {
-                if (error) {
-                    doneCallback(error);
-                }
+            function loopDone(error) {
+                transformDone(error, serialize(resultTokens));
             }
 
-            function done() {
-                doneCallback(null, serialize(resultTokens));
-            }
-
-            function tokenHandler(tokenIndex, token, control) {
-                utils.processAsyncEvent({
+            function loopHandler(entry, loopHandlerDone) {
+                var token = entry.item,
+                    tokenIndex = entry.index;
+                eventSource.emit({
+                    type: eventPrefix+token.type,
                     token: token,
                     state: state,
                     pushToken: pushToken
-                },listeners,tokenDone,tokenStop);
+                }, eventDone);
 
-                function tokenDone() {
-                    resultTokens.push(token);
-                    control.next();
-                }
-
-                function tokenStop(error) {
-                    if (error) {
-                        control.stop(error);
-                    } else {
-                        control.next();
+                function eventDone(error, event) {
+                    if (!event.stopped && !error) {
+                        resultTokens.push(token);
                     }
+                    loopHandlerDone(error);
                 }
+
                 function pushToken(token) {
                     tokens.splice(tokenIndex+1,0,token);
                 }

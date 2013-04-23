@@ -1,26 +1,22 @@
-uitest.define('run/namedFunctionInstrumentor', ['run/scriptInstrumentor', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe'], function(scriptInstrumentor, injector, annotate, runConfig, urlParser, testframe) {
-    scriptInstrumentor.addPreProcessor(preProcessJavaScript);
+uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe'], function(eventSource, injector, annotate, runConfig, urlParser, testframe) {
 
-    return preProcessJavaScript;
+    eventSource.on('js:functionstart', onFunctionStart);
 
-    function preProcessJavaScript(event, control) {
+    return onFunctionStart;
+
+    function onFunctionStart(event, done) {
         var token = event.token,
             state = event.state;
-
-        if (token.type!=='functionstart') {
-            control.next();
-            return;
-        }
-        var intercept = findMatchingInterceptByName(token.name, state.src);
+        var intercept = findMatchingInterceptByName(token.name, state.scriptUrl);
         if (!intercept) {
-            control.next();
+            done();
             return;
         }
         event.pushToken({
             type: 'other',
             match: 'if (!' + token.name + '.delegate)return ' + testframe.createRemoteCallExpression(fnCallback, "window", token.name, "this", "arguments")
         });
-        control.next();
+        done();
         return;
 
         function fnCallback(win, fn, self, args) {
