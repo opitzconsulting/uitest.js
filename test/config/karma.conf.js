@@ -9,7 +9,7 @@ files = [
   'test/lib/testutils.js',
   'test/lib/uitestutils.js',
   'test/ui/**/*Spec.js',
-  //'test/unit/**/*Spec.js',
+  'test/unit/**/*Spec.js',
   {pattern: 'test/**/*', watched: true, included: false, served: true}
 ];
 

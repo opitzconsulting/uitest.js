@@ -143,7 +143,7 @@ uitest.define('facade', ['config', 'global'], function(config, global) {
     function inject(callback) {
         checkRunning(this);
         var injector = this._runModules["run/injector"];
-        return injector.inject(callback, null, []);
+        return injector.inject(callback);
     }
 
     function checkRunning(self) {

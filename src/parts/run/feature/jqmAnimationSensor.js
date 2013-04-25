@@ -3,7 +3,7 @@ uitest.define('run/feature/jqmAnimationSensor', ['run/eventSource', 'run/ready']
     var ready = true,
         startCounter = 0;
 
-    eventSource.on('addPrepends', function(event,done) {
+    eventSource.on('addAppends', function(event,done) {
         event.handlers.push(install);
         done();
     });

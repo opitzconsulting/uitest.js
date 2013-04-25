@@ -1,5 +1,7 @@
 uitest.define('run/scriptAdder', ['run/config', 'run/eventSource'], function(runConfig, eventSource) {
+    addPrepends.priority = -100;
     eventSource.on('addPrepends', addPrepends);
+    addAppends.priority = -100;
     eventSource.on('addAppends', addAppends);
     return;
 

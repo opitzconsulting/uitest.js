@@ -33,7 +33,7 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 			var currentSensorStatus = aggregateSensorStatus(sensorInstances);
 			if(currentSensorStatus.busySensors.length === 0 && currentSensorStatus.count === sensorStatus.count) {
 				logger.log("ready");
-				injector.inject(listener, null, []);
+				injector.inject(listener);
 			} else {
 				restart();
 			}

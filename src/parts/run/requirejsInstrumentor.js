@@ -95,7 +95,7 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
                     if (utils.isString(append)) {
                         require([append], execNext);
                     } else {
-                        injector.inject(append, win, [win]);
+                        injector.inject(append);
                         execNext();
                     }
                 }

@@ -1,8 +1,17 @@
 uitest.define('urlParser', ['global'], function (global) {
     var URL_RE = /(((\w+)\:)?\/\/([^\/]+))?([^\?#]*)(\?([^#]*))?(#.*)?/,
-        UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/,
+        UI_TEST_RE = /(uitest)[^\w\/][^\/]*$/,
         NUMBER_RE = /^\d+$/;
 
+    return {
+        parseUrl:parseUrl,
+        serializeUrl:serializeUrl,
+        isAbsoluteUrl: isAbsoluteUrl,
+        makeAbsoluteUrl: makeAbsoluteUrl,
+        filenameFor: filenameFor,
+        uitestUrl: uitestUrl,
+        cacheBustingUrl: cacheBustingUrl
+    };
 
     function parseUrl(url) {
         var match = url.match(URL_RE);
@@ -63,7 +72,12 @@ uitest.define('urlParser', ['global'], function (global) {
         if(isAbsoluteUrl(url)) {
             return url;
         }
-        return basePath(baseUrl) + '/' + url;
+        var parsedBase = parseUrl(baseUrl);
+        var parsedUrl = parseUrl(url);
+        parsedUrl.protocol = parsedBase.protocol;
+        parsedUrl.domain = parsedBase.domain;
+        parsedUrl.path = basePath(parsedBase.path) + '/' + parsedUrl.path;
+        return serializeUrl(parsedUrl);
     }
 
     function isAbsoluteUrl(url) {
@@ -71,16 +85,13 @@ uitest.define('urlParser', ['global'], function (global) {
     }
 
     function filenameFor(url) {
-        var lastSlash = url.lastIndexOf('/');
-        var urlWithoutSlash = url;
+        var parsedUrl = parseUrl(url),
+            path = parsedUrl.path;
+        var lastSlash = path.lastIndexOf('/');
         if(lastSlash !== -1) {
-            urlWithoutSlash = url.substring(lastSlash + 1);
+            return path.substring(lastSlash + 1);
         }
-        var query = urlWithoutSlash.indexOf('?');
-        if (query !== -1) {
-            return urlWithoutSlash.substring(0, query);
-        }
-        return urlWithoutSlash;
+        return path;
     }
 
     function cacheBustingUrl(url, timestamp) {
@@ -98,14 +109,4 @@ uitest.define('urlParser', ['global'], function (global) {
         }
         return serializeUrl(parsedUrl);
     }
-
-    return {
-        isAbsoluteUrl: isAbsoluteUrl,
-        parseUrl:parseUrl,
-        serializeUrl:serializeUrl,
-        makeAbsoluteUrl: makeAbsoluteUrl,
-        filenameFor: filenameFor,
-        uitestUrl: uitestUrl,
-        cacheBustingUrl: cacheBustingUrl
-    };
 });

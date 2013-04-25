@@ -1,4 +1,7 @@
 describe('script form public url', function() {
+    if ("onLine" in window.navigator && !window.navigator.onLine) {
+        return;
+    }
     it('should be able to load pages with script from public urls', function() {
         var processedJQuery;
         uitest.define('run/test', ['run/eventSource'],function(eventSource) {

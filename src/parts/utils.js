@@ -14,11 +14,16 @@
             evalScript: evalScript,
             addEventListener: addEventListener,
             removeEventListener: removeEventListener,
-            textContent: textContent
+            textContent: textContent,
+            noop: noop
         };
 
+        function noop() {
+
+        }
+
         function isString(obj) {
-            return obj && obj.slice;
+            return !!(obj && obj.slice && !obj.splice);
         }
 
         function isFunction(value) {

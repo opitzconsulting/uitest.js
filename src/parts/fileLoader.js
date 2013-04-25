@@ -1,7 +1,4 @@
 uitest.define('fileLoader', ['global','sniffer','urlParser'], function(global, sniffer, urlParser) {
-    var jsonpResultCallbacks = [];
-    global.uitest.jsonpResultCallbacks = jsonpResultCallbacks;
-
     return loadFile;
 
     // ---------

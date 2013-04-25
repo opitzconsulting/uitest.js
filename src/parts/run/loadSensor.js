@@ -1,6 +1,6 @@
 uitest.define('run/loadSensor', ['run/ready', 'run/eventSource'], function(readyModule, eventSource) {
 
-	var count = 0,
+	var count = -1,
 		ready, win, doc, waitForDocComplete;
 
 	eventSource.on('addAppends', function(event, done) {
@@ -13,6 +13,7 @@ uitest.define('run/loadSensor', ['run/ready', 'run/eventSource'], function(ready
 	});
 
 	loadSensor.init = init;
+	init();
 
 	readyModule.addSensor("load", loadSensor);
 	return loadSensor;

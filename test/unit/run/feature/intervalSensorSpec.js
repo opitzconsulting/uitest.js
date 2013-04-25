@@ -1,19 +1,16 @@
 describe('run/feature/intervalSensor', function() {
-    var readyModule, config, injectorModule, sensorInstance, handle, setInterval, clearInterval, testframe, otherCallback;
+    var readyModule, injectorModule, sensorInstance, handle, setInterval, clearInterval, testframe, eventSource, addPrependsEvent;
     beforeEach(function() {
-        otherCallback = jasmine.createSpy('someOtherCallback');
         readyModule = {
             addSensor: jasmine.createSpy('addSensor')
         };
-        config = {
-            prepends: [otherCallback]
-        };
         var modules = uitest.require({
             "run/ready": readyModule,
-            "run/config": config
-        }, ["run/feature/intervalSensor", "run/injector"]);
+            "run/config": {}
+        }, ["run/feature/intervalSensor", "run/injector", "run/eventSource"]);
         injectorModule = modules["run/injector"];
         sensorInstance = modules["run/feature/intervalSensor"];
+        eventSource = modules["run/eventSource"];
         handle = 1;
         setInterval = jasmine.createSpy('setInterval').andReturn(handle);
         clearInterval = jasmine.createSpy('clearInterval');
@@ -23,17 +20,20 @@ describe('run/feature/intervalSensor', function() {
                 clearInterval: clearInterval
             }
         };
+        addPrependsEvent = {
+            type: 'addPrepends',
+            handlers: []
+        };
+        eventSource.emit(addPrependsEvent);
+        injectorModule.inject(addPrependsEvent.handlers[0], null, [testframe]);
     });
     it('should add itself to the ready-module', function() {
         expect(readyModule.addSensor).toHaveBeenCalledWith('interval', sensorInstance);
     });
-    it('should add itself before all other config.prepends', function() {
-        expect(config.prepends.length).toBe(2);
-        expect(config.prepends[1]).toBe(otherCallback);
+    it('should add itself as prepend', function() {
+        expect(addPrependsEvent.handlers.length).toBe(1);
     });
     it('should wait until the interval is canceled', function() {
-        injectorModule.inject(config.prepends[0], testframe, [testframe]);
-
         expect(sensorInstance()).toEqual({
             count: 0,
             ready: true

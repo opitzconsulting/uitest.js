@@ -1,42 +1,71 @@
 describe('run/loadSensor', function() {
-    var loadSensorModule, readyModule, globalModule, config, injectorModule, otherCallback, sensorInstance;
+    var loadSensorModule, readyModule, globalModule, injectorModule, sensorInstance, eventSource, testwin;
     beforeEach(function() {
-        otherCallback = jasmine.createSpy('someOtherCallback');
         readyModule = {
             addSensor: jasmine.createSpy('addSensor'),
             ready: jasmine.createSpy('ready')
         };
-        config = {
-            appends: [otherCallback]
+        testwin = {
+            document: {
+                readyState: ''
+            },
+            setTimeout: jasmine.createSpy('setTimeout')
         };
+        testwin.window = testwin;
         var modules = uitest.require({
-            "run/ready": readyModule,
-            "run/config": config
-        }, ["run/loadSensor", "run/injector"]);
+            "run/ready": readyModule
+        }, ["run/loadSensor", "run/injector", "run/eventSource"]);
         loadSensorModule = modules["run/loadSensor"];
         sensorInstance = loadSensorModule;
         injectorModule = modules["run/injector"];
+        eventSource = modules["run/eventSource"];
     });
+
+    function simulateAndTestDocumentLoad(loadCount, readyState) {
+        var handlers = [];
+        eventSource.emit({
+            type: 'addAppends',
+            handlers: handlers
+        });
+        injectorModule.inject(handlers[0], null, [testwin]);
+        expect(sensorInstance()).toEqual({
+            count: loadCount,
+            ready: false
+        });
+        testwin.document.readyState = readyState;
+        expect(sensorInstance()).toEqual({
+            count: loadCount,
+            ready: false
+        });
+        testwin.setTimeout.mostRecentCall.args[0]();
+        expect(sensorInstance()).toEqual({
+            count: loadCount,
+            ready: true
+        });
+    }
 
     it('should add itself to the ready-module', function() {
         expect(readyModule.addSensor).toHaveBeenCalledWith('load', sensorInstance);
     });
 
-    it('should add itself after all other config.appends', function() {
-        expect(config.appends.length).toBe(2);
-        expect(config.appends[0]).toBe(otherCallback);
+    it('should add itself to the appends', function() {
+        var handlers = [];
+        eventSource.emit({
+            type: 'addAppends',
+            handlers: handlers
+        });
+        expect(handlers.length).toBe(1);
     });
 
-    describe('reloaded', function() {
+    describe('init', function() {
         it('should increment the loadSensor.count and set loadSensor.ready to false', function() {
-            loadSensorModule.reloaded();
+            loadSensorModule.init();
             expect(sensorInstance().count).toBe(1);
             expect(sensorInstance().ready).toBe(false);
         });
-        it('should forward the callback to readyModule.ready', function() {
-            var someCallback = jasmine.createSpy('callback');
-            loadSensorModule.reloaded(someCallback);
-            expect(readyModule.ready).toHaveBeenCalledWith(someCallback);
+        it('should wait for the append callback and doc to be ready', function() {
+            loadSensorModule.init();
+            simulateAndTestDocumentLoad(1, "complete");
         });
     });
 
@@ -48,54 +77,10 @@ describe('run/loadSensor', function() {
             });
         });
         it('should wait for the append function to be called and document.readyState==="complete"', function() {
-            var doc = {
-                readyState: ''
-            }, setTimeout = jasmine.createSpy('setTimeout');
-            injectorModule.inject(config.appends[config.appends.length-1], null, [{
-                document: doc,
-                window: {
-                    setTimeout: setTimeout
-                }
-            }]);
-            expect(sensorInstance()).toEqual({
-                count: 0,
-                ready: false
-            });
-            doc.readyState = 'complete';
-            expect(sensorInstance()).toEqual({
-                count: 0,
-                ready: false
-            });
-            setTimeout.mostRecentCall.args[0]();
-            expect(sensorInstance()).toEqual({
-                count: 0,
-                ready: true
-            });
+            simulateAndTestDocumentLoad(0, "complete");
         });
         it('should wait for the append function to be called and document.readyState==="interactive"', function() {
-            var doc = {
-                readyState: ''
-            }, setTimeout = jasmine.createSpy('setTimeout');
-            injectorModule.inject(config.appends[config.appends.length-1], null, [{
-                document: doc,
-                window: {
-                    setTimeout: setTimeout
-                }
-            }]);
-            expect(sensorInstance()).toEqual({
-                count: 0,
-                ready: false
-            });
-            doc.readyState = 'interactive';
-            expect(sensorInstance()).toEqual({
-                count: 0,
-                ready: false
-            });
-            setTimeout.mostRecentCall.args[0]();
-            expect(sensorInstance()).toEqual({
-                count: 0,
-                ready: true
-            });
+            simulateAndTestDocumentLoad(0, "interactive");
         });
     });
 });

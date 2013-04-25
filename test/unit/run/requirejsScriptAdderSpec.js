@@ -1,4 +1,5 @@
-describe('run/requirejsScriptAdder', function() {
+// TODO!
+xdescribe('run/requirejsScriptAdder', function() {
     var preprocessor, instrumentor, testframe, testframeWin, documentUtils, config, global, utils,
         REQUIREJS_SCRIPT = '<script src="require.js"></script>',
         HTML = 'before' + REQUIREJS_SCRIPT + 'after</body>',

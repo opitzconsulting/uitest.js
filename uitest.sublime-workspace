@@ -4,16 +4,88 @@
 		"selected_items":
 		[
 			[
+				"to",
+				"toHaveBeenCalledWith"
+			],
+			[
+				"ev",
+				"evalScript"
+			],
+			[
+				"order",
+				"orderByPriority"
+			],
+			[
+				"fi",
+				"filenameFor"
+			],
+			[
+				"parse",
+				"parsedUrl"
+			],
+			[
+				"parsed",
+				"parsedBase"
+			],
+			[
+				"toH",
+				"toHaveBeenCalledWith"
+			],
+			[
+				"resul",
+				"resultCb"
+			],
+			[
+				"event",
+				"eventListeners"
+			],
+			[
+				"instru",
+				"instrumentScriptEvent"
+			],
+			[
+				"addApp",
+				"addAppendsEvent"
+			],
+			[
+				"html",
+				"htmlEventDone"
+			],
+			[
+				"fnc",
+				"function"
+			],
+			[
+				"instr",
+				"instrumentScriptEvent"
+			],
+			[
+				"content",
+				"contentscript"
+			],
+			[
+				"htmlE",
+				"htmlEventDone"
+			],
+			[
+				"eventS",
+				"eventSource"
+			],
+			[
+				"someEvent",
+				"someEvent2"
+			],
+			[
+				"loop",
+				"loopHandlerDone"
+			],
+			[
 				"toHa",
 				"toHaveBeenCalled"
 			],
 			[
 				"crea",
 				"createSpy"
-			],
-			[
-				"loop",
-				"loopDone"
 			],
 			[
 				"max",
@@ -32,14 +104,6 @@
 				"receivedItems"
 			],
 			[
-				"event",
-				"eventListeners"
-			],
-			[
-				"toH",
-				"toHaveBeenCalled"
-			],
-			[
 				"toHave",
 				"toHaveBeenCalled"
 			],
@@ -52,16 +116,8 @@
 				"listener2"
 			],
 			[
-				"ev",
-				"eventListeners"
-			],
-			[
 				"eventF",
 				"eventFnNames"
-			],
-			[
-				"eventS",
-				"eventSources"
 			],
 			[
 				"HTML",
@@ -70,14 +126,6 @@
 			[
 				"chan",
 				"changeEvent"
-			],
-			[
-				"instru",
-				"instrumentElementProto"
-			],
-			[
-				"instr",
-				"instrumentClick"
 			],
 			[
 				"defau",
@@ -324,10 +372,6 @@
 				"noscriptElContent"
 			],
 			[
-				"content",
-				"contentScriptHtml"
-			],
-			[
 				"fea",
 				"featureName"
 			],
@@ -470,113 +514,11 @@
 			[
 				"origi",
 				"originalThis"
-			],
-			[
-				"to",
-				"toHaveBeenCalled"
-			],
-			[
-				"befo",
-				"beforeEach"
-			],
-			[
-				"match",
-				"matchingIntercepts"
-			],
-			[
-				"matc",
-				"matchingIntercepts"
-			],
-			[
-				"prep",
-				"prependOrAppend"
-			],
-			[
-				"src",
-				"srcAttribute"
-			],
-			[
-				"targe",
-				"targetAccessor"
-			],
-			[
-				"urlLoader",
-				"urlLoaderFactory"
-			],
-			[
-				"calb",
-				"callbackArgs"
-			],
-			[
-				"callback",
-				"callbackArgs"
-			],
-			[
-				"waitFor",
-				"waitForDocComplete"
 			]
 		]
 	},
 	"buffers":
 	[
-		{
-			"file": "test/unit/run/eventSourceSpec.js",
-			"settings":
-			{
-				"buffer_size": 3056,
-				"line_ending": "Unix",
-				"name": "describe('eventSource', function() {"
-			}
-		},
-		{
-			"file": "test/config/karma.conf.js",
-			"settings":
-			{
-				"buffer_size": 1663,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "src/parts/run/eventSource.js",
-			"settings":
-			{
-				"buffer_size": 1161,
-				"line_ending": "Unix",
-				"name": "uitest.define('run/eventSource', function() {"
-			}
-		},
-		{
-			"file": "src/parts/utils.js",
-			"settings":
-			{
-				"buffer_size": 2322,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "test/unit/utilsSpec.js",
-			"settings":
-			{
-				"buffer_size": 3233,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "src/parts/eventSourceFactory.js",
-			"settings":
-			{
-				"buffer_size": 1367,
-				"line_ending": "Unix"
-			}
-		},
-		{
-			"file": "test/unit/eventSourceFactorySpec.js",
-			"settings":
-			{
-				"buffer_size": 3180,
-				"line_ending": "Unix"
-			}
-		}
 	],
 	"build_system": "",
 	"command_palette":
@@ -630,53 +572,81 @@
 	},
 	"file_history":
 	[
-		"/Users/tbo/projects/tigbro/uitest.js/uitest.sublime-project",
+		"/Users/tbo/projects/tigbro/uitest.js/test/config/karma.conf.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/main.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/ui/historySpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/run/loggerSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/run/readySpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/run/injectorSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/testfkws/jasmineSugarSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/utilsSpec.js",
 		"/Users/tbo/projects/tigbro/uitest.js/dist/uitest.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/publicScriptSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/requirejsSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/lib/testutils.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/utils.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/urlParserSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/urlParser.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/fileLoaderSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/fileLoader.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/eventSourceFactory.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/annotateSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/configSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/documentUtilsSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/facadeSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/htmlParserFactorySpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/jsParserFactorySpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/proxyFactorySpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/simpleRequireSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/initialHistoryFix.js",
 		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/testframe.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/sniffer.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/locationProxy.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/requirejsInstrumentor.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/htmlInstrumentor.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/scriptInstrumentor.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/historyFix.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/namedFunctionInstrumentor.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/ui/publicScriptSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/ui/regressionSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/ui/requirejsSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/ui/multiPageSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/cacheBuster.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/intervalSensor.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/jqmAnimationSensor.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/multiPage.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/lib/uitestutils.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/ui/basicSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/ui/angularSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/ui/mobileSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/timeoutSensor.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/loadSensor.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/injector.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/xhrSensor.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/angularIntegration.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/mobileViewport.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/scriptAdder.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/regexParserFactorySpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/regexParserFactory.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/htmlParserFactory.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/eventSourceFactorySpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/eventSource.js",
+		"/Users/tbo/projects/tigbro/uitest.js/test/unit/run/eventSourceSpec.js",
+		"/Users/tbo/projects/tigbro/uitest.js/uitest.sublime-project",
 		"/Users/tbo/projects/tigbro/uitest.js/test/iframe.html",
 		"/Users/tbo/projects/tigbro/uitest.js/test/test.html",
 		"/Users/tbo/projects/tigbro/uitest.js/src/parts/documentUtils.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/multiPageSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/locationProxy.js",
 		"/Users/tbo/projects/tigbro/uitest.js/test/ui/fixtures/multiPage.html",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/multiPage.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/main.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/loadSensor.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/regressionSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/historySpec.js",
 		"/Users/tbo/projects/tigbro/uitest.js/Changelog.md",
 		"/Users/tbo/projects/tigbro/uitest.js/test/test2.html",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/regexParserFactory.js",
 		"/Users/tbo/projects/tigbro/uitest.js/src/parts/jsParserFactory.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/injector.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/utils.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/config/karma.conf.js",
 		"/Users/tbo/Library/Application Support/Sublime Text 2/Packages/User/Preferences.sublime-settings",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/proxyFactorySpec.js",
 		"/Users/tbo/projects/tigbro/uitest.js/src/parts/proxyFactory.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/urlParserSpec.js",
 		"/Users/tbo/Desktop/angularjs coaching mai.txt",
 		"/Users/tbo/projects/tigbro/uitest.js/testacular.conf.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/scriptAdder.js",
 		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/src/integration/ngmRouting.js",
 		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/Changelog.md",
 		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/test/unit/integration/ngmRoutingSpec.js",
 		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/test/devSnippetPage.html",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/basicSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/jsParserFactorySpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/regexParserFactorySpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/htmlParserFactorySpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/htmlParserFactory.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/namedFunctionInstrumentor.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/feature/cacheBuster.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/scriptInstrumentor.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/htmlInstrumentor.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/requirejsInstrumentor.js",
 		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/documentInstrumentor.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/utilsSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/urlParser.js",
 		"/Users/tbo/projects/tigbro/uitest.js/README.md",
 		"/Users/tbo/projects/tigbro/uitest.js/test/unit/run/instrumentorSpec.js",
 		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/requirejsScriptAdder.js",
@@ -729,35 +699,7 @@
 		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/README.md",
 		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/test/ui/integration/compileIntegrationSpec.js",
 		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/lib/jquery.mobile.js",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/src/integration/widgetPatches.js",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/test/ui/integration/ngmRoutingUiSpec.js",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/test/unit/integration/regressionSpec.js",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/test/lib/angular-mocks.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/facade.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/sniffer.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/fixtures/basic.html",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/instrumentor.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/documentUtilsSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/lib/testutils.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/fixtures/basic.xhtml",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/fixtures/sayHello.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/fixtures/test.xhtml",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/fixtures/requireMain.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/fixtures/requirejsDataMain.html",
-		"/Users/tbo/projects/tigbro/uitest.js/test/ui/fixtures/requirejs.html",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/run/requirejsScriptAdderSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/run/defaultScriptAdderSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/facadeSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/src/parts/run/lesserThanIe10Preprocessor.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test/unit/run/lesserThanIe10PreprocessorSpec.js",
-		"/Users/tbo/projects/tigbro/uitest.js/test.xhtml",
-		"/Users/tbo/projects/tigbro/uitest.js/test.html",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/test/formpage.html",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/test/unit/integration/compileIntegrationUnitSpec.js",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/lib/jquery.js",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/src/integration/jqmNgWidgetProvider.js",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/test/unit/integration/jqmNgWidgetProviderSpec.js",
-		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/src/integration/precompileSupport.js"
+		"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/src/integration/widgetPatches.js"
 	],
 	"find":
 	{
@@ -765,9 +707,10 @@
 	},
 	"find_in_files":
 	{
-		"height": 0.0,
+		"height": 105.0,
 		"where_history":
 		[
+			"/Users/tbo/projects/tigbro/uitest.js/src",
 			"/Users/tbo/projects/tigbro/uitest.js/test",
 			"/Users/tbo/projects/tigbro/uitest.js/src",
 			"/Users/tbo/projects/tigbro/jquery-mobile-angular-adapter/src",
@@ -807,6 +750,57 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"now",
+			"reload",
+			"addEventListener",
+			"createFrame",
+			"filenameFor",
+			"NUMBER_RE",
+			"jsonpResultCallbacks",
+			"noop",
+			"reloaded",
+			"runConfig",
+			"run/config",
+			"runConfig",
+			"sniffer.",
+			"sniffer",
+			"documentUtils",
+			"docUtils.",
+			"htmlInstrumentor",
+			"docUtils.",
+			"documentUtils",
+			"state.src",
+			"state.url",
+			"state",
+			"state.",
+			"state.url",
+			"state.src",
+			"htmlEvent.done",
+			"console",
+			"processHtml",
+			"addPrepend",
+			"orderByPriority",
+			"triggerLocationChange",
+			"changeListeners",
+			"initFrame",
+			"utils",
+			"documentUtils",
+			"injector",
+			"testframe",
+			".win()",
+			"utils.",
+			"urlParser",
+			"testframe",
+			"docUtils.",
+			"testframe",
+			"document",
+			"testframe",
+			"runConfig",
+			"fileLoader",
+			"sniffer",
+			"..emit",
+			"emit('someEvent', someEvent",
+			".emit('someEvent', someEvent)",
 			"ddescribe",
 			"form",
 			"triggerHrefChange",
@@ -883,58 +877,7 @@
 			"idea",
 			"intelli",
 			"intellij",
-			"encodeUriQuery",
-			"%20",
-			"%",
-			"%20",
-			".log(",
-			"bootstrap",
-			"initializePage",
-			"init",
-			".tick(",
-			"console.log(",
-			"onUrlChange",
-			"console.log(",
-			"$$phase",
-			"$digest",
-			".defer(",
-			"$timout",
-			"setTimeout",
-			"onUrlChangeProgrammatically",
-			"removePastEntries",
-			"fireUrlChange",
-			"onUrlChange",
-			"removePastEntries",
-			"connect",
-			"popup",
-			"version",
-			"saveLastNavInfoIntoActivePage",
-			"noneTran",
-			"none",
-			"same",
-			"transitionHandlers",
-			"same",
-			"jqmOptions",
-			"restoreOrSaveTransitionForUrlChange",
-			"reverse",
-			"$$baseHref",
-			"http://server",
-			"$$baseHref",
-			"redirect",
-			"dump",
-			"deactivateAndCaptureHtmlCompatibility",
-			"callbacks",
-			"dump",
-			"onload",
-			"finishCallback",
-			"Date.now",
-			"textContent",
-			"createIframe",
-			"dump",
-			"MSIE",
-			"makeEmptyTagsToOpenCloseTags",
-			"scriptOpenTag",
-			"hello"
+			"encodeUriQuery"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -942,6 +885,10 @@
 		"regex": false,
 		"replace_history":
 		[
+			"utils.",
+			".emit",
+			".emit(someEvent",
+			".emit(someEvent)",
 			"htmlInstrumentor",
 			"addEventListener",
 			"addPreProcessor",
@@ -1011,641 +958,8 @@
 	"groups":
 	[
 		{
-			"selected": 6,
 			"sheets":
 			[
-				{
-					"buffer": 0,
-					"file": "test/unit/run/eventSourceSpec.js",
-					"settings":
-					{
-						"buffer_size": 3056,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								2984,
-								2984
-							]
-						],
-						"settings":
-						{
-							"auto_name": "describe('eventSource', function() {",
-							"syntax": "Packages/JavaScript/JavaScript.tmLanguage"
-						},
-						"translation.x": 0.0,
-						"translation.y": 932.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 1,
-					"file": "test/config/karma.conf.js",
-					"settings":
-					{
-						"buffer_size": 1663,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								253,
-								253
-							]
-						],
-						"settings":
-						{
-							"annotations":
-							[
-								"TODO",
-								"README",
-								"FIXME"
-							],
-							"csslint_options":
-							{
-								"adjoining-classes": "warning",
-								"box-model": true,
-								"box-sizing": "warning",
-								"compatible-vendor-prefixes": "warning",
-								"display-property-grouping": true,
-								"duplicate-background-images": "warning",
-								"duplicate-properties": true,
-								"empty-rules": true,
-								"errors": true,
-								"fallback-colors": "warning",
-								"floats": "warning",
-								"font-faces": "warning",
-								"font-sizes": "warning",
-								"gradients": "warning",
-								"ids": "warning",
-								"import": "warning",
-								"important": "warning",
-								"known-properties": true,
-								"outline-none": "warning",
-								"overqualified-elements": "warning",
-								"qualified-headings": "warning",
-								"regex-selectors": "warning",
-								"rules-count": "warning",
-								"shorthand": "warning",
-								"star-property-hack": "warning",
-								"text-indent": "warning",
-								"underscore-property-hack": "warning",
-								"unique-headings": "warning",
-								"universal-selector": "warning",
-								"vendor-prefix": true,
-								"zero-units": "warning"
-							},
-							"gjslint_ignore":
-							[
-								110.0
-							],
-							"gjslint_options":
-							[
-							],
-							"javascript_linter": "jshint",
-							"jshint_options":
-							{
-								"browser": true,
-								"evil": true,
-								"regexdash": true,
-								"sub": true,
-								"trailing": true,
-								"wsh": true
-							},
-							"pep8": true,
-							"pep8_ignore":
-							[
-								"E501"
-							],
-							"perl_linter": "perlcritic",
-							"pyflakes_ignore":
-							[
-							],
-							"pyflakes_ignore_import_*": true,
-							"sublimelinter": true,
-							"sublimelinter_delay": 2.0,
-							"sublimelinter_disable":
-							[
-							],
-							"sublimelinter_executable_map":
-							{
-							},
-							"sublimelinter_fill_outlines": false,
-							"sublimelinter_gutter_marks": false,
-							"sublimelinter_mark_style": "outline",
-							"sublimelinter_notes": false,
-							"sublimelinter_objj_check_ascii": false,
-							"sublimelinter_popup_errors_on_save": false,
-							"sublimelinter_syntax_map":
-							{
-								"C++": "c",
-								"Python Django": "python",
-								"Ruby on Rails": "ruby"
-							},
-							"sublimelinter_wrap_find": true,
-							"syntax": "Packages/JavaScript/JavaScript.tmLanguage"
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 2,
-					"file": "src/parts/run/eventSource.js",
-					"settings":
-					{
-						"buffer_size": 1161,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								1161
-							]
-						],
-						"settings":
-						{
-							"auto_name": "uitest.define('run/eventSource', function() {",
-							"syntax": "Packages/JavaScript/JavaScript.tmLanguage"
-						},
-						"translation.x": 0.0,
-						"translation.y": 426.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 3,
-					"file": "src/parts/utils.js",
-					"settings":
-					{
-						"buffer_size": 2322,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								1354,
-								1354
-							]
-						],
-						"settings":
-						{
-							"annotations":
-							[
-								"TODO",
-								"README",
-								"FIXME"
-							],
-							"csslint_options":
-							{
-								"adjoining-classes": "warning",
-								"box-model": true,
-								"box-sizing": "warning",
-								"compatible-vendor-prefixes": "warning",
-								"display-property-grouping": true,
-								"duplicate-background-images": "warning",
-								"duplicate-properties": true,
-								"empty-rules": true,
-								"errors": true,
-								"fallback-colors": "warning",
-								"floats": "warning",
-								"font-faces": "warning",
-								"font-sizes": "warning",
-								"gradients": "warning",
-								"ids": "warning",
-								"import": "warning",
-								"important": "warning",
-								"known-properties": true,
-								"outline-none": "warning",
-								"overqualified-elements": "warning",
-								"qualified-headings": "warning",
-								"regex-selectors": "warning",
-								"rules-count": "warning",
-								"shorthand": "warning",
-								"star-property-hack": "warning",
-								"text-indent": "warning",
-								"underscore-property-hack": "warning",
-								"unique-headings": "warning",
-								"universal-selector": "warning",
-								"vendor-prefix": true,
-								"zero-units": "warning"
-							},
-							"gjslint_ignore":
-							[
-								110.0
-							],
-							"gjslint_options":
-							[
-							],
-							"javascript_linter": "jshint",
-							"jshint_options":
-							{
-								"browser": true,
-								"evil": true,
-								"regexdash": true,
-								"sub": true,
-								"trailing": true,
-								"wsh": true
-							},
-							"pep8": true,
-							"pep8_ignore":
-							[
-								"E501"
-							],
-							"perl_linter": "perlcritic",
-							"pyflakes_ignore":
-							[
-							],
-							"pyflakes_ignore_import_*": true,
-							"sublimelinter": true,
-							"sublimelinter_delay": 2.0,
-							"sublimelinter_disable":
-							[
-							],
-							"sublimelinter_executable_map":
-							{
-							},
-							"sublimelinter_fill_outlines": false,
-							"sublimelinter_gutter_marks": false,
-							"sublimelinter_mark_style": "outline",
-							"sublimelinter_notes": false,
-							"sublimelinter_objj_check_ascii": false,
-							"sublimelinter_popup_errors_on_save": false,
-							"sublimelinter_syntax_map":
-							{
-								"C++": "c",
-								"Python Django": "python",
-								"Ruby on Rails": "ruby"
-							},
-							"sublimelinter_wrap_find": true,
-							"syntax": "Packages/JavaScript/JavaScript.tmLanguage",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 877.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 4,
-					"file": "test/unit/utilsSpec.js",
-					"settings":
-					{
-						"buffer_size": 3233,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								2630,
-								2630
-							]
-						],
-						"settings":
-						{
-							"annotations":
-							[
-								"TODO",
-								"README",
-								"FIXME"
-							],
-							"csslint_options":
-							{
-								"adjoining-classes": "warning",
-								"box-model": true,
-								"box-sizing": "warning",
-								"compatible-vendor-prefixes": "warning",
-								"display-property-grouping": true,
-								"duplicate-background-images": "warning",
-								"duplicate-properties": true,
-								"empty-rules": true,
-								"errors": true,
-								"fallback-colors": "warning",
-								"floats": "warning",
-								"font-faces": "warning",
-								"font-sizes": "warning",
-								"gradients": "warning",
-								"ids": "warning",
-								"import": "warning",
-								"important": "warning",
-								"known-properties": true,
-								"outline-none": "warning",
-								"overqualified-elements": "warning",
-								"qualified-headings": "warning",
-								"regex-selectors": "warning",
-								"rules-count": "warning",
-								"shorthand": "warning",
-								"star-property-hack": "warning",
-								"text-indent": "warning",
-								"underscore-property-hack": "warning",
-								"unique-headings": "warning",
-								"universal-selector": "warning",
-								"vendor-prefix": true,
-								"zero-units": "warning"
-							},
-							"gjslint_ignore":
-							[
-								110.0
-							],
-							"gjslint_options":
-							[
-							],
-							"javascript_linter": "jshint",
-							"jshint_options":
-							{
-								"browser": true,
-								"evil": true,
-								"regexdash": true,
-								"sub": true,
-								"trailing": true,
-								"wsh": true
-							},
-							"pep8": true,
-							"pep8_ignore":
-							[
-								"E501"
-							],
-							"perl_linter": "perlcritic",
-							"pyflakes_ignore":
-							[
-							],
-							"pyflakes_ignore_import_*": true,
-							"sublimelinter": true,
-							"sublimelinter_delay": 2.0,
-							"sublimelinter_disable":
-							[
-							],
-							"sublimelinter_executable_map":
-							{
-							},
-							"sublimelinter_fill_outlines": false,
-							"sublimelinter_gutter_marks": false,
-							"sublimelinter_mark_style": "outline",
-							"sublimelinter_notes": false,
-							"sublimelinter_objj_check_ascii": false,
-							"sublimelinter_popup_errors_on_save": false,
-							"sublimelinter_syntax_map":
-							{
-								"C++": "c",
-								"Python Django": "python",
-								"Ruby on Rails": "ruby"
-							},
-							"sublimelinter_wrap_find": true,
-							"syntax": "Packages/JavaScript/JavaScript.tmLanguage",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 1231.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 5,
-					"file": "src/parts/eventSourceFactory.js",
-					"settings":
-					{
-						"buffer_size": 1367,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								124,
-								124
-							]
-						],
-						"settings":
-						{
-							"annotations":
-							[
-								"TODO",
-								"README",
-								"FIXME"
-							],
-							"csslint_options":
-							{
-								"adjoining-classes": "warning",
-								"box-model": true,
-								"box-sizing": "warning",
-								"compatible-vendor-prefixes": "warning",
-								"display-property-grouping": true,
-								"duplicate-background-images": "warning",
-								"duplicate-properties": true,
-								"empty-rules": true,
-								"errors": true,
-								"fallback-colors": "warning",
-								"floats": "warning",
-								"font-faces": "warning",
-								"font-sizes": "warning",
-								"gradients": "warning",
-								"ids": "warning",
-								"import": "warning",
-								"important": "warning",
-								"known-properties": true,
-								"outline-none": "warning",
-								"overqualified-elements": "warning",
-								"qualified-headings": "warning",
-								"regex-selectors": "warning",
-								"rules-count": "warning",
-								"shorthand": "warning",
-								"star-property-hack": "warning",
-								"text-indent": "warning",
-								"underscore-property-hack": "warning",
-								"unique-headings": "warning",
-								"universal-selector": "warning",
-								"vendor-prefix": true,
-								"zero-units": "warning"
-							},
-							"gjslint_ignore":
-							[
-								110.0
-							],
-							"gjslint_options":
-							[
-							],
-							"javascript_linter": "jshint",
-							"jshint_options":
-							{
-								"browser": true,
-								"evil": true,
-								"regexdash": true,
-								"sub": true,
-								"trailing": true,
-								"wsh": true
-							},
-							"pep8": true,
-							"pep8_ignore":
-							[
-								"E501"
-							],
-							"perl_linter": "perlcritic",
-							"pyflakes_ignore":
-							[
-							],
-							"pyflakes_ignore_import_*": true,
-							"sublimelinter": true,
-							"sublimelinter_delay": 2.0,
-							"sublimelinter_disable":
-							[
-							],
-							"sublimelinter_executable_map":
-							{
-							},
-							"sublimelinter_fill_outlines": false,
-							"sublimelinter_gutter_marks": false,
-							"sublimelinter_mark_style": "outline",
-							"sublimelinter_notes": false,
-							"sublimelinter_objj_check_ascii": false,
-							"sublimelinter_popup_errors_on_save": false,
-							"sublimelinter_syntax_map":
-							{
-								"C++": "c",
-								"Python Django": "python",
-								"Ruby on Rails": "ruby"
-							},
-							"sublimelinter_wrap_find": true,
-							"syntax": "Packages/JavaScript/JavaScript.tmLanguage",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 6,
-					"file": "test/unit/eventSourceFactorySpec.js",
-					"settings":
-					{
-						"buffer_size": 3180,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								453,
-								453
-							]
-						],
-						"settings":
-						{
-							"annotations":
-							[
-								"TODO",
-								"README",
-								"FIXME"
-							],
-							"csslint_options":
-							{
-								"adjoining-classes": "warning",
-								"box-model": true,
-								"box-sizing": "warning",
-								"compatible-vendor-prefixes": "warning",
-								"display-property-grouping": true,
-								"duplicate-background-images": "warning",
-								"duplicate-properties": true,
-								"empty-rules": true,
-								"errors": true,
-								"fallback-colors": "warning",
-								"floats": "warning",
-								"font-faces": "warning",
-								"font-sizes": "warning",
-								"gradients": "warning",
-								"ids": "warning",
-								"import": "warning",
-								"important": "warning",
-								"known-properties": true,
-								"outline-none": "warning",
-								"overqualified-elements": "warning",
-								"qualified-headings": "warning",
-								"regex-selectors": "warning",
-								"rules-count": "warning",
-								"shorthand": "warning",
-								"star-property-hack": "warning",
-								"text-indent": "warning",
-								"underscore-property-hack": "warning",
-								"unique-headings": "warning",
-								"universal-selector": "warning",
-								"vendor-prefix": true,
-								"zero-units": "warning"
-							},
-							"gjslint_ignore":
-							[
-								110.0
-							],
-							"gjslint_options":
-							[
-							],
-							"javascript_linter": "jshint",
-							"jshint_options":
-							{
-								"browser": true,
-								"evil": true,
-								"regexdash": true,
-								"sub": true,
-								"trailing": true,
-								"wsh": true
-							},
-							"pep8": true,
-							"pep8_ignore":
-							[
-								"E501"
-							],
-							"perl_linter": "perlcritic",
-							"pyflakes_ignore":
-							[
-							],
-							"pyflakes_ignore_import_*": true,
-							"sublimelinter": true,
-							"sublimelinter_delay": 2.0,
-							"sublimelinter_disable":
-							[
-							],
-							"sublimelinter_executable_map":
-							{
-							},
-							"sublimelinter_fill_outlines": false,
-							"sublimelinter_gutter_marks": false,
-							"sublimelinter_mark_style": "outline",
-							"sublimelinter_notes": false,
-							"sublimelinter_objj_check_ascii": false,
-							"sublimelinter_popup_errors_on_save": false,
-							"sublimelinter_syntax_map":
-							{
-								"C++": "c",
-								"Python Django": "python",
-								"Ruby on Rails": "ruby"
-							},
-							"sublimelinter_wrap_find": true,
-							"syntax": "Packages/JavaScript/JavaScript.tmLanguage",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 0.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				}
 			]
 		}
 	],

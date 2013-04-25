@@ -1,4 +1,4 @@
-ddescribe('proxyFactory', function() {
+describe('proxyFactory', function() {
     var factory;
     beforeEach(function() {
         factory = uitest.require(["proxyFactory"]).proxyFactory;

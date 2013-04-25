@@ -1,4 +1,4 @@
-uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor'], function(urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor) {
+uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor', 'utils'], function(urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor, utils) {
 
     start(runConfig.url);
     return {
@@ -8,7 +8,7 @@ uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'ru
     // -------
 
     function start(url) {
-        var now = new global.Date().getTime();
+        var now = utils.testRunTimestamp();
         loadSensor.init();
         url = urlParser.makeAbsoluteUrl(url, urlParser.uitestUrl());
         url = urlParser.cacheBustingUrl(url, now);

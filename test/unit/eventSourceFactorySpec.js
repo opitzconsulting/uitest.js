@@ -1,4 +1,4 @@
-ddescribe('eventSourceFactory', function() {
+describe('eventSourceFactory', function() {
     var eventSource, listener,
     emitDone, someEvent;
     beforeEach(function() {

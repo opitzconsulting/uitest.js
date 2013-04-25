@@ -1,19 +1,16 @@
 describe('run/feature/xhrSensor', function() {
-    var readyModule, config, injectorModule, win, xhr, sensorInstance, otherCallback;
+    var readyModule, injectorModule, win, xhr, sensorInstance, eventSource, addPrependsEvent;
     beforeEach(function() {
-        otherCallback = jasmine.createSpy('someOtherCallback');
         readyModule = {
             addSensor: jasmine.createSpy('addSensor')
         };
-        config = {
-            prepends: [otherCallback]
-        };
         var modules = uitest.require({
             "run/ready": readyModule,
-            "run/config": config
-        }, ["run/feature/xhrSensor", "run/injector"]);
+            "run/config": {}
+        }, ["run/feature/xhrSensor", "run/injector", "run/eventSource"]);
         sensorInstance = modules["run/feature/xhrSensor"];
         injectorModule = modules["run/injector"];
+        eventSource = modules["run/eventSource"];
         xhr = {
             send: jasmine.createSpy('send'),
             open: jasmine.createSpy('open'),
@@ -24,15 +21,19 @@ describe('run/feature/xhrSensor', function() {
                 XMLHttpRequest: jasmine.createSpy('xhr').andReturn(xhr)
             }
         };
-        injectorModule.inject(config.prepends[0], win, [win]);
+        addPrependsEvent = {
+            type: 'addPrepends',
+            handlers: []
+        };
+        eventSource.emit(addPrependsEvent);
+        injectorModule.inject(addPrependsEvent.handlers[0], null, [win]);
     });
 
     it('should add itself to the ready-module', function() {
         expect(readyModule.addSensor).toHaveBeenCalledWith('xhr', sensorInstance);
     });
-    it('should add itself before all other config.prepends', function() {
-        expect(config.prepends.length).toBe(2);
-        expect(config.prepends[1]).toBe(otherCallback);
+    it('should add itself as prepend', function() {
+        expect(addPrependsEvent.handlers.length).toBe(1);
     });
 
     it("should forward calls from the instrumented xhr to the original xhr", function() {

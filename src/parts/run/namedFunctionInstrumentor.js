@@ -1,5 +1,7 @@
 uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe'], function(eventSource, injector, annotate, runConfig, urlParser, testframe) {
 
+    // TODO move the regex token from jsParserFactory to here!
+    // TODO only register this when run/config contains intercepts at all!
     eventSource.on('js:functionstart', onFunctionStart);
 
     return onFunctionStart;

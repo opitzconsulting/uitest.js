@@ -1,6 +1,6 @@
 describe('run/feature/mobileViewport', function() {
-    var testframe, runConfig, win, newMetaElement, metaTags = [], topMetaTags = [],
-        headElement, top;
+    var testframe, win, newMetaElement, metaTags = [], topMetaTags = [],
+        headElement, top, eventSource, addAppendsEvent;
     beforeEach(function() {
         newMetaElement = {
             setAttribute: jasmine.createSpy('setAttribute')
@@ -24,16 +24,19 @@ describe('run/feature/mobileViewport', function() {
         win = {
             document: {
                 getElementsByTagName: jasmine.createSpy('getElementsByTagName').andReturn(metaTags)
-            }
+            },
+            top: top
         };
 
-        runConfig = {
-            appends: []
+        var modules = uitest.require({
+            "run/config": {}
+        },["run/feature/mobileViewport", "run/eventSource"]);
+        eventSource = modules["run/eventSource"];
+        addAppendsEvent = {
+            type: 'addAppends',
+            handlers: []
         };
-        uitest.require({
-            top: top,
-            "run/config": runConfig
-        },["run/feature/mobileViewport"]);
+        eventSource.emit(addAppendsEvent);
     });
     function createElementSpy(attrs) {
         return {
@@ -50,7 +53,7 @@ describe('run/feature/mobileViewport', function() {
         metaTags.push(createElementSpy({name: 'someMeta'}));
         metaTags.push(createElementSpy({name: 'viewport', content: 'someContent'}));
 
-        runConfig.appends[0](win);
+        addAppendsEvent.handlers[0](win);
         var doc = win.document;
         var topDoc = top.document;
         expect(doc.getElementsByTagName).toHaveBeenCalledWith("meta");
@@ -64,7 +67,7 @@ describe('run/feature/mobileViewport', function() {
         topMetaTags.push(createElementSpy({name: 'someMeta'}));
         topMetaTags.push(createElementSpy({name: 'viewport', content: 'someContent'}));
 
-        runConfig.appends[0](win);
+        addAppendsEvent.handlers[0](win);
         var doc = win.document;
         var topDoc = top.document;
         expect(topDoc.getElementsByTagName).toHaveBeenCalledWith("meta");

@@ -1,11 +1,10 @@
 describe('facade', function() {
 
-	var facade, readyModule, loadSensorModule, instrumentorModule, frame, global, sniffer;
+	var facade, readyModule, instrumentorModule, frame, global;
 	beforeEach(function() {
 		global = {
 		};
 		frame = {};
-		sniffer = jasmine.createSpy('sniffer');
 		readyModule = {
 			ready: jasmine.createSpy('ready'),
 			addSensor: jasmine.createSpy('addSensor')
@@ -16,8 +15,7 @@ describe('facade', function() {
 		facade = uitest.require({
 			global: global,
 			ready: readyModule,
-			instrumentor: instrumentorModule,
-			sniffer: sniffer
+			instrumentor: instrumentorModule
 		}, ["facade"]).facade;
 	});
 
@@ -124,18 +122,8 @@ describe('facade', function() {
 			});
 
 			describe('first call', function() {
-				it('should wait for the sniffer and provide it"s result as a run module', function() {
-					uit.ready();
-					expect(sniffer).toHaveBeenCalled();
-					expect(uitest.require).not.toHaveBeenCalled();
-					var someRunSniffer = {};
-					sniffer.mostRecentCall.args[0](someRunSniffer);
-					expect(uitest.require).toHaveBeenCalled();
-					expect(uitest.require.mostRecentCall.args[0]["run/sniffer"]).toBe(someRunSniffer);
-				});
 				it('should require all run modules expect features', function() {
 					uit.ready();
-					sniffer.mostRecentCall.args[0]({});
 					expect(uitest.require).toHaveBeenCalled();
 					var moduleFilter = uitest.require.argsForCall[0][1];
 					expect(moduleFilter("someNonRunModule")).toBe(false);
@@ -146,28 +134,24 @@ describe('facade', function() {
 					uitest.define('run/feature/someFeature', {});
 					uit.feature("someFeature");
 					uit.ready();
-					sniffer.mostRecentCall.args[0]({});
 					expect(uitest.require).toHaveBeenCalled();
 					var featureModules = uitest.require.mostRecentCall.args[1];
 					expect(featureModules).toEqual(['run/feature/someFeature']);
 				});
 				it('should seal the config', function() {
 					uit.ready();
-					sniffer.mostRecentCall.args[0]({});
 					expect(uit._config.sealed()).toBe(true);
 				});
 				it('should provide config.buildConfig() as run/config module', function() {
 					var someRunConfig = {a: 2, features: []};
 					spyOn(uit._config, 'buildConfig').andReturn(someRunConfig);
 					uit.ready();
-					sniffer.mostRecentCall.args[0]({});
 					var args = uitest.require.mostRecentCall.args;
 					expect(args[0]["run/config"]).toBe(someRunConfig);
 				});
 				it('should call readyModule.ready with the given callback', function() {
 					var someCallback = jasmine.createSpy('callback');
 					uit.ready(someCallback);
-					sniffer.mostRecentCall.args[0]({});
 					expect(readyModule.ready).toHaveBeenCalledWith(someCallback);
 				});
 			});
@@ -175,40 +159,16 @@ describe('facade', function() {
 			describe('further calls', function() {
 				it('should no more call uitest.require', function() {
 					uit.ready();
-					sniffer.mostRecentCall.args[0]({});
 					uitest.require.reset();
-					sniffer.reset();
 					uit.ready();
-					expect(sniffer).not.toHaveBeenCalled();
 					expect(uitest.require).not.toHaveBeenCalled();
 				});
 				it('should call readyModule.ready with the given callback', function() {
 					uit.ready();
-					sniffer.mostRecentCall.args[0]({});
 					var someCallback = jasmine.createSpy('callback');
 					uit.ready(someCallback);
 					expect(readyModule.ready).toHaveBeenCalledWith(someCallback);
 				});
-			});
-		});
-
-		describe('reloaded', function() {
-			it('should call loadSensor.reloaded', function() {
-				var callback = jasmine.createSpy('callback');
-				var uit = facade.create();
-				uit._runModules = {
-					"run/loadSensor": {
-						reloaded: jasmine.createSpy('reloaded')
-					}
-				};
-				uit.reloaded(callback);
-				expect(uit._runModules["run/loadSensor"].reloaded).toHaveBeenCalledWith(callback);
-			});
-			it('should throw an error if ready was not called before', function() {
-				var uit = facade.create();
-				expect(function() {
-					uit.reloaded();
-				}).toThrow(new Error("The test page has not yet loaded. Please call ready first"));
 			});
 		});
 
@@ -231,7 +191,7 @@ describe('facade', function() {
 				};
 				var callback = function() {};
 				uit.inject(callback);
-				expect(inject).toHaveBeenCalledWith(callback, null, []);
+				expect(inject).toHaveBeenCalledWith(callback);
 			});
 		});
 	});

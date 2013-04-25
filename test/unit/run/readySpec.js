@@ -65,7 +65,7 @@ describe('run/ready', function() {
 
             readyModule.ready(callback);
             jasmine.Clock.tick(50);
-            expect(injector.inject).toHaveBeenCalledWith(callback, null, []);
+            expect(injector.inject).toHaveBeenCalledWith(callback);
         });
     });
 });

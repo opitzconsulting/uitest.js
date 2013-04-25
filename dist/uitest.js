@@ -1,4 +1,4 @@
-/*! uitest.js - v0.10.0-SNAPSHOT - 2013-04-23
+/*! uitest.js - v0.10.0-SNAPSHOT - 2013-04-25
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -309,10 +309,6 @@ uitest.define('config', [], function() {
 });
 uitest.define('eventSourceFactory', ['utils'], function(utils) {
 
-    function noop() {
-
-    }
-
     return eventSourceFactory;
 
     function eventSourceFactory() {
@@ -350,7 +346,7 @@ uitest.define('eventSourceFactory', ['utils'], function(utils) {
             if (anyEventListeners) {
                 eventListeners = anyEventListeners.concat(eventListeners);
             }
-            emitDone = emitDone || noop;
+            emitDone = emitDone || utils.noop;
             utils.asyncLoop(eventListeners, asyncLoopHandler, asyncLoopDone);
 
             function asyncLoopHandler(loopData, done) {
@@ -511,7 +507,7 @@ uitest.define('facade', ['config', 'global'], function(config, global) {
     function inject(callback) {
         checkRunning(this);
         var injector = this._runModules["run/injector"];
-        return injector.inject(callback, null, []);
+        return injector.inject(callback);
     }
 
     function checkRunning(self) {
@@ -535,9 +531,6 @@ uitest.define('facade', ['config', 'global'], function(config, global) {
     };
 });
 uitest.define('fileLoader', ['global','sniffer','urlParser'], function(global, sniffer, urlParser) {
-    var jsonpResultCallbacks = [];
-    global.uitest.jsonpResultCallbacks = jsonpResultCallbacks;
-
     return loadFile;
 
     // ---------
@@ -909,7 +902,8 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
 
             function loopHandler(entry, loopHandlerDone) {
                 var token = entry.item,
-                    tokenIndex = entry.index;
+                    tokenIndex = entry.index,
+                    pushTokenInsertPos = tokenIndex+1;
                 eventSource.emit({
                     type: eventPrefix+token.type,
                     token: token,
@@ -925,7 +919,7 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
                 }
 
                 function pushToken(token) {
-                    tokens.splice(tokenIndex+1,0,token);
+                    tokens.splice(pushTokenInsertPos++,0,token);
                 }
             }
         }
@@ -1124,7 +1118,7 @@ uitest.define('run/feature/jqmAnimationSensor', ['run/eventSource', 'run/ready']
     var ready = true,
         startCounter = 0;
 
-    eventSource.on('addPrepends', function(event,done) {
+    eventSource.on('addAppends', function(event,done) {
         event.handlers.push(install);
         done();
     });
@@ -1414,7 +1408,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
         }
     }
 });
-uitest.define('run/feature/mobileViewport', ['run/eventSource', 'global'], function(eventSource, global) {
+uitest.define('run/feature/mobileViewport', ['run/eventSource'], function(eventSource) {
     eventSource.on('addAppends', function(event, done) {
         event.handlers.push(install);
         done();
@@ -1422,7 +1416,7 @@ uitest.define('run/feature/mobileViewport', ['run/eventSource', 'global'], funct
 
     function install(window) {
         var doc = window.document,
-            topDoc = global.top.document,
+            topDoc = window.top.document,
             viewportMeta = findViewportMeta(doc),
             topViewportMeta = findViewportMeta(topDoc),
             newMeta;
@@ -1618,14 +1612,27 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             return;
         }
         state.addedPrepends = true;
-        emitAddPrependsAndAppends(htmlEvent, htmlEventDone, 'addPrepends');
+        emitAddPrependsAndAppends(htmlEvent, 'addPrepends', htmlEventDone);
     }
 
     function emitAddAppends(htmlEvent, htmlEventDone) {
-        emitAddPrependsAndAppends(htmlEvent, htmlEventDone, 'addAppends');
+        if (htmlEvent.token.addedAppends) {
+            htmlEventDone();
+            return;
+        }
+        htmlEvent.token.addedAppends = true;
+        htmlEvent.stop();
+        emitAddPrependsAndAppends(htmlEvent, 'addAppends', function(error) {
+            if (error) {
+                htmlEventDone(error);
+                return;
+            }
+            htmlEvent.pushToken(htmlEvent.token);
+            htmlEventDone();
+        });
     }
 
-    function emitAddPrependsAndAppends(htmlEvent, htmlEventDone, type) {
+    function emitAddPrependsAndAppends(htmlEvent, type, htmlEventDone) {
         logger.log(type+" after "+htmlEvent.type);
         eventSource.emit({
             type: type,
@@ -1659,7 +1666,7 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
                     lastCallbackArr = [];
                     pushToken({
                         type: 'contentscript',
-                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')
+                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr))
                     });
                 }
                 lastCallbackArr.push(prependOrAppend);
@@ -1668,15 +1675,20 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
     }
 
     function injectedCallbacks(callbacks) {
-        return function(win) {
+        return function() {
             var i;
             for(i = 0; i < callbacks.length; i++) {
-                injector.inject(callbacks[i], win, [win]);
+                injector.inject(callbacks[i]);
             }
         };
     }
 
     function emitInstrumentScript(htmlEvent, htmlEventDone) {
+        if (htmlEvent.token.instrumented) {
+            // prevent infinite loops!
+            htmlEventDone();
+            return;
+        }
         var absUrl;
         if (htmlEvent.token.src) {
             absUrl = urlParser.makeAbsoluteUrl(htmlEvent.token.src, htmlEvent.state.htmlUrl);
@@ -1685,12 +1697,11 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             type: 'instrumentScript',
             content: htmlEvent.token.content,
             src: absUrl,
-            contentChanged: false
+            changed: false
         }, done);
 
         function done(error, instrumentScriptEvent) {
             // Allow event listeners to change the src of the script
-            // TODO makeAbsoluteUrl does not work correct for hash urls with a slash
             htmlEvent.token.src = instrumentScriptEvent.src;
             if (error || !instrumentScriptEvent.changed) {
                 htmlEventDone(error);
@@ -1706,7 +1717,8 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             htmlEvent.pushToken({
                 type: 'contentscript',
                 attrs: scriptAttrs,
-                content: testframe.createRemoteCallExpression(execScript)
+                content: testframe.createRemoteCallExpression(execScript),
+                instrumented: true
             });
             htmlEventDone();
 
@@ -1779,6 +1791,7 @@ uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 		var argNames = annotate(fn),
 			argValues = [],
 			i;
+		values = values||[];
 		fn = utils.isArray(fn)?fn[fn.length-1]:fn;
 		for (i=0; i<argNames.length; i++) {
 			argValues.push(resolveArgIncludingDefaultResolvers(argNames[i], values));
@@ -1819,7 +1832,7 @@ uitest.define('run/injector', ['annotate', 'utils'], function(annotate, utils) {
 });
 uitest.define('run/loadSensor', ['run/ready', 'run/eventSource'], function(readyModule, eventSource) {
 
-	var count = 0,
+	var count = -1,
 		ready, win, doc, waitForDocComplete;
 
 	eventSource.on('addAppends', function(event, done) {
@@ -1832,6 +1845,7 @@ uitest.define('run/loadSensor', ['run/ready', 'run/eventSource'], function(ready
 	});
 
 	loadSensor.init = init;
+	init();
 
 	readyModule.addSensor("load", loadSensor);
 	return loadSensor;
@@ -1877,7 +1891,7 @@ uitest.define('run/logger', ['global', 'run/config'], function(global, runConfig
     };
 });
 
-uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor'], function(urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor) {
+uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'run/htmlInstrumentor', 'run/testframe', 'run/loadSensor', 'utils'], function(urlParser, global, logger, runConfig, htmlInstrumentor, testframe, loadSensor, utils) {
 
     start(runConfig.url);
     return {
@@ -1887,7 +1901,7 @@ uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'ru
     // -------
 
     function start(url) {
-        var now = new global.Date().getTime();
+        var now = utils.testRunTimestamp();
         loadSensor.init();
         url = urlParser.makeAbsoluteUrl(url, urlParser.uitestUrl());
         url = urlParser.cacheBustingUrl(url, now);
@@ -1906,6 +1920,8 @@ uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'ru
 });
 uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe'], function(eventSource, injector, annotate, runConfig, urlParser, testframe) {
 
+    // TODO move the regex token from jsParserFactory to here!
+    // TODO only register this when run/config contains intercepts at all!
     eventSource.on('js:functionstart', onFunctionStart);
 
     return onFunctionStart;
@@ -2001,7 +2017,7 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 			var currentSensorStatus = aggregateSensorStatus(sensorInstances);
 			if(currentSensorStatus.busySensors.length === 0 && currentSensorStatus.count === sensorStatus.count) {
 				logger.log("ready");
-				injector.inject(listener, null, []);
+				injector.inject(listener);
 			} else {
 				restart();
 			}
@@ -2130,7 +2146,7 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
                     if (utils.isString(append)) {
                         require([append], execNext);
                     } else {
-                        injector.inject(append, win, [win]);
+                        injector.inject(append);
                         execNext();
                     }
                 }
@@ -2176,7 +2192,9 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
     }
 });
 uitest.define('run/scriptAdder', ['run/config', 'run/eventSource'], function(runConfig, eventSource) {
+    addPrepends.priority = -100;
     eventSource.on('addPrepends', addPrepends);
+    addAppends.priority = -100;
     eventSource.on('addAppends', addAppends);
     return;
 
@@ -2536,9 +2554,18 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
 });
 uitest.define('urlParser', ['global'], function (global) {
     var URL_RE = /(((\w+)\:)?\/\/([^\/]+))?([^\?#]*)(\?([^#]*))?(#.*)?/,
-        UI_TEST_RE = /(uitest|simpleRequire)[^\w\/][^\/]*$/,
+        UI_TEST_RE = /(uitest)[^\w\/][^\/]*$/,
         NUMBER_RE = /^\d+$/;
 
+    return {
+        parseUrl:parseUrl,
+        serializeUrl:serializeUrl,
+        isAbsoluteUrl: isAbsoluteUrl,
+        makeAbsoluteUrl: makeAbsoluteUrl,
+        filenameFor: filenameFor,
+        uitestUrl: uitestUrl,
+        cacheBustingUrl: cacheBustingUrl
+    };
 
     function parseUrl(url) {
         var match = url.match(URL_RE);
@@ -2599,7 +2626,12 @@ uitest.define('urlParser', ['global'], function (global) {
         if(isAbsoluteUrl(url)) {
             return url;
         }
-        return basePath(baseUrl) + '/' + url;
+        var parsedBase = parseUrl(baseUrl);
+        var parsedUrl = parseUrl(url);
+        parsedUrl.protocol = parsedBase.protocol;
+        parsedUrl.domain = parsedBase.domain;
+        parsedUrl.path = basePath(parsedBase.path) + '/' + parsedUrl.path;
+        return serializeUrl(parsedUrl);
     }
 
     function isAbsoluteUrl(url) {
@@ -2607,16 +2639,13 @@ uitest.define('urlParser', ['global'], function (global) {
     }
 
     function filenameFor(url) {
-        var lastSlash = url.lastIndexOf('/');
-        var urlWithoutSlash = url;
+        var parsedUrl = parseUrl(url),
+            path = parsedUrl.path;
+        var lastSlash = path.lastIndexOf('/');
         if(lastSlash !== -1) {
-            urlWithoutSlash = url.substring(lastSlash + 1);
+            return path.substring(lastSlash + 1);
         }
-        var query = urlWithoutSlash.indexOf('?');
-        if (query !== -1) {
-            return urlWithoutSlash.substring(0, query);
-        }
-        return urlWithoutSlash;
+        return path;
     }
 
     function cacheBustingUrl(url, timestamp) {
@@ -2634,16 +2663,6 @@ uitest.define('urlParser', ['global'], function (global) {
         }
         return serializeUrl(parsedUrl);
     }
-
-    return {
-        isAbsoluteUrl: isAbsoluteUrl,
-        parseUrl:parseUrl,
-        serializeUrl:serializeUrl,
-        makeAbsoluteUrl: makeAbsoluteUrl,
-        filenameFor: filenameFor,
-        uitestUrl: uitestUrl,
-        cacheBustingUrl: cacheBustingUrl
-    };
 });
 (function() {
     // Note: We only want to call this once,
@@ -2661,11 +2680,16 @@ uitest.define('urlParser', ['global'], function (global) {
             evalScript: evalScript,
             addEventListener: addEventListener,
             removeEventListener: removeEventListener,
-            textContent: textContent
+            textContent: textContent,
+            noop: noop
         };
 
+        function noop() {
+
+        }
+
         function isString(obj) {
-            return obj && obj.slice;
+            return !!(obj && obj.slice && !obj.splice);
         }
 
         function isFunction(value) {

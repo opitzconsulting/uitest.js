@@ -1,9 +1,5 @@
 uitest.define('eventSourceFactory', ['utils'], function(utils) {
 
-    function noop() {
-
-    }
-
     return eventSourceFactory;
 
     function eventSourceFactory() {
@@ -41,7 +37,7 @@ uitest.define('eventSourceFactory', ['utils'], function(utils) {
             if (anyEventListeners) {
                 eventListeners = anyEventListeners.concat(eventListeners);
             }
-            emitDone = emitDone || noop;
+            emitDone = emitDone || utils.noop;
             utils.asyncLoop(eventListeners, asyncLoopHandler, asyncLoopDone);
 
             function asyncLoopHandler(loopData, done) {

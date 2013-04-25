@@ -159,7 +159,8 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
 
             function loopHandler(entry, loopHandlerDone) {
                 var token = entry.item,
-                    tokenIndex = entry.index;
+                    tokenIndex = entry.index,
+                    pushTokenInsertPos = tokenIndex+1;
                 eventSource.emit({
                     type: eventPrefix+token.type,
                     token: token,
@@ -175,7 +176,7 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
                 }
 
                 function pushToken(token) {
-                    tokens.splice(tokenIndex+1,0,token);
+                    tokens.splice(pushTokenInsertPos++,0,token);
                 }
             }
         }

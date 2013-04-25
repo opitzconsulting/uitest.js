@@ -1,4 +1,4 @@
-ddescribe('regexParserFactory', function() {
+describe('regexParserFactory', function() {
     var factory, parser, parse, serialize, eventSource;
     beforeEach(function() {
         var modules = uitest.require(["regexParserFactory","eventSourceFactory"]);
@@ -172,7 +172,7 @@ ddescribe('regexParserFactory', function() {
             expect(result).toBe('ab');
             expect(error).toBeFalsy();
         });
-        it('should add input tokens using event.pushToken', function() {
+        it('should add multiple input tokens using event.pushToken', function() {
             var processedTokens = [];
             function listener(event, done) {
                 processedTokens.push(event.token);
@@ -181,14 +181,18 @@ ddescribe('regexParserFactory', function() {
                         type: 'other',
                         match: '.'
                     });
+                    event.pushToken({
+                        type: 'other',
+                        match: ','
+                    });
                 }
                 done();
             }
             eventSource.on('*', listener);
             parser.transform({input:'a',eventSource:eventSource},resultCb);
-            expect(result).toBe('a.');
+            expect(result).toBe('a.,');
             expect(error).toBeFalsy();
-            expect(processedTokens).toEqual([{type:'a',match:'a'},{type:'other', match:'.'}]);
+            expect(processedTokens).toEqual([{type:'a',match:'a'},{type:'other', match:'.'},{type:'other', match:','}]);
         });
         it('should stop at and return errors', function() {
             var tokens = [];

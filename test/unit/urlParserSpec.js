@@ -105,6 +105,27 @@ describe("urlParser", function () {
         it('should change relative change urls with a base that contains two or more slashes', function() {
             expect(urlParser.makeAbsoluteUrl('someUrl', '/base/file')).toBe('/base/someUrl');
         });
+        it('should work with a base url that contains a slash in the hash', function() {
+            expect(urlParser.makeAbsoluteUrl('someUrl', '/base/file#/someHash')).toBe('/base/someUrl');
+        });
+    });
+
+    describe('filenameFor', function() {
+        it('returns the filename for urls without path', function() {
+            expect(urlParser.filenameFor('someFile')).toBe('someFile');
+        });
+        it('returns the filename for urls with path', function() {
+            expect(urlParser.filenameFor('somePath/someFile')).toBe('someFile');
+        });
+        it('returns the filename for urls with query', function() {
+            expect(urlParser.filenameFor('somePath/someFile?query')).toBe('someFile');
+        });
+        it('returns the filename for urls with hash', function() {
+            expect(urlParser.filenameFor('somePath/someFile#hash')).toBe('someFile');
+        });
+        it('returns the filename for urls with hash that contain slashes', function() {
+            expect(urlParser.filenameFor('somePath/someFile#/hash')).toBe('someFile');
+        });
     });
 
     describe('uitestUrl', function() {
@@ -125,8 +146,6 @@ describe("urlParser", function () {
             test('uitestutils.js', false);
             test('uitest/some.js', false);
             test('uitest.js/some.js', false);
-            // Note: This test is required for our CI, as we load every file of uitest.js individually!
-            test('simpleRequire.js', true);
         });
     });
 

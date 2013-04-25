@@ -22,14 +22,27 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             return;
         }
         state.addedPrepends = true;
-        emitAddPrependsAndAppends(htmlEvent, htmlEventDone, 'addPrepends');
+        emitAddPrependsAndAppends(htmlEvent, 'addPrepends', htmlEventDone);
     }
 
     function emitAddAppends(htmlEvent, htmlEventDone) {
-        emitAddPrependsAndAppends(htmlEvent, htmlEventDone, 'addAppends');
+        if (htmlEvent.token.addedAppends) {
+            htmlEventDone();
+            return;
+        }
+        htmlEvent.token.addedAppends = true;
+        htmlEvent.stop();
+        emitAddPrependsAndAppends(htmlEvent, 'addAppends', function(error) {
+            if (error) {
+                htmlEventDone(error);
+                return;
+            }
+            htmlEvent.pushToken(htmlEvent.token);
+            htmlEventDone();
+        });
     }
 
-    function emitAddPrependsAndAppends(htmlEvent, htmlEventDone, type) {
+    function emitAddPrependsAndAppends(htmlEvent, type, htmlEventDone) {
         logger.log(type+" after "+htmlEvent.type);
         eventSource.emit({
             type: type,
@@ -63,7 +76,7 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
                     lastCallbackArr = [];
                     pushToken({
                         type: 'contentscript',
-                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr), 'window')
+                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr))
                     });
                 }
                 lastCallbackArr.push(prependOrAppend);
@@ -72,15 +85,20 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
     }
 
     function injectedCallbacks(callbacks) {
-        return function(win) {
+        return function() {
             var i;
             for(i = 0; i < callbacks.length; i++) {
-                injector.inject(callbacks[i], win, [win]);
+                injector.inject(callbacks[i]);
             }
         };
     }
 
     function emitInstrumentScript(htmlEvent, htmlEventDone) {
+        if (htmlEvent.token.instrumented) {
+            // prevent infinite loops!
+            htmlEventDone();
+            return;
+        }
         var absUrl;
         if (htmlEvent.token.src) {
             absUrl = urlParser.makeAbsoluteUrl(htmlEvent.token.src, htmlEvent.state.htmlUrl);
@@ -89,12 +107,11 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             type: 'instrumentScript',
             content: htmlEvent.token.content,
             src: absUrl,
-            contentChanged: false
+            changed: false
         }, done);
 
         function done(error, instrumentScriptEvent) {
             // Allow event listeners to change the src of the script
-            // TODO makeAbsoluteUrl does not work correct for hash urls with a slash
             htmlEvent.token.src = instrumentScriptEvent.src;
             if (error || !instrumentScriptEvent.changed) {
                 htmlEventDone(error);
@@ -110,7 +127,8 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             htmlEvent.pushToken({
                 type: 'contentscript',
                 attrs: scriptAttrs,
-                content: testframe.createRemoteCallExpression(execScript)
+                content: testframe.createRemoteCallExpression(execScript),
+                instrumented: true
             });
             htmlEventDone();
 

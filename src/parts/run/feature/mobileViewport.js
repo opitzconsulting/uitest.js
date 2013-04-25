@@ -1,4 +1,4 @@
-uitest.define('run/feature/mobileViewport', ['run/eventSource', 'global'], function(eventSource, global) {
+uitest.define('run/feature/mobileViewport', ['run/eventSource'], function(eventSource) {
     eventSource.on('addAppends', function(event, done) {
         event.handlers.push(install);
         done();
@@ -6,7 +6,7 @@ uitest.define('run/feature/mobileViewport', ['run/eventSource', 'global'], funct
 
     function install(window) {
         var doc = window.document,
-            topDoc = global.top.document,
+            topDoc = window.top.document,
             viewportMeta = findViewportMeta(doc),
             topViewportMeta = findViewportMeta(topDoc),
             newMeta;
