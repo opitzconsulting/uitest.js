@@ -61,23 +61,4 @@ describe('jsParserFactory', function() {
     it('should serialize new block comments', function() {
         expect(serialize([{type:'blockcomment', content: "a"}])).toEqual('/*a*/');
     });
-
-    it('should parse named functions', function() {
-        var input = "function only(){";
-        expect(parse(input)).toEqual([{type:'functionstart', name: "only", match: input }]);
-        input = "afunction only(){";
-        expect(parse(input)).toEqual([{type:'other', match: input }]);
-        input = "function (){";
-        expect(parse(input)).toEqual([{type:'other', match: input }]);
-        input = "function only () {";
-        expect(parse(input)).toEqual([{type:'functionstart', name: "only", match: input }]);
-        input = "function only(a) {";
-        expect(parse(input)).toEqual([{type:'functionstart', name: "only", match: input }]);
-        input = "function begin(){a";
-        expect(parse(input)).toEqual([{type:'functionstart', name: "begin", match: "function begin(){"},{type:'other', match: "a"}]);
-    });
-
-    it('should serialize new named functions', function() {
-        expect(serialize([{type:'functionstart', name: "fn"}])).toEqual('function fn(){');
-    });
 });

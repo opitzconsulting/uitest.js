@@ -651,8 +651,7 @@ uitest.define('jsParserFactory', ['regexParserFactory'], function(regexParserFac
     var SINGLE_QUOTE_STRING = "sqstring",
         DOUBLE_QUOTE_STRING = "dqstring",
         LINE_COMMENT = "linecomment",
-        BLOCK_COMMENT = "blockcomment",
-        FUNCTION_START = "functionstart";
+        BLOCK_COMMENT = "blockcomment";
 
     return factory;
 
@@ -663,7 +662,6 @@ uitest.define('jsParserFactory', ['regexParserFactory'], function(regexParserFac
         parser.addTokenType(DOUBLE_QUOTE_STRING, '(")((?:[^"\\\\]|\\\\.)*)(")', '""', {1: "content"});
         parser.addTokenType(LINE_COMMENT, "(//)(.*)($)", "//", {1:"content"});
         parser.addTokenType(BLOCK_COMMENT, "(/\\*)([\\s\\S]*)(\\*/)", "/**/", {1: "content"});
-        parser.addTokenType(FUNCTION_START, "(\\bfunction\\s*)(\\w+)([^\\{]*\\{)", "function fn(){", {1:"name"});
 
         return parser;
     }
@@ -1918,11 +1916,11 @@ uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'ru
     }
 
 });
-uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe'], function(eventSource, injector, annotate, runConfig, urlParser, testframe) {
+uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe', 'run/scriptInstrumentor'], function(eventSource, injector, annotate, runConfig, urlParser, testframe, scriptInstrumentor) {
+    var FUNCTION_START = "functionstart";
 
-    // TODO move the regex token from jsParserFactory to here!
-    // TODO only register this when run/config contains intercepts at all!
-    eventSource.on('js:functionstart', onFunctionStart);
+    scriptInstrumentor.jsParser.addTokenType(FUNCTION_START, "(\\bfunction\\s*)(\\w+)([^\\{]*\\{)", "function fn(){", {1:"name"});
+    eventSource.on('js:'+FUNCTION_START, onFunctionStart);
 
     return onFunctionStart;
 

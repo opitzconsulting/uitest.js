@@ -1,8 +1,8 @@
-uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe'], function(eventSource, injector, annotate, runConfig, urlParser, testframe) {
+uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe', 'run/scriptInstrumentor'], function(eventSource, injector, annotate, runConfig, urlParser, testframe, scriptInstrumentor) {
+    var FUNCTION_START = "functionstart";
 
-    // TODO move the regex token from jsParserFactory to here!
-    // TODO only register this when run/config contains intercepts at all!
-    eventSource.on('js:functionstart', onFunctionStart);
+    scriptInstrumentor.jsParser.addTokenType(FUNCTION_START, "(\\bfunction\\s*)(\\w+)([^\\{]*\\{)", "function fn(){", {1:"name"});
+    eventSource.on('js:'+FUNCTION_START, onFunctionStart);
 
     return onFunctionStart;
 
