@@ -1,4 +1,4 @@
-describe('htmlParserFactory', function() {
+ddescribe('htmlParserFactory', function() {
     var parser, parse, serialize;
     beforeEach(function() {
         parser = uitest.require(["htmlParserFactory"]).htmlParserFactory();
@@ -7,51 +7,57 @@ describe('htmlParserFactory', function() {
     });
 
     it('should parse comments', function() {
-        expect(parse('<!---->')).toEqual([{type:'comment', content:'', match: '<!---->'}]);
+        expect(parse('<!---->')).toEqual([{type:'comment', match: '<!---->'}]);
         expect(parse('<!----><!---->').length).toBe(2);
-        expect(parse('<!--a-->')).toEqual([{type:'comment', content:'a', match: '<!--a-->'}]);
-        expect(parse('<!--a\nb-->')).toEqual([{type:'comment', content:'a\nb', match: '<!--a\nb-->'}]);
+        expect(parse('<!--a-->')).toEqual([{type:'comment', match: '<!--a-->'}]);
+        expect(parse('<!--a\nb-->')).toEqual([{type:'comment', match: '<!--a\nb-->'}]);
     });
 
-    it('should parse content script tags', function() {
-        expect(parse('<script>c</script>')).toEqual([{type:'contentscript', content:'c', attrs: '', match: '<script>c</script>'}]);
-        expect(parse('<script a="b">c</script>')).toEqual([{type:'contentscript', content:'c', attrs: ' a="b"', match: '<script a="b">c</script>'}]);
-        expect(parse('<script>c</script><script>c</script>').length).toBe(2);
+    it('should parse open tags', function() {
+        expect(parse('<someTag>')).toEqual([{type:'startTag', name:'someTag', attrs: {}}]);
+        expect(parse('<someTag a>')).toEqual([{type:'startTag', name:'someTag', attrs: {a:{value:undefined,index:0}}}]);
+        expect(parse('<someTag a b>')).toEqual([{type:'startTag', name:'someTag', attrs: {a:{value:undefined,index:0},b:{value:undefined,index:1}}}]);
+        expect(parse('<someTag a="b">')).toEqual([{type:'startTag', name:'someTag', attrs: {a:{value:"b",index:0}}}]);
     });
 
-    it('should serialize content script tags', function() {
-        expect(serialize([{type:'contentscript', content:'c', attrs: ''}])).toEqual('<script>c</script>');
-        expect(serialize([{type:'contentscript', content:'c', attrs: ' a=b'}])).toEqual('<script a=b>c</script>');
+    it('should serialize open tags', function() {
+        expect(serialize([{type:'startTag', name:'a', attrs:{}}])).toBe('<a>');
+        expect(serialize([{type:'startTag', name:'a', attrs:{b:{index:0}}}])).toBe('<a b>');
+        expect(serialize([{type:'startTag', name:'a', attrs:{c:{index:1},b:{index:0}}}])).toBe('<a b c>');
+        expect(serialize([{type:'startTag', name:'a', attrs:{b:{index:0,value:'c'}}}])).toBe('<a b="c">');
     });
 
-    it('should parse url script tags', function() {
-        expect(parse('<script src="someUrl">c</script>')).toEqual([{type:'urlscript', src:'someUrl', preAttrs:'', postAttrs: '', match: '<script src="someUrl">c</script>'}]);
-        expect(parse('<script src="someUrl"></script><script src="someUrl"></script>').length).toEqual(2);
-        expect(parse('<script src = "someUrl" a>c</script>')).toEqual([{type:'urlscript', preAttrs: '', postAttrs: ' a', src:'someUrl', match: '<script src = "someUrl" a>c</script>'}]);
-        expect(parse('<script a src="someUrl" b>c</script>')).toEqual([{type:'urlscript', preAttrs: ' a', postAttrs: ' b', src:'someUrl', match: '<script a src="someUrl" b>c</script>'}]);
+    it('should parse end tags', function() {
+        expect(parse('</someTag>')).toEqual([{type:'endTag', name:'someTag'}]);
     });
 
-    it('should serialize url script tags', function() {
-        expect(serialize([{type:'urlscript', src:'someSrc'}])).toEqual('<script src="someSrc"></script>');
-        expect(serialize([{type:'urlscript', src:'someSrc', preAttrs: ' a', postAttrs: ' b'}])).toEqual('<script a src="someSrc" b></script>');
+    it('should serialize end tags', function() {
+        expect(serialize([{type:'endTag', name:'a'}])).toBe('</a>');
     });
 
-    it('should parse head start tags', function() {
-        expect(parse('<head>')).toEqual([{type:'headstart', match: '<head>'}]);
-        expect(parse('<head a="b">')).toEqual([{type:'headstart', match: '<head a="b">'}]);
+    it('should parse xhtml empty tags', function() {
+        expect(parse('<someTag/>')).toEqual([{type:'simpleTag', name:'someTag', attrs:[], content: ''}]);
     });
 
-    it('should parse body start tags', function() {
-        expect(parse('<body>')).toEqual([{type:'bodystart', match: '<body>'}]);
-        expect(parse('<body a="b">')).toEqual([{type:'bodystart', match: '<body a="b">'}]);
+    it('should merge open/close tags to simpleTags', function() {
+        expect(parse('<someTag></someTag>')).toEqual([{type:'simpleTag', name:'someTag', attrs:[], content: ''}]);
+        expect(parse('<someTag>someContent</someTag>')).toEqual([{type:'simpleTag', name:'someTag', attrs:[], content: 'someContent'}]);
     });
 
-    it('should parse body end tags', function() {
-        expect(parse('</body>')).toEqual([{type:'bodyend', match: '</body>'}]);
-        expect(parse('< / body>')).toEqual([{type:'bodyend', match: '< / body>'}]);
+    it('should serialize simple tags', function() {
+        expect(serialize([{type:'simpleTag', name:'a', attrs:[], content: ''}])).toBe('<a></a>');
+        expect(serialize([{type:'simpleTag', name:'a', attrs:[], content: 'someContent'}])).toBe('<a>someContent</a>');
     });
 
-    it('should replace empty xhtml tags with open/close tags in parse and transform', function() {
-        expect(parse('<test/>')).toEqual([{type:'other', match: '<test></test>'}]);
+    it('should not merge open/close tags with nested tags', function() {
+        expect(parse('<a><b/></a>')).toEqual([{type:'startTag', name:'a', attrs:[]},{type:'simpleTag', name:'b', attrs:[], content: ''},{type:'endTag', name:'a'}]);
+    });
+
+    describe('mixed', function() {
+        it('should parse comments with script tags', function() {
+            expect(parse('<!-- <script></script> -->')).toEqual([
+                { match : '<!-- <script></script> -->', type : 'comment' }
+            ]);
+        });
     });
 });

@@ -1,6 +1,8 @@
-uitest.define('run/feature/multiPage', ['run/eventSource', 'run/main', 'run/feature/locationProxy'], function(eventSource, main, locationProxy) {
+uitest.define('run/feature/multiPage', ['run/eventSource', 'run/main', 'run/feature/locationProxy', 'run/feature/fakeHistory', 'global'], function(eventSource, main, locationProxy, fakeHistory, global) {
     eventSource.on('loc:reload', function(event, done) {
-        main.start(event.newHref);
+        global.setTimeout(function() {
+            main.start(event.newHref);
+        });
         done();
     });
 });

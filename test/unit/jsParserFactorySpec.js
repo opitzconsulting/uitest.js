@@ -1,4 +1,4 @@
-describe('jsParserFactory', function() {
+ddescribe('jsParserFactory', function() {
     var jsparser, parse, serialize;
     beforeEach(function() {
         jsparser = uitest.require(["jsParserFactory"]).jsParserFactory();
@@ -6,59 +6,85 @@ describe('jsParserFactory', function() {
         serialize = jsparser.serialize;
     });
 
-    it('should parse strings with quotes', function() {
-        var input = "'asdf'";
-        expect(parse(input)).toEqual([{type:'sqstring', content: "asdf", match:input}]);
-        input = "'a''b'";
-        expect(parse(input)).toEqual([{type:'sqstring', content: "a", match:"'a'"},{type:'sqstring', content: "b", match:"'b'"}]);
-        input = "'as\\'df'";
-        expect(parse(input)).toEqual([{type:'sqstring', content: "as\\'df", match: input}]);
-        input = "'as\\ndf'";
-        expect(parse(input)).toEqual([{type:'sqstring', content: "as\\ndf", match: input}]);
+    describe('comments, strings and regex', function() {
+        it('should parse line comments', function() {
+            expect(parse("//a")).toEqual([{type:'comment', match:'//a'}]);
+            expect(parse("//a\nb")).toEqual([{type:'comment', match:'//a\n'},{type:'other', match:'b'}]);
+        });
+        it('should parse block comments', function() {
+            expect(parse("/**/")).toEqual([{type:'comment', match:'/**/'}]);
+            expect(parse("/*\n*/")).toEqual([{type:'comment', match:'/*\n*/'}]);
+            expect(parse("/*a*//*b*/")).toEqual([{type:'comment', match:'/*a*/'},{type:'comment', match:'/*b*/'}]);
+            expect(parse("a/**/b")).toEqual([{type:'other', match:'a'},{type:'comment', match:'/**/'},{type:'other', match:'b'}]);
+            expect(parse("/*//*/b")).toEqual([{type:'comment', match:'/*//*/'},{type:'other', match:'b'}]);
+            expect(parse("/*'*/b")).toEqual([{type:'comment', match:"/*'*/"},{type:'other', match:'b'}]);
+        });
+        it('should parse single quote strings', function() {
+            expect(parse("'a'")).toEqual([{type:'string', match:"'a'"}]);
+            expect(parse("'a'b")).toEqual([{type:'string', match:"'a'"},{type:'other', match:"b"}]);
+            expect(parse("'a")).toEqual([{type:'string', match:"'a"}]);
+            expect(parse("'a\\'b")).toEqual([{type:'string', match:"'a\\'b"}]);
+            expect(parse("'//'b")).toEqual([{type:'string', match:"'//'"},{type:'other', match:"b"}]);
+            expect(parse("'/**/'b")).toEqual([{type:'string', match:"'/**/'"},{type:'other', match:"b"}]);
+        });
+        it('should parse double quote strings', function() {
+            expect(parse('"a"')).toEqual([{type:"string", match:'"a"'}]);
+            expect(parse('"a"b')).toEqual([{type:"string", match:'"a"'},{type:"other", match:'b'}]);
+            expect(parse('"a')).toEqual([{type:"string", match:'"a'}]);
+            expect(parse('"a\\"b')).toEqual([{type:"string", match:'"a\\"b'}]);
+            expect(parse('"//"b')).toEqual([{type:"string", match:'"//"'},{type:"other", match:'b'}]);
+            expect(parse('"/**/"b')).toEqual([{type:"string", match:'"/**/"'},{type:"other", match:'b'}]);
+        });
+        it('should parse regex', function() {
+            expect(parse('/a/')).toEqual([{type:"re", match:'/a/'}]);
+            expect(parse('/a')).toEqual([{type:"re", match:'/a'}]);
+            expect(parse('/a"/')).toEqual([{type:"re", match:'/a"/'}]);
+            expect(parse("/a'/")).toEqual([{type:"re", match:"/a'/"}]);
+            expect(parse("/a\\/a")).toEqual([{type:"re", match:"/a\\/a"}]);
+        });
     });
 
-    it('should serialize new single quote strings', function() {
-        expect(serialize([{type:'sqstring', content: "a"}])).toEqual("'a'");
+    describe('serialize', function() {
+        it('should concat the match entry of all tokens', function() {
+            expect(serialize([{match:'a'},{match:'b'}])).toBe('ab');
+        });
     });
 
-    it('should parse strings with doublequotes', function() {
-        var input = '"asdf"';
-        expect(parse(input)).toEqual([{type:'dqstring', content: 'asdf', match: input}]);
-        input = '"as\\ndf"';
-        expect(parse(input)).toEqual([{type:'dqstring', content: 'as\\ndf', match: input}]);
-        input = '"as\\"df"';
-        expect(parse(input)).toEqual([{type:'dqstring', content: 'as\\"df', match: input}]);
-    });
-
-    it('should serialize new double quote strings', function() {
-        expect(serialize([{type:'dqstring', content: "a"}])).toEqual('"a"');
-    });
-
-    it('should parse line comments', function() {
-        var input = "//only";
-        expect(parse(input)).toEqual([{type:'linecomment', content: "only", match: input}]);
-        input = "a//end";
-        expect(parse(input)).toEqual([{type:'other', match: "a"}, {type:'linecomment', content: "end", match: "//end"}]);
-    });
-
-    it('should serialize new linecomments', function() {
-        expect(serialize([{type:'linecomment', content: "a"}])).toEqual('//a');
-    });
-
-    it('should parse block comments', function() {
-        var input = "/*only*/";
-        expect(parse(input)).toEqual([{type:'blockcomment', content: "only", match: input}]);
-        input = "/*multi\nline*/";
-        expect(parse(input)).toEqual([{type:'blockcomment', content: "multi\nline", match:input}]);
-        input = "a/*end*/";
-        expect(parse(input)).toEqual([{type:'other', match: "a"}, {type:'blockcomment', content: "end", match: "/*end*/"}]);
-        input = "/*start*/a";
-        expect(parse(input)).toEqual([{type:'blockcomment', content: "start", match:"/*start*/"},{type:'other', match: "a"}]);
-        input = "a/*middle*/b";
-        expect(parse(input)).toEqual([{type:'other', match: "a"},{type:'blockcomment', content: "middle", match: "/*middle*/"},{type:'other', match: "b"}]);
-    });
-
-    it('should serialize new block comments', function() {
-        expect(serialize([{type:'blockcomment', content: "a"}])).toEqual('/*a*/');
+    describe('location', function() {
+        function shouldSkip(pattern) {
+            it('should skip "'+pattern+'"', function() {
+                expect(parse(pattern)).toEqual([{type:'other', match:pattern}]);
+            });
+        }
+        function shouldDetect(pattern) {
+            it('should detect "'+pattern+'"', function() {
+                var locationStart = pattern.indexOf('location'),
+                    locationEnd = locationStart+8;
+                var expected = [];
+                if (locationStart>0) {
+                    expected.push({type: 'other', match:pattern.substring(0, locationStart)});
+                }
+                expected.push({type:'location', match: 'location'});
+                if (locationEnd<pattern.length) {
+                    expected.push({type: 'other', match:pattern.substring(locationEnd)});
+                }
+                expect(parse(pattern)).toEqual(expected);
+            });
+        }
+        describe('normal matches', function() {
+            shouldDetect("location");
+            shouldDetect("a\nlocation");
+            shouldSkip("location$");
+            shouldSkip("$location");
+            shouldSkip("Location");
+        });
+        describe('matches with prefix/suffix operators', function() {
+            shouldDetect("win.location");
+            shouldDetect("location.x=");
+            shouldDetect("return location;");
+            shouldSkip("var location");
+            shouldSkip("var x,location");
+            shouldSkip("location=");
+        });
     });
 });

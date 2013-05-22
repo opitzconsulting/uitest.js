@@ -35,7 +35,7 @@ describe('run/feature/multiPage', function() {
         });
         uit.runs(function(window, location, locationProxy) {
             expect(window.reloadFlag).toBeUndefined();
-            expect(location.href.indexOf('someFlag')!==-1).toBe(true);
+            expect(location.href.indexOf('someFlag') !== -1).toBe(true);
             expect(window.getLocation() === locationProxy).toBe(true);
         });
     });
@@ -49,7 +49,7 @@ describe('run/feature/multiPage', function() {
         });
         uit.runs(function(window, location, locationProxy) {
             expect(window.reloadFlag).toBeUndefined();
-            expect(location.href.indexOf('someFlag')!==-1).toBe(true);
+            expect(location.href.indexOf('someFlag') !== -1).toBe(true);
             expect(window.getLocation() === locationProxy).toBe(true);
         });
     });
@@ -63,7 +63,7 @@ describe('run/feature/multiPage', function() {
         });
         uit.runs(function(window, location, locationProxy) {
             expect(window.reloadFlag).toBeUndefined();
-            expect(location.href.indexOf('someFlag')!==-1).toBe(true);
+            expect(location.href.indexOf('someFlag') !== -1).toBe(true);
             expect(window.getLocation() === locationProxy).toBe(true);
         });
     });
@@ -76,6 +76,27 @@ describe('run/feature/multiPage', function() {
         });
         uit.runs(function(window, location, locationProxy) {
             expect(window.reloadFlag).toBe(true);
+        });
+    });
+
+    it('should be able to go back', function() {
+        var page1, page2;
+        uit.runs(function(window, location) {
+            page1 = location.href;
+            page2 = location.href.replace('multiPage.html', 'multiPage2.html');
+            location.href = page2;
+            window.flag1 = true;
+        });
+        uit.runs(function(window, location, history) {
+            expect(location.href).toBe(page2);
+            expect(window.flag1).toBeUndefined();
+            window.flag2 = true;
+            history.back();
+        });
+        uit.runs(function(window, location, history) {
+            expect(location.href).toBe(page1);
+            expect(window.flag1).toBeUndefined();
+            expect(window.flag2).toBeUndefined();
         });
     });
 });

@@ -1,46 +1,112 @@
 uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserFactory) {
-    var COMMENT = "comment",
-        CONTENT_SCRIPT = "contentscript",
-        URL_SCRIPT = "urlscript",
-        HEAD_START = "headstart",
-        BODY_START = "bodystart",
-        BODY_END = "bodyend",
-        EMPTY_TAG_RE = /(<([^>\s]+)[^>]*)\/>/ig;
+    var attrRe = /(\w+)(\s*=\s*"([^"]*))?/g;
+    var lexemeSpecs = [
+        {type:"commentStart", re: '<!--', groupCount:0},
+        {type:"commentEnd", re: '-->', groupCount:0},
+        {type:"startTag", re: '<\\s*(\\w+)([^>]*?)(/)?>', groupCount:3},
+        {type:"endTag", re: '</\\s*(\\w+)\\s*>', groupCount:1}
+    ];
+    var lexemeStartParsers = {
+        commentStart: commentParser,
+        startTag: startTagParser,
+        endTag: endTagParser
+    };
+    var tokenSerializers = {
+        startTag: startTagSerializer,
+        endTag: endTagSerializer,
+        simpleTag: simpleTagSerializer
+    };
+    var lastStartTagOutputIndex;
 
-    return factory;
+    // TODO: Test ignoreCase!    
+    var parser = regexParserFactory(lexemeSpecs, lexemeStartParsers, tokenSerializers, true);
 
-    function factory() {
-        var parser = regexParserFactory();
-        parser.addTokenType(COMMENT, "(<!--)((?:[^-]|-[^-])*?)(-->)", "<!---->", {1:"content"});
-        parser.addTokenType(URL_SCRIPT, '(<script)([^>]*)(\\s+src\\s*=\\s*")([^"]*)(")([^>]*)(>[\\s\\S]*?</script>)', '<script src=""></script>', {1:"preAttrs", 3:"src", 5:"postAttrs"});
-        parser.addTokenType(CONTENT_SCRIPT, "(<script)([^>]*)(>)([\\s\\S]*?)(</script>)", "<script></script>", {1:"attrs", 3:"content"});
-        parser.addTokenType(HEAD_START, "(<head[^>]*>)", "<head>", []);
-        parser.addTokenType(BODY_START, "(<body[^>]*>)", "<body>", []);
-        parser.addTokenType(BODY_END, "(<\\s*/\\s*body\\s*>)", "</body>", []);
-
-        var _parse = parser.parse,
-            _transform = parser.transform;
-
-        parser.parse = function(input) {
-            input = makeEmptyTagsToOpenCloseTags(input);
-            return _parse(input);
-        };
-
-        parser.transform = function(data) {
-            data.input = makeEmptyTagsToOpenCloseTags(data.input);
-            return _transform.apply(this, arguments);
-        };
-
+    // TODO remove factory
+    return function() {
         return parser;
+    };
+
+    function commentParser(lexemesIter, output) {
+        output.addMergedToken("commentEnd", "comment");
     }
 
-    // We unpack empty tags to open/close tags here,
-    // so we have a normalized form for empty tags.
-    // Also, we need html and not xhtml for rewriting a document
-    // using script urls / document.open.
-    function makeEmptyTagsToOpenCloseTags(html) {
-        return html.replace(EMPTY_TAG_RE, function(match, openTag, tagName) {
-            return openTag+"></"+tagName+">";
-        });
+    function startTagParser(lexemesIter, output) {
+        var match = lexemesIter.current.match;
+        var token = {
+            name: match[1],
+            attrs: parseAttrs(match[2]),
+            type: 'startTag'
+        };
+        if (match[3]) {
+            // empty xhtml-style tag.
+            token.type = 'simpleTag';
+            token.content = '';
+        }
+        lastStartTagOutputIndex = output.tokens.length;
+        output.addToken(token);
+    }
+
+    function parseAttrs(input) {
+        var match, attrs = {}, i=0;
+        while (match = attrRe.exec(input)) {
+            attrs[match[1]] = {
+                value: match[3],
+                index: i++
+            };
+        }
+        return attrs;
+    }
+
+    function endTagParser(lexemesIter, output) {
+        var tagName = lexemesIter.current.match[1];
+        var laststartTagToken = output.tokens[lastStartTagOutputIndex],
+            i, content = [];
+        if (laststartTagToken && laststartTagToken.name === tagName) {
+            laststartTagToken.type = 'simpleTag';
+            for (i=lastStartTagOutputIndex; i<output.tokens.length; i++) {
+                content.push(output.tokens[i].match);
+            }
+            output.tokens.splice(lastStartTagOutputIndex+1, output.tokens.length-lastStartTagOutputIndex);
+            laststartTagToken.content = content.join('');
+            laststartTagToken = null;
+        } else {
+            output.addToken({
+                type: 'endTag',
+                name: lexemesIter.current.match[1]
+            });
+        }
+    }
+
+    function startTagSerializer(token) {
+        var parts = ['<', token.name], i, attr, sortedAttrNames = [], attrName;
+        if (token.attrs) {
+            for (attrName in token.attrs) {
+                sortedAttrNames.push(attrName);
+            }
+            sortedAttrNames.sort(function(attrName) {
+                return token.attrs[attrName].index;
+            });
+            for (i=0; i<sortedAttrNames.length; i++) {
+                attrName = sortedAttrNames[i];
+                attr = token.attrs[attrName];
+                parts.push(' ');
+                parts.push(attrName);
+                if (attr.value) {
+                    parts.push('="');
+                    parts.push(attr.value);
+                    parts.push('"');
+                }
+            }
+        }
+        parts.push('>');
+        return parts.join('');
+    }
+
+    function endTagSerializer(token) {
+        return "</"+token.name+">";
+    }
+
+    function simpleTagSerializer(token) {
+        return startTagSerializer(token)+token.content+endTagSerializer(token);
     }
 });

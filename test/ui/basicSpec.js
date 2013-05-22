@@ -13,7 +13,7 @@ describe('basic', function() {
             var uit = uitest.current;
             uit.url("../test/ui/fixtures/"+basicUrl);
 
-            it('should load the page with the right location set', function() {
+            iit('should load the page with the right location set', function() {
                 uit.runs(function(window) {
                     expect(endsWith(window.location.pathname, 'ui/fixtures/'+basicUrl)).toBe(true);
                 });

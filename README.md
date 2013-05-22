@@ -21,7 +21,7 @@ test frameworks.
 * Instrumentations for a page:
     - add a script or function at the beginning/end of the page
     - intercept calls to any named function on the page, no matter if the function is global or not
-    - automatically add workaround for know browser bugs in iframes
+    - automatically adds workarounds for know browser bugs in iframes
       (e.g. history in IE<10 does not work correctly).
 * Cache busting feature to always fetch the recent versions of scripts in pages.
 * Wait for the end of asynchronous work, e.g. xhr, setTimeout, setInterval, page loading, ...
@@ -44,11 +44,11 @@ test frameworks.
       (error XML5632: only one root element is allowed).
 
 
-## Usage
+## Standalone usage (without a test framework like Jasmine...)
 
 1. include uitest.js as library into your test-code.
 1. create a uitest instance calling `uitest()`.
-1. configure the instance, e.g. setting setting `<uitest>.url('someUrl')`.
+1. configure the instance, e.g. setting `<uitest>.url('someUrl')`.
 1. run the test page, e.g. by calling `<uitest>.ready`.
 
 Preconditions:

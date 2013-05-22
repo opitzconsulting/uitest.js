@@ -51,7 +51,7 @@
         if (name==="moduleCache") {
             return instanceCache;
         }
-        if (instanceCache[name] === undefined) {
+        if (!(name in instanceCache)) {
             var resolvedValue;
             var mod = findModuleDefinition(name);
             var resolvedDeps = listFactory(mod.deps, instanceCache);
