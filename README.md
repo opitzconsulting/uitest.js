@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/tigbro/uitest.js.png)](https://travis-ci.org/tigbro/uitest.js)
+[![Build Status](https://travis-ci.org/opitzconsulting/uitest.js.png)](https://travis-ci.org/opitzconsulting/uitest.js)
 #uitest.js
 
 ## Description
@@ -61,7 +61,7 @@ Preconditions:
 See the ui tests under `test/ui/*Spec.js`.
 
 ## Reporting Bugs
-Please use this [Plunk](http://plnkr.co/edit/rGCvTXINKVv4B4lqM6gv) as starting point.
+Please use this [Plunk](http://plnkr.co/edit/ciFDGRUwbHXNXbD00IUu) as starting point.
 
 ## Build
 Directory structure
