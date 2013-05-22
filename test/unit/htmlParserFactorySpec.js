@@ -36,21 +36,19 @@ ddescribe('htmlParserFactory', function() {
     });
 
     it('should parse xhtml empty tags', function() {
-        expect(parse('<someTag/>')).toEqual([{type:'simpleTag', name:'someTag', attrs:[], content: ''}]);
+        expect(parse('<someTag/>')).toEqual([{type:'startTag', name:'someTag', attrs:[]},{type:'endTag', name:'someTag'}]);
+        expect(parse('<script/>')).toEqual([{type:'simpleTag', name:'script', attrs:[], content: ''}]);
     });
 
-    it('should merge open/close tags to simpleTags', function() {
-        expect(parse('<someTag></someTag>')).toEqual([{type:'simpleTag', name:'someTag', attrs:[], content: ''}]);
-        expect(parse('<someTag>someContent</someTag>')).toEqual([{type:'simpleTag', name:'someTag', attrs:[], content: 'someContent'}]);
+    it('should parse simpleTags', function() {
+        expect(parse('<script></script>')).toEqual([{type:'simpleTag', name:'script', attrs:[], content: ''}]);
+        expect(parse('<script>someContent</script>')).toEqual([{type:'simpleTag', name:'script', attrs:[], content: 'someContent'}]);
     });
 
     it('should serialize simple tags', function() {
+        expect(serialize([{type:'simpleTag', name:'a'}])).toBe('<a></a>');
         expect(serialize([{type:'simpleTag', name:'a', attrs:[], content: ''}])).toBe('<a></a>');
         expect(serialize([{type:'simpleTag', name:'a', attrs:[], content: 'someContent'}])).toBe('<a>someContent</a>');
-    });
-
-    it('should not merge open/close tags with nested tags', function() {
-        expect(parse('<a><b/></a>')).toEqual([{type:'startTag', name:'a', attrs:[]},{type:'simpleTag', name:'b', attrs:[], content: ''},{type:'endTag', name:'a'}]);
     });
 
     describe('mixed', function() {

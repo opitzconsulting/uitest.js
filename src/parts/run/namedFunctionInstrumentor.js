@@ -1,8 +1,5 @@
 uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe', 'run/scriptInstrumentor'], function(eventSource, injector, annotate, runConfig, urlParser, testframe, scriptInstrumentor) {
-    var FUNCTION_START = "functionstart";
-
-    scriptInstrumentor.jsParser.addTokenType(FUNCTION_START, "(\\bfunction\\s*)(\\w+)([^\\{]*\\{)", "function fn(){", {1:"name"});
-    eventSource.on('js:'+FUNCTION_START, onFunctionStart);
+    eventSource.on('js:namedFunctionStart', onFunctionStart);
 
     return onFunctionStart;
 

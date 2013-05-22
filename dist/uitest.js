@@ -601,7 +601,7 @@ uitest.define('global', [], function() {
 });
 
 uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserFactory) {
-    var attrRe = /(\w+)(\s*=\s*"([^"]*))?/g;
+    var attrRe = /([\w_-]+)(\s*=\s*"([^"]*))?/g;
     var lexemeSpecs = [
         {type:"commentStart", re: '<!--', groupCount:0},
         {type:"commentEnd", re: '-->', groupCount:0},
@@ -619,6 +619,9 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
         simpleTag: simpleTagSerializer
     };
     var lastStartTagOutputIndex;
+    var simpleTags = {
+        script: true
+    };
 
     // TODO: Test ignoreCase!    
     var parser = regexParserFactory(lexemeSpecs, lexemeStartParsers, tokenSerializers, true);
@@ -634,18 +637,36 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
 
     function startTagParser(lexemesIter, output) {
         var match = lexemesIter.current.match;
+        var name = match[1];
+        var isSimpleTag = simpleTags[name.toLowerCase()];
         var token = {
-            name: match[1],
+            name: name,
             attrs: parseAttrs(match[2]),
             type: 'startTag'
         };
+        output.addToken(token);
         if (match[3]) {
             // empty xhtml-style tag.
-            token.type = 'simpleTag';
-            token.content = '';
+            if (isSimpleTag) {
+                token.type = 'simpleTag';
+                token.content = '';
+            } else {
+                output.addToken({
+                    type: 'endTag',
+                    name: name
+                });
+            }
+        } else if (isSimpleTag) {
+            var content = [],
+                lexeme;
+            lexemesIter.next();
+            for (lexeme = lexemesIter.current; lexeme && lexeme.type!=='endTag'; lexeme = lexemesIter.next()) {
+                content.push(lexeme.match[0]);
+            }
+            token.content = content.join('');
+            token.type='simpleTag';
         }
         lastStartTagOutputIndex = output.tokens.length;
-        output.addToken(token);
     }
 
     function parseAttrs(input) {
@@ -661,22 +682,10 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
 
     function endTagParser(lexemesIter, output) {
         var tagName = lexemesIter.current.match[1];
-        var laststartTagToken = output.tokens[lastStartTagOutputIndex],
-            i, content = [];
-        if (laststartTagToken && laststartTagToken.name === tagName) {
-            laststartTagToken.type = 'simpleTag';
-            for (i=lastStartTagOutputIndex; i<output.tokens.length; i++) {
-                content.push(output.tokens[i].match);
-            }
-            output.tokens.splice(lastStartTagOutputIndex+1, output.tokens.length-lastStartTagOutputIndex);
-            laststartTagToken.content = content.join('');
-            laststartTagToken = null;
-        } else {
-            output.addToken({
-                type: 'endTag',
-                name: lexemesIter.current.match[1]
-            });
-        }
+        output.addToken({
+            type: 'endTag',
+            name: tagName
+        });
     }
 
     function startTagSerializer(token) {
@@ -709,7 +718,14 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
     }
 
     function simpleTagSerializer(token) {
-        return startTagSerializer(token)+token.content+endTagSerializer(token);
+        var res = [
+            startTagSerializer(token)
+        ];
+        if (token.content) {
+            res.push(token.content);
+        }
+        res.push(endTagSerializer(token));
+        return res.join('');
     }
 });
 
@@ -911,45 +927,40 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
             return parseLexemes(lexemes, lexemeStartParsers);
         }
 
-        function transform(input, state, listeners, doneCallback) {
-            var tokens = parse(input),
+        function transform(data, transformDone) {
+            var input = data.input,
+                state = data.state || {},
+                eventSource = data.eventSource,
+                eventPrefix = data.eventPrefix || '',
+                tokens = parse(input),
                 resultTokens = [];
-            state = state || {};
 
-            utils.asyncLoop(tokens, tokenHandler, done, stop);
+            utils.asyncLoop(tokens, loopHandler, loopDone);
 
-            function stop(error) {
-                if (error) {
-                    doneCallback(error);
-                }
+            function loopDone(error) {
+                transformDone(error, serialize(resultTokens));
             }
 
-            function done() {
-                doneCallback(null, serialize(resultTokens));
-            }
-
-            function tokenHandler(tokenIndex, token, control) {
-                utils.processAsyncEvent({
+            function loopHandler(entry, loopHandlerDone) {
+                var token = entry.item,
+                    tokenIndex = entry.index,
+                    pushTokenInsertPos = tokenIndex + 1;
+                eventSource.emit({
+                    type: eventPrefix + token.type,
                     token: token,
                     state: state,
                     pushToken: pushToken
-                }, listeners, tokenDone, tokenStop);
+                }, eventDone);
 
-                function tokenDone() {
-                    resultTokens.push(token);
-                    control.next();
-                }
-
-                function tokenStop(error) {
-                    if (error) {
-                        control.stop(error);
-                    } else {
-                        control.next();
+                function eventDone(error, event) {
+                    if (!event.stopped && !error) {
+                        resultTokens.push(token);
                     }
+                    loopHandlerDone(error);
                 }
 
                 function pushToken(token) {
-                    tokens.splice(tokenIndex + 1, 0, token);
+                    tokens.splice(pushTokenInsertPos++, 0, token);
                 }
             }
         }
@@ -1111,8 +1122,6 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
             return updateCurrent();
         }
     }
-
-
 });
 uitest.define('run/eventSource', ['eventSourceFactory'], function(eventSourceFactory) {
     return eventSourceFactory();
@@ -1449,47 +1458,17 @@ uitest.define('run/feature/jqmAnimationSensor', ['run/eventSource', 'run/ready']
     }
 });
 uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/eventSource', 'run/injector', 'run/testframe', 'sniffer'], function(proxyFactory, scriptInstrumentor, eventSource, injector, testframe, sniffer) {
-    // Cases:
-    // Include:
-    // - return location
-    // - = location
-    // - window.location
-    // Exclude:
-    // - var location
-    // - location = 
-    scriptInstrumentor.jsParser.addTokenType('location1', '((?:=|\\.|return)\\s*location)', '=location', {});
-    scriptInstrumentor.jsParser.addTokenType('location2', '(\\slocation)(\\s*[\\.\\[])', ' location.', {0: "location", 1: "suffix"});
-
     eventSource.on('addPrepends', function(event, done) {
         event.handlers.push(initFrame);
         done();
     });
-    eventSource.on('js:location1', function (event, done) {
-        if (!event.processed) {
-            event.pushToken({
-                type: 'other',
-                match: '[locationProxy.test()]()'
-            });
-        }
+    eventSource.on('js:location', function (event, done) {
+        event.pushToken({
+            type: 'other',
+            match: '[locationProxy.test()]()'
+        });
         done();
     });
-    eventSource.on('js:location2', function(event, done) {
-        if (!event.processed) {
-            event.stop();
-            event.pushToken({
-                type: 'other',
-                match: event.token.location+'[locationProxy.test()]()',
-                processed: true
-            });
-            event.pushToken({
-                type: 'other',
-                match: event.token.suffix,
-                processed: true
-            });
-        }
-        done();
-    });
-
 
     // Override window.location!
     locationResolver.priority = 99999;
@@ -1924,11 +1903,11 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
         htmlParser: htmlParser,
         processHtml: processHtml
     };
-    eventSource.on('html:headstart', emitAddPrepends);
-    eventSource.on('html:bodystart', emitAddPrepends);
-    eventSource.on('html:bodyend', emitAddAppends);
-    eventSource.on('html:urlscript', emitInstrumentScript);
-    eventSource.on('html:contentscript', emitInstrumentScript);
+    eventSource.on('html:startTag', emitAddPrepends);
+    eventSource.on('html:simpleTag', emitAddPrepends);
+    eventSource.on('html:endTag', emitAddAppends);
+    eventSource.on('html:startTag', emitInstrumentScript);
+    eventSource.on('html:simpleTag', emitInstrumentScript);
 
     return exports;
 
@@ -1938,12 +1917,20 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             htmlEventDone();
             return;
         }
+        if (htmlEvent.token.name!=='head' && htmlEvent.token.name!=='body') {
+            htmlEventDone();
+            return;
+        }
         state.addedPrepends = true;
         emitAddPrependsAndAppends(htmlEvent, 'addPrepends', htmlEventDone);
     }
 
     function emitAddAppends(htmlEvent, htmlEventDone) {
         if (htmlEvent.token.addedAppends) {
+            htmlEventDone();
+            return;
+        }
+        if (htmlEvent.token.name!=='body') {
             htmlEventDone();
             return;
         }
@@ -1984,16 +1971,22 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             prependOrAppend = prependsOrAppends[i];
             if(utils.isString(prependOrAppend)) {
                 pushToken({
-                    type: 'urlscript',
-                    src: prependOrAppend
+                    type: 'simpleTag',
+                    name: 'script',
+                    attrs:{
+                        src:{value: prependOrAppend}
+                    },
+                    content: ''
                 });
                 lastCallbackArr = null;
             } else {
                 if(!lastCallbackArr) {
                     lastCallbackArr = [];
                     pushToken({
-                        type: 'contentscript',
-                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr))
+                        type: 'simpleTag',
+                        name: 'script',
+                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr)),
+                        attrs: []
                     });
                 }
                 lastCallbackArr.push(prependOrAppend);
@@ -2011,14 +2004,13 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
     }
 
     function emitInstrumentScript(htmlEvent, htmlEventDone) {
-        if (htmlEvent.token.instrumented) {
-            // prevent infinite loops!
+        if (htmlEvent.token.name!=='script') {
             htmlEventDone();
             return;
         }
         var absUrl;
-        if (htmlEvent.token.src) {
-            absUrl = urlParser.makeAbsoluteUrl(htmlEvent.token.src, htmlEvent.state.htmlUrl);
+        if (htmlEvent.token.attrs.src) {
+            absUrl = urlParser.makeAbsoluteUrl(htmlEvent.token.attrs.src.value, htmlEvent.state.htmlUrl);
         }
         eventSource.emit({
             type: 'instrumentScript',
@@ -2028,25 +2020,19 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
         }, done);
 
         function done(error, instrumentScriptEvent) {
-            // Allow event listeners to change the src of the script
-            htmlEvent.token.src = instrumentScriptEvent.src;
-            if (error || !instrumentScriptEvent.changed) {
+            if (error) {
                 htmlEventDone(error);
                 return;
             }
-            var scriptAttrs;
-            if (htmlEvent.token.type==='contentscript') {
-                scriptAttrs = htmlEvent.token.attrs;
+            if (instrumentScriptEvent.changed) {
+                htmlEvent.token.content = testframe.createRemoteCallExpression(execScript);
+                delete htmlEvent.token.attrs.src;
             } else {
-                scriptAttrs = htmlEvent.token.preAttrs+htmlEvent.token.postAttrs;
+                // Still allow event listeners to change the src of the script
+                if (htmlEvent.token.attrs.src) {
+                    htmlEvent.token.attrs.src.value = instrumentScriptEvent.src;
+                }
             }
-            htmlEvent.stop();
-            htmlEvent.pushToken({
-                type: 'contentscript',
-                attrs: scriptAttrs,
-                content: testframe.createRemoteCallExpression(execScript),
-                instrumented: true
-            });
             htmlEventDone();
 
             function execScript() {
@@ -2246,10 +2232,7 @@ uitest.define('run/main', ['urlParser', 'global','run/logger', 'run/config', 'ru
 
 });
 uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector', 'annotate', 'run/config', 'urlParser', 'run/testframe', 'run/scriptInstrumentor'], function(eventSource, injector, annotate, runConfig, urlParser, testframe, scriptInstrumentor) {
-    var FUNCTION_START = "functionstart";
-
-    scriptInstrumentor.jsParser.addTokenType(FUNCTION_START, "(\\bfunction\\s*)(\\w+)([^\\{]*\\{)", "function fn(){", {1:"name"});
-    eventSource.on('js:'+FUNCTION_START, onFunctionStart);
+    eventSource.on('js:namedFunctionStart', onFunctionStart);
 
     return onFunctionStart;
 
@@ -2385,7 +2368,7 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
     addAppendsSuppressor.priority = 99999;
     eventSource.on('addAppends', addAppendsSuppressor);
 
-    eventSource.on('html:urlscript', checkAndHandleRequireJsScriptToken);
+    eventSource.on('html:simpleTag', checkAndHandleRequireJsScriptToken);
 
     return;
 
@@ -2400,11 +2383,11 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
         var token = htmlEvent.token,
             state = htmlEvent.state;
 
-        if (!token.src.match(REQUIRE_JS_RE)) {
+        if (token.name!=='script' || !token.attrs.src || !token.attrs.src.value.match(REQUIRE_JS_RE)) {
             htmlEventDone();
             return;
         }
-        logger.log("detected requirejs with script url " + token.src);
+        logger.log("detected requirejs with script url " + token.attrs.src.value);
 
         var content = testframe.createRemoteCallExpression(function(win) {
             afterRequireJsScript(win);
@@ -2414,8 +2397,10 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
         // requirejs is used.
         state.requirejs = true;
         htmlEvent.pushToken({
-            type: 'contentscript',
-            content: content
+            type: 'simpleTag',
+            name: 'script',
+            content: content,
+            attrs:[]
         });
         htmlEventDone();
     }

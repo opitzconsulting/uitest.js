@@ -1,4 +1,4 @@
-ddescribe('jsParserFactory', function() {
+describe('jsParserFactory', function() {
     var jsparser, parse, serialize;
     beforeEach(function() {
         jsparser = uitest.require(["jsParserFactory"]).jsParserFactory();

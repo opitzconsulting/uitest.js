@@ -7,7 +7,7 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
     addAppendsSuppressor.priority = 99999;
     eventSource.on('addAppends', addAppendsSuppressor);
 
-    eventSource.on('html:urlscript', checkAndHandleRequireJsScriptToken);
+    eventSource.on('html:simpleTag', checkAndHandleRequireJsScriptToken);
 
     return;
 
@@ -22,11 +22,11 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
         var token = htmlEvent.token,
             state = htmlEvent.state;
 
-        if (!token.src.match(REQUIRE_JS_RE)) {
+        if (token.name!=='script' || !token.attrs.src || !token.attrs.src.value.match(REQUIRE_JS_RE)) {
             htmlEventDone();
             return;
         }
-        logger.log("detected requirejs with script url " + token.src);
+        logger.log("detected requirejs with script url " + token.attrs.src.value);
 
         var content = testframe.createRemoteCallExpression(function(win) {
             afterRequireJsScript(win);
@@ -36,8 +36,10 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
         // requirejs is used.
         state.requirejs = true;
         htmlEvent.pushToken({
-            type: 'contentscript',
-            content: content
+            type: 'simpleTag',
+            name: 'script',
+            content: content,
+            attrs:[]
         });
         htmlEventDone();
     }

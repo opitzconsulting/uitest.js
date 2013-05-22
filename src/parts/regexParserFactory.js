@@ -1,146 +1,34 @@
 uitest.define('regexParserFactory', ['utils'], function(utils) {
 
-    return factory;
+    return createParser;
 
-    function factory() {
-        var types = [],
-            typesByName = {};
-
+    function createParser(lexemeSpecs, lexemeStartParsers, tokenSerializers, ignoreCase) {
+        var compiledLexer = compileLexer(lexemeSpecs);
         return {
             parse: parse,
             serialize: serialize,
-            transform: transform,
-            addTokenType: addTokenType,
-            addSimpleTokenType: addSimpleTokenType,
-            assertAllCharsInExactOneCapturingGroup: assertAllCharsInExactOneCapturingGroup
+            transform: transform
         };
 
-        function addSimpleTokenType(name) {
-            addTokenType(name, "(\\b" + name + "\\b)", name, {});
-        }
-
-        function addTokenType(name, reString, template, groupNames) {
-            var templateMatch = new RegExp("^" + reString + "$", "i").exec(template);
-            if (!templateMatch) {
-                throw new Error("Template '" + template + "' does not match the regex '" + reString+"'");
+        function serialize(tokens) {
+            var parts = new Array(tokens.length),
+                i, token, serializer, tokenStr;
+            for (i = 0; i < tokens.length; i++) {
+                token = tokens[i];
+                serializer = tokenSerializers[token.type];
+                if (serializer) {
+                    tokenStr = serializer(token);
+                } else {
+                    tokenStr = tokens[i].match;
+                }
+                parts.push(tokenStr);
             }
-            assertAllCharsInExactOneCapturingGroup(reString);
-            var groupCount = templateMatch.length-1;
-            var type = {
-                name: name,
-                reString: reString,
-                re: new RegExp(reString, "i"),
-                groupNames: groupNames,
-                groupCount: groupCount,
-                template: template
-            };
-            types.push(type);
-            typesByName[name] = type;
+            return parts.join('');
         }
 
         function parse(input) {
-            var re = createRegex(),
-                match,
-                result = [],
-                lastMatchEnd = 0;
-
-            while (match = re.exec(input)) {
-                addOtherTokenBetweenMatches();
-                addMatch();
-            }
-            addTailOtherToken();
-            return result;
-
-            function createRegex() {
-                var re = [],
-                    i;
-                for (i = 0; i < types.length; i++) {
-                    if (re.length > 0) {
-                        re.push("|(");
-                    } else {
-                        re.push("(");
-                    }
-                    re.push(types[i].reString, ")");
-                }
-                return new RegExp(re.join(""), "ig");
-            }
-
-            function addOtherTokenBetweenMatches() {
-                if (match.index > lastMatchEnd) {
-                    result.push({
-                        type: 'other',
-                        match: input.substring(lastMatchEnd, match.index)
-                    });
-                }
-                lastMatchEnd = match.index + match[0].length;
-            }
-
-            function addMatch() {
-                var i,
-                groupIndex,
-                type,
-                parsedMatch = {
-                    match: match[0]
-                };
-                lastMatchEnd = match.index + match[0].length;
-                groupIndex = 1;
-                for (i = 0; i < types.length; i++) {
-                    if (match[groupIndex]) {
-                        type = types[i];
-                        break;
-                    }
-                    groupIndex += types[i].groupCount + 1;
-                }
-                if (!type) {
-                    throw new Error("could not determine the type for match " + match);
-                }
-                parsedMatch.type = type.name;
-                groupIndex++;
-                for (i = 0; i < type.groupCount; i++) {
-                    if (type.groupNames[i]) {
-                        parsedMatch[type.groupNames[i]] = match[groupIndex];
-                    }
-                    groupIndex++;
-                }
-                result.push(parsedMatch);
-            }
-
-            function addTailOtherToken() {
-                if (lastMatchEnd < input.length) {
-                    result.push({
-                        type: 'other',
-                        match: input.substring(lastMatchEnd)
-                    });
-                }
-            }
-        }
-
-        function serialize(parsed) {
-            var i, token, result = [];
-            for (i = 0; i < parsed.length; i++) {
-                token = parsed[i];
-                serializeToken(token);
-            }
-            return result.join('');
-
-            function serializeToken(token) {
-                if (token.type === 'other') {
-                    result.push(token.match);
-                    return;
-                }
-                var type = typesByName[token.type];
-                var input = token.match || type.template;
-                var match = type.re.exec(input);
-                var i, groupName;
-                for (i = 1; i < match.length; i++) {
-                    groupName = type.groupNames[i-1];
-                    if (groupName) {
-                        result.push(token[groupName]);
-                    } else {
-                        result.push(match[i]);
-                    }
-                }
-            }
+            var lexemes = compiledLexer(input);
+            return parseLexemes(lexemes, lexemeStartParsers);
         }
 
         function transform(data, transformDone) {
@@ -160,9 +48,9 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
             function loopHandler(entry, loopHandlerDone) {
                 var token = entry.item,
                     tokenIndex = entry.index,
-                    pushTokenInsertPos = tokenIndex+1;
+                    pushTokenInsertPos = tokenIndex + 1;
                 eventSource.emit({
-                    type: eventPrefix+token.type,
+                    type: eventPrefix + token.type,
                     token: token,
                     state: state,
                     pushToken: pushToken
@@ -176,51 +64,166 @@ uitest.define('regexParserFactory', ['utils'], function(utils) {
                 }
 
                 function pushToken(token) {
-                    tokens.splice(pushTokenInsertPos++,0,token);
+                    tokens.splice(pushTokenInsertPos++, 0, token);
                 }
             }
         }
     }
 
-    function assertAllCharsInExactOneCapturingGroup(reString) {
-        var groups = [], i, ch, nextEscaped, capturing, skipCheck;
-
-        for (i = 0; i < reString.length; i++) {
-            skipCheck = false;
-            ch = reString.charAt(i);
-            if (ch === '(' && !nextEscaped) {
-                capturing = true;
-                if (reString.charAt(i + 1) === '?') {
-                    i+=2;
-                    capturing = false;
-                    skipCheck = true;
-                }
-                groups.push(capturing);
-            } else if (ch === ')' && !nextEscaped) {
-                groups.pop();
-                if (reString.charAt(i+1)==='?') {
-                    i++;
-                }
-                skipCheck = true;
-            }
-            if (!nextEscaped && ch==='\\') {
-                nextEscaped = true;
+    function parseLexemes(lexemes, lexemeStartParsers) {
+        var lexerIter = iterator(lexemes),
+            lexeme,
+            output = [],
+            lexemParser,
+            outputAdder = {
+                addToken: addToken,
+                addMergedToken: addMergedToken,
+                addOtherToken: addOtherToken,
+                tokens: output
+            };
+        while (lexeme = lexerIter.next()) {
+            lexemParser = lexemeStartParsers[lexeme.type];
+            if (lexemParser) {
+                lexemParser(lexerIter, outputAdder);
             } else {
-                nextEscaped = false;
+                outputAdder.addOtherToken();
             }
-            if (capturingGroupCount()!==1 && !skipCheck) {
-                throw new Error("Regex "+reString+" does not have exactly one capturing group at position "+i);
+        }
+        return concatOtherTokens(output);
+
+        function addMergedToken(lexemeType, outputType) {
+            var parts = [];
+            do {
+                parts.push(lexerIter.current.match[0]);
+                lexerIter.next();
+            } while (lexerIter.current && lexerIter.current.type !== lexemeType);
+            if (lexerIter.current) {
+                parts.push(lexerIter.current.match[0]);
+            }
+            output.push({
+                type: outputType,
+                match: parts.join('')
+            });
+        }
+
+        function addOtherToken() {
+            if (lexerIter.current) {
+                output.push({
+                    type: 'other',
+                    match: lexerIter.current.match[0]
+                });
             }
         }
 
-        function capturingGroupCount() {
-            var count = 0, i;
-            for (i=0; i<groups.length; i++) {
-                if (groups[i]) {
-                    count++;
+        function addToken(token) {
+            output.push(token);
+        }
+    }
+
+    function concatOtherTokens(tokens) {
+        var i, otherMatches, token, result = [];
+        for (i = 0; i < tokens.length; i++) {
+            token = tokens[i];
+            if (token.type === 'other') {
+                if (!otherMatches) {
+                    otherMatches = [];
                 }
+                otherMatches.push(token.match);
+            } else {
+                flushOtherTokensIfNeeded();
+                result.push(token);
             }
-            return count;
+        }
+        flushOtherTokensIfNeeded();
+        return result;
+
+        function flushOtherTokensIfNeeded() {
+            if (otherMatches) {
+                result.push({
+                    type: 'other',
+                    match: otherMatches.join('')
+                });
+                otherMatches = null;
+            }
+        }
+    }
+
+
+    function compileLexer(lexemeSpecs, ignoreCase) {
+        var re = buildRegex(ignoreCase, lexemeSpecs);
+        return function(input) {
+            return lex(input, re, lexemeSpecs);
+        };
+
+        function buildRegex() {
+            var re = [],
+                i;
+            for (i = 0; i < lexemeSpecs.length; i++) {
+                re.push(lexemeSpecs[i].re);
+            }
+            return new RegExp('(' + re.join(')|(') + ')', ignoreCase ? 'gmi' : 'gm');
+        }
+    }
+
+    function lex(input, re, lexemeSpecs) {
+        var match,
+        result = [],
+            lastMatchEnd = 0;
+        while (match = re.exec(input)) {
+            addOtherlexemeIfNeeded(match.index);
+            result.push(createlexeme(match));
+            lastMatchEnd = match.index + match[0].length;
+        }
+        addOtherlexemeIfNeeded(input.length);
+
+        return result;
+
+        function addOtherlexemeIfNeeded(nextMatchStart) {
+            if (nextMatchStart > lastMatchEnd) {
+                result.push({
+                    type: 'other',
+                    match: [input.substring(lastMatchEnd, nextMatchStart)]
+                });
+            }
+        }
+
+        function createlexeme(match) {
+            var i, groupIndex = 1,
+                lexerSpec;
+            for (i = 0; i < lexemeSpecs.length; i++) {
+                lexerSpec = lexemeSpecs[i];
+                if (match[groupIndex]) {
+                    return {
+                        type: lexerSpec.type,
+                        match: match.slice(groupIndex, groupIndex + lexerSpec.groupCount + 1)
+                    };
+                }
+                groupIndex += lexerSpec.groupCount + 1;
+            }
+            throw new Error("Internal error: could not find a matching lexerSpec for match " + match);
+        }
+    }
+
+    function iterator(array) {
+        var index = -1,
+            result = {
+                next: next,
+                prev: prev
+            };
+        return result;
+
+        function updateCurrent() {
+            return result.current = array[index];
+        }
+
+        function next() {
+            index++;
+            return updateCurrent();
+        }
+
+        function prev() {
+            index--;
+            return updateCurrent();
         }
     }
 });

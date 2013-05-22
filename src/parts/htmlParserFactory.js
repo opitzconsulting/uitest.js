@@ -1,5 +1,5 @@
 uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserFactory) {
-    var attrRe = /(\w+)(\s*=\s*"([^"]*))?/g;
+    var attrRe = /([\w_-]+)(\s*=\s*"([^"]*))?/g;
     var lexemeSpecs = [
         {type:"commentStart", re: '<!--', groupCount:0},
         {type:"commentEnd", re: '-->', groupCount:0},
@@ -17,6 +17,9 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
         simpleTag: simpleTagSerializer
     };
     var lastStartTagOutputIndex;
+    var simpleTags = {
+        script: true
+    };
 
     // TODO: Test ignoreCase!    
     var parser = regexParserFactory(lexemeSpecs, lexemeStartParsers, tokenSerializers, true);
@@ -32,18 +35,36 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
 
     function startTagParser(lexemesIter, output) {
         var match = lexemesIter.current.match;
+        var name = match[1];
+        var isSimpleTag = simpleTags[name.toLowerCase()];
         var token = {
-            name: match[1],
+            name: name,
             attrs: parseAttrs(match[2]),
             type: 'startTag'
         };
+        output.addToken(token);
         if (match[3]) {
             // empty xhtml-style tag.
-            token.type = 'simpleTag';
-            token.content = '';
+            if (isSimpleTag) {
+                token.type = 'simpleTag';
+                token.content = '';
+            } else {
+                output.addToken({
+                    type: 'endTag',
+                    name: name
+                });
+            }
+        } else if (isSimpleTag) {
+            var content = [],
+                lexeme;
+            lexemesIter.next();
+            for (lexeme = lexemesIter.current; lexeme && lexeme.type!=='endTag'; lexeme = lexemesIter.next()) {
+                content.push(lexeme.match[0]);
+            }
+            token.content = content.join('');
+            token.type='simpleTag';
         }
         lastStartTagOutputIndex = output.tokens.length;
-        output.addToken(token);
     }
 
     function parseAttrs(input) {
@@ -59,22 +80,10 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
 
     function endTagParser(lexemesIter, output) {
         var tagName = lexemesIter.current.match[1];
-        var laststartTagToken = output.tokens[lastStartTagOutputIndex],
-            i, content = [];
-        if (laststartTagToken && laststartTagToken.name === tagName) {
-            laststartTagToken.type = 'simpleTag';
-            for (i=lastStartTagOutputIndex; i<output.tokens.length; i++) {
-                content.push(output.tokens[i].match);
-            }
-            output.tokens.splice(lastStartTagOutputIndex+1, output.tokens.length-lastStartTagOutputIndex);
-            laststartTagToken.content = content.join('');
-            laststartTagToken = null;
-        } else {
-            output.addToken({
-                type: 'endTag',
-                name: lexemesIter.current.match[1]
-            });
-        }
+        output.addToken({
+            type: 'endTag',
+            name: tagName
+        });
     }
 
     function startTagSerializer(token) {
@@ -107,6 +116,13 @@ uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserF
     }
 
     function simpleTagSerializer(token) {
-        return startTagSerializer(token)+token.content+endTagSerializer(token);
+        var res = [
+            startTagSerializer(token)
+        ];
+        if (token.content) {
+            res.push(token.content);
+        }
+        res.push(endTagSerializer(token));
+        return res.join('');
     }
 });

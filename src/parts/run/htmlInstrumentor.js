@@ -7,11 +7,11 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
         htmlParser: htmlParser,
         processHtml: processHtml
     };
-    eventSource.on('html:headstart', emitAddPrepends);
-    eventSource.on('html:bodystart', emitAddPrepends);
-    eventSource.on('html:bodyend', emitAddAppends);
-    eventSource.on('html:urlscript', emitInstrumentScript);
-    eventSource.on('html:contentscript', emitInstrumentScript);
+    eventSource.on('html:startTag', emitAddPrepends);
+    eventSource.on('html:simpleTag', emitAddPrepends);
+    eventSource.on('html:endTag', emitAddAppends);
+    eventSource.on('html:startTag', emitInstrumentScript);
+    eventSource.on('html:simpleTag', emitInstrumentScript);
 
     return exports;
 
@@ -21,12 +21,20 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             htmlEventDone();
             return;
         }
+        if (htmlEvent.token.name!=='head' && htmlEvent.token.name!=='body') {
+            htmlEventDone();
+            return;
+        }
         state.addedPrepends = true;
         emitAddPrependsAndAppends(htmlEvent, 'addPrepends', htmlEventDone);
     }
 
     function emitAddAppends(htmlEvent, htmlEventDone) {
         if (htmlEvent.token.addedAppends) {
+            htmlEventDone();
+            return;
+        }
+        if (htmlEvent.token.name!=='body') {
             htmlEventDone();
             return;
         }
@@ -67,16 +75,22 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             prependOrAppend = prependsOrAppends[i];
             if(utils.isString(prependOrAppend)) {
                 pushToken({
-                    type: 'urlscript',
-                    src: prependOrAppend
+                    type: 'simpleTag',
+                    name: 'script',
+                    attrs:{
+                        src:{value: prependOrAppend}
+                    },
+                    content: ''
                 });
                 lastCallbackArr = null;
             } else {
                 if(!lastCallbackArr) {
                     lastCallbackArr = [];
                     pushToken({
-                        type: 'contentscript',
-                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr))
+                        type: 'simpleTag',
+                        name: 'script',
+                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr)),
+                        attrs: []
                     });
                 }
                 lastCallbackArr.push(prependOrAppend);
@@ -94,14 +108,13 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
     }
 
     function emitInstrumentScript(htmlEvent, htmlEventDone) {
-        if (htmlEvent.token.instrumented) {
-            // prevent infinite loops!
+        if (htmlEvent.token.name!=='script') {
             htmlEventDone();
             return;
         }
         var absUrl;
-        if (htmlEvent.token.src) {
-            absUrl = urlParser.makeAbsoluteUrl(htmlEvent.token.src, htmlEvent.state.htmlUrl);
+        if (htmlEvent.token.attrs.src) {
+            absUrl = urlParser.makeAbsoluteUrl(htmlEvent.token.attrs.src.value, htmlEvent.state.htmlUrl);
         }
         eventSource.emit({
             type: 'instrumentScript',
@@ -111,25 +124,19 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
         }, done);
 
         function done(error, instrumentScriptEvent) {
-            // Allow event listeners to change the src of the script
-            htmlEvent.token.src = instrumentScriptEvent.src;
-            if (error || !instrumentScriptEvent.changed) {
+            if (error) {
                 htmlEventDone(error);
                 return;
             }
-            var scriptAttrs;
-            if (htmlEvent.token.type==='contentscript') {
-                scriptAttrs = htmlEvent.token.attrs;
+            if (instrumentScriptEvent.changed) {
+                htmlEvent.token.content = testframe.createRemoteCallExpression(execScript);
+                delete htmlEvent.token.attrs.src;
             } else {
-                scriptAttrs = htmlEvent.token.preAttrs+htmlEvent.token.postAttrs;
+                // Still allow event listeners to change the src of the script
+                if (htmlEvent.token.attrs.src) {
+                    htmlEvent.token.attrs.src.value = instrumentScriptEvent.src;
+                }
             }
-            htmlEvent.stop();
-            htmlEvent.pushToken({
-                type: 'contentscript',
-                attrs: scriptAttrs,
-                content: testframe.createRemoteCallExpression(execScript),
-                instrumented: true
-            });
             htmlEventDone();
 
             function execScript() {

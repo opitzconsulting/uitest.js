@@ -1,45 +1,15 @@
 uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumentor', 'run/eventSource', 'run/injector', 'run/testframe', 'sniffer'], function(proxyFactory, scriptInstrumentor, eventSource, injector, testframe, sniffer) {
-    // Cases:
-    // Include:
-    // - return location
-    // - = location
-    // - window.location
-    // Exclude:
-    // - var location
-    // - location = 
-    scriptInstrumentor.jsParser.addTokenType('location1', '((?:=|\\.|return)\\s*location)', '=location', {});
-    scriptInstrumentor.jsParser.addTokenType('location2', '(\\slocation)(\\s*[\\.\\[])', ' location.', {0: "location", 1: "suffix"});
-
     eventSource.on('addPrepends', function(event, done) {
         event.handlers.push(initFrame);
         done();
     });
-    eventSource.on('js:location1', function (event, done) {
-        if (!event.processed) {
-            event.pushToken({
-                type: 'other',
-                match: '[locationProxy.test()]()'
-            });
-        }
+    eventSource.on('js:location', function (event, done) {
+        event.pushToken({
+            type: 'other',
+            match: '[locationProxy.test()]()'
+        });
         done();
     });
-    eventSource.on('js:location2', function(event, done) {
-        if (!event.processed) {
-            event.stop();
-            event.pushToken({
-                type: 'other',
-                match: event.token.location+'[locationProxy.test()]()',
-                processed: true
-            });
-            event.pushToken({
-                type: 'other',
-                match: event.token.suffix,
-                processed: true
-            });
-        }
-        done();
-    });
-
 
     // Override window.location!
     locationResolver.priority = 99999;
