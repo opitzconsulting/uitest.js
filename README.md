@@ -61,7 +61,7 @@ Preconditions:
 See the ui tests under `test/ui/*Spec.js`.
 
 ## Reporting Bugs
-Please use this [Plunk](http://plnkr.co/edit/ciFDGRUwbHXNXbD00IUu) as starting point.
+Please use this [Plunk](http://plnkr.co/edit/Lp7DJNCyKB9vKPdS3GEp) as starting point.
 
 ## Build
 Directory structure
