@@ -2,7 +2,6 @@ describe('run/feature/cacheBuster', function() {
     var eventSource, utils, someNow;
     beforeEach(function() {
         var modules = uitest.require({
-            "utils": utils,
             "run/config": {}
         }, ["run/feature/cacheBuster", "run/eventSource", "utils"]);
         eventSource = modules["run/eventSource"];

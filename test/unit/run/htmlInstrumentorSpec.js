@@ -44,22 +44,16 @@ describe('run/htmlInstrumentor', function() {
         });
         it('should process html using the eventSource and html: event prefixes', function() {
             var eventCb = jasmine.createSpy('event');
-            eventSource.on('html:headstart', eventCb);
+            eventSource.on('html:head:start', eventCb);
             processHtml();
-            expect(eventCb.mostRecentCall.args[0].token).toEqual({
-                match: '<head>',
-                type: 'headstart'
-            });
+            expect(eventCb.mostRecentCall.args[0].token.name).toBe('head');
         });
         it('should return the transformed html', function() {
             var eventCb = jasmine.createSpy('event');
-            eventSource.on('html:headstart', eventCb);
+            eventSource.on('html:head:start', eventCb);
             processHtml();
             expect(resultCb).not.toHaveBeenCalled();
-            eventCb.mostRecentCall.args[0].pushToken({
-                type: 'other',
-                match: 'someText'
-            });
+            eventCb.mostRecentCall.args[0].append.push('someText');
             eventCb.mostRecentCall.args[1]();
             expect(resultCb).toHaveBeenCalledWith(undefined, '<html><head>someText</head><body></body></html>');
         });

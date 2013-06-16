@@ -6,7 +6,8 @@ uitest.define('eventSourceFactory', ['utils'], function(utils) {
         var listeners = {};
         return {
             on: on,
-            emit: emit
+            emit: emit,
+            emitSync: emitSync
         };
 
 
@@ -50,6 +51,19 @@ uitest.define('eventSourceFactory', ['utils'], function(utils) {
                 emitDone(error, event);
             }
 
+        }
+
+        function emitSync(event) {
+            var result;
+            emit(event, done);
+            return result;
+
+            function done(error, _result) {
+                if (error) {
+                    throw error;
+                }
+                result = _result;
+            }
         }
     }
 });

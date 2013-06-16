@@ -15,6 +15,7 @@
             addEventListener: addEventListener,
             removeEventListener: removeEventListener,
             textContent: textContent,
+            multiRegex: multiRegex,
             noop: noop
         };
 
@@ -143,6 +144,38 @@
                 } else {
                     el.textContent = val;
                 }
+            }
+        }
+
+        function multiRegex(specs, flags) {
+            return {
+                regex: createRegex(),
+                parseMatch: parseMatch
+            };
+
+            function createRegex() {
+                var reParts = [],
+                    i;
+                for (i = 0; i < specs.length; i++) {
+                    reParts.push(specs[i].re);
+                }
+                return new RegExp("(" + reParts.join(')|(') + ")", flags);
+            }
+
+            function parseMatch(match) {
+                var reParts = [],
+                    i, groupIndex = 1;
+                for (i = 0; i < specs.length; i++) {
+                    if (match[groupIndex]) {
+                        return {
+                            spec: specs[i],
+                            match: match.slice(groupIndex)
+                        };
+                    }
+                    groupIndex += specs[i].groupCount + 1;
+                }
+                throw new Error("Internal Error: Could not find the spec for the match " + match);
+
             }
         }
 

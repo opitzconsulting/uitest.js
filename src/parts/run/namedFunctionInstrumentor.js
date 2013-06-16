@@ -4,17 +4,13 @@ uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector
     return onFunctionStart;
 
     function onFunctionStart(event, done) {
-        var token = event.token,
-            state = event.state;
-        var intercept = findMatchingInterceptByName(token.name, state.scriptUrl);
+        var state = event.state;
+        var intercept = findMatchingInterceptByName(event.name, state.scriptUrl);
         if (!intercept) {
             done();
             return;
         }
-        event.pushToken({
-            type: 'other',
-            match: 'if (!' + token.name + '.delegate)return ' + testframe.createRemoteCallExpression(fnCallback, "window", token.name, "this", "arguments")
-        });
+        event.append = 'if (!' + event.name + '.delegate)return ' + testframe.createRemoteCallExpression(fnCallback, "window", event.name, "this", "arguments");
         done();
         return;
 
@@ -23,7 +19,7 @@ uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector
                 originalArgsByName = {},
                 $delegate = {
                     fn: fn,
-                    name: token.name,
+                    name: event.name,
                     self: self,
                     args: args
                 },

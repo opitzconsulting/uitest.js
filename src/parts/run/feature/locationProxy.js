@@ -4,10 +4,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
         done();
     });
     eventSource.on('js:location', function (event, done) {
-        event.pushToken({
-            type: 'other',
-            match: '[locationProxy.test()]()'
-        });
+        event.replace = 'location[locationProxy.test()]()';
         done();
     });
 

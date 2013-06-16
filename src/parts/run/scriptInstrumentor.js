@@ -1,6 +1,4 @@
-uitest.define('run/scriptInstrumentor', ['run/eventSource', 'fileLoader', 'run/logger', 'jsParserFactory'], function(eventSource, fileLoader, logger, jsParserFactory) {
-    var jsParser = jsParserFactory();
-
+uitest.define('run/scriptInstrumentor', ['run/eventSource', 'fileLoader', 'run/logger', 'jsParser'], function(eventSource, fileLoader, logger, jsParser) {
     eventSource.on('instrumentScript', instrumentScript);
 
     return {
@@ -21,7 +19,7 @@ uitest.define('run/scriptInstrumentor', ['run/eventSource', 'fileLoader', 'run/l
         }
 
         function scriptContentLoaded(scriptContent) {
-            jsParser.transform({
+            jsParser({
                 input: scriptContent,
                 eventSource: eventSource,
                 eventPrefix: 'js:',

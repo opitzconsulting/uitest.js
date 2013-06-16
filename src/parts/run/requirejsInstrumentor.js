@@ -1,4 +1,4 @@
-uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', 'run/logger', 'utils', 'run/testframe', 'urlParser'], function(eventSource, injector, logger, utils, testframe, urlParser) {
+uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', 'run/logger', 'utils', 'run/testframe', 'urlParser'], function (eventSource, injector, logger, utils, testframe, urlParser) {
     var REQUIRE_JS_RE = /require[\W]/,
         eventHandlers = [];
 
@@ -7,7 +7,7 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
     addAppendsSuppressor.priority = 99999;
     eventSource.on('addAppends', addAppendsSuppressor);
 
-    eventSource.on('html:simpleTag', checkAndHandleRequireJsScriptToken);
+    eventSource.on('html:script:simple', checkAndHandleRequireJsScriptToken);
 
     return;
 
@@ -22,24 +22,24 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
         var token = htmlEvent.token,
             state = htmlEvent.state;
 
-        if (token.name!=='script' || !token.attrs.src || !token.attrs.src.value.match(REQUIRE_JS_RE)) {
+        if (!token.attrs.src || !token.attrs.src.match(REQUIRE_JS_RE)) {
             htmlEventDone();
             return;
         }
-        logger.log("detected requirejs with script url " + token.attrs.src.value);
+        logger.log("detected requirejs with script url " + token.attrs.src);
 
-        var content = testframe.createRemoteCallExpression(function(win) {
+        var content = testframe.createRemoteCallExpression(function (win) {
             afterRequireJsScript(win);
         }, "window");
 
         // Used by addAppendsSuppressor to see if
         // requirejs is used.
         state.requirejs = true;
-        htmlEvent.pushToken({
-            type: 'simpleTag',
+        htmlEvent.append.push({
+            type: 'simple',
             name: 'script',
-            content: content,
-            attrs:[]
+            attrs: {},
+            content: content
         });
         htmlEventDone();
     }
@@ -55,11 +55,11 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
 
     function patchRequire(win) {
         var _require = win.require;
-        win.require = function(deps, originalCallback) {
+        win.require = function (deps, originalCallback) {
             _require.onResourceLoad = win.require.onResourceLoad;
-            _require(deps, function() {
+            _require(deps, function () {
                 var depsValues = arguments;
-                collectAndExecuteAppends(_require, win, function(error) {
+                collectAndExecuteAppends(_require, win, function (error) {
                     if (error) {
                         throw error;
                     }
@@ -107,7 +107,7 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
 
     function patchLoad(_require) {
         var _load = _require.load;
-        _require.load = function(context, moduleName, url) {
+        _require.load = function (context, moduleName, url) {
             var self = this;
             var absUrl = urlParser.makeAbsoluteUrl(url, testframe.win().location.href);
             eventSource.emit({

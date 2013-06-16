@@ -1,4 +1,4 @@
-/*! uitest.js - v0.10.0-SNAPSHOT - 2013-05-17
+/*! uitest.js - v0.10.0-SNAPSHOT - 2013-06-16
 * https://github.com/tigbro/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
@@ -315,7 +315,8 @@ uitest.define('eventSourceFactory', ['utils'], function(utils) {
         var listeners = {};
         return {
             on: on,
-            emit: emit
+            emit: emit,
+            emitSync: emitSync
         };
 
 
@@ -359,6 +360,19 @@ uitest.define('eventSourceFactory', ['utils'], function(utils) {
                 emitDone(error, event);
             }
 
+        }
+
+        function emitSync(event) {
+            var result;
+            emit(event, done);
+            return result;
+
+            function done(error, _result) {
+                if (error) {
+                    throw error;
+                }
+                result = _result;
+            }
         }
     }
 });
@@ -600,225 +614,285 @@ uitest.define('global', [], function() {
 	return window;
 });
 
-uitest.define('htmlParserFactory', ['regexParserFactory'], function(regexParserFactory) {
-    var attrRe = /([\w_-]+)(\s*=\s*"([^"]*))?/g;
-    var lexemeSpecs = [
-        {type:"commentStart", re: '<!--', groupCount:0},
-        {type:"commentEnd", re: '-->', groupCount:0},
-        {type:"startTag", re: '<\\s*(\\w+)([^>]*?)(/)?>', groupCount:3},
-        {type:"endTag", re: '</\\s*(\\w+)\\s*>', groupCount:1}
-    ];
-    var lexemeStartParsers = {
-        commentStart: commentParser,
-        startTag: startTagParser,
-        endTag: endTagParser
-    };
-    var tokenSerializers = {
-        startTag: startTagSerializer,
-        endTag: endTagSerializer,
-        simpleTag: simpleTagSerializer
-    };
-    var lastStartTagOutputIndex;
-    var simpleTags = {
-        script: true
-    };
-
-    // TODO: Test ignoreCase!    
-    var parser = regexParserFactory(lexemeSpecs, lexemeStartParsers, tokenSerializers, true);
-
-    // TODO remove factory
-    return function() {
-        return parser;
-    };
-
-    function commentParser(lexemesIter, output) {
-        output.addMergedToken("commentEnd", "comment");
-    }
-
-    function startTagParser(lexemesIter, output) {
-        var match = lexemesIter.current.match;
-        var name = match[1];
-        var isSimpleTag = simpleTags[name.toLowerCase()];
-        var token = {
-            name: name,
-            attrs: parseAttrs(match[2]),
-            type: 'startTag'
+uitest.define('htmlParser', ['utils'], function (utils) {
+    var ATTR_RE = /([\w_-]+)(\s*=\s*"([^"]*))?/g,
+        TAG_MULTI_RE = [
+            {
+                type: "start",
+                re: '<\\s*(\\w+)([^>]*?)(/)?>',
+                groupCount: 3,
+                parse: parseStartTag
+            },
+            {
+                type: "end",
+                re: '</\\s*(\\w+)\\s*>',
+                groupCount: 1,
+                parse: parseEndTag
+            }
+        ],
+        simpleTags = {
+            script: true
         };
-        output.addToken(token);
-        if (match[3]) {
-            // empty xhtml-style tag.
-            if (isSimpleTag) {
-                token.type = 'simpleTag';
-                token.content = '';
-            } else {
-                output.addToken({
-                    type: 'endTag',
-                    name: name
-                });
-            }
-        } else if (isSimpleTag) {
-            var content = [],
-                lexeme;
-            lexemesIter.next();
-            for (lexeme = lexemesIter.current; lexeme && lexeme.type!=='endTag'; lexeme = lexemesIter.next()) {
-                content.push(lexeme.match[0]);
-            }
-            token.content = content.join('');
-            token.type='simpleTag';
+
+    return transform;
+
+    function parseStartTag(match, tokens) {
+        var name = match[1],
+            attrsUnparsed = match[2],
+            empty = match[3],
+            attrs = {},
+            attrMatch;
+        while (attrMatch = ATTR_RE.exec(attrsUnparsed)) {
+            attrs[attrMatch[1]] = attrMatch[3];
         }
-        lastStartTagOutputIndex = output.tokens.length;
+        tokens.push({
+            type: 'start',
+            name: name,
+            attrs: attrs
+        });
+        if (empty) {
+            tokens.push({
+                name: name,
+                type: 'end'
+            });
+        }
     }
 
-    function parseAttrs(input) {
-        var match, attrs = {}, i=0;
-        while (match = attrRe.exec(input)) {
-            attrs[match[1]] = {
-                value: match[3],
-                index: i++
-            };
-        }
-        return attrs;
-    }
-
-    function endTagParser(lexemesIter, output) {
-        var tagName = lexemesIter.current.match[1];
-        output.addToken({
-            type: 'endTag',
-            name: tagName
+    function parseEndTag(match, tokens) {
+        var name = match[1];
+        tokens.push({
+            type: 'end',
+            name: name
         });
     }
 
-    function startTagSerializer(token) {
-        var parts = ['<', token.name], i, attr, sortedAttrNames = [], attrName;
-        if (token.attrs) {
-            for (attrName in token.attrs) {
-                sortedAttrNames.push(attrName);
-            }
-            sortedAttrNames.sort(function(attrName) {
-                return token.attrs[attrName].index;
-            });
-            for (i=0; i<sortedAttrNames.length; i++) {
-                attrName = sortedAttrNames[i];
-                attr = token.attrs[attrName];
-                parts.push(' ');
-                parts.push(attrName);
-                if (attr.value) {
-                    parts.push('="');
-                    parts.push(attr.value);
-                    parts.push('"');
+    function transform(data, transformDone) {
+        var input = data.input,
+            state = data.state || {},
+            eventSource = data.eventSource,
+            tokens = parse(input),
+            resultTokens = [];
+
+        loopTokens(tokens, function (error) {
+            transformDone(error, serialize(resultTokens));
+        });
+
+        function loopTokens(tokens, loopDone) {
+            utils.asyncLoop(tokens, loopHandler, loopDone);
+
+            function loopHandler(entry, loopHandlerDone) {
+                var token = entry.item;
+                if (stringTokenDone(token)) {
+                    return;
+                }
+                eventSource.emit(createEvent(token), eventDone);
+
+                function stringTokenDone(token) {
+                    if (typeof token === 'string') {
+                        resultTokens.push(token);
+                        loopHandlerDone(null);
+                        return true;
+                    }
+                }
+
+                function createEvent(token) {
+                    return {
+                        type: 'html:' + token.name + ':' + token.type,
+                        token: token,
+                        state: state,
+                        prepend: [],
+                        append: []
+                    };
+                }
+
+                function eventDone(error, event) {
+                    if (error) {
+                        loopHandlerDone(error);
+                        return;
+                    }
+                    loopTokens(event.prepend, function (error) {
+                        if (error) {
+                            loopHandlerDone(error);
+                            return;
+                        }
+                        resultTokens.push(event.token);
+                        loopTokens(event.append, function (error) {
+                            if (error) {
+                                loopHandlerDone(error);
+                                return;
+                            }
+                            loopHandlerDone();
+                        });
+                    });
                 }
             }
         }
-        parts.push('>');
-        return parts.join('');
     }
 
-    function endTagSerializer(token) {
-        return "</"+token.name+">";
+    function parse(input) {
+        var tokens = splitIntoOpenCloseTags(input);
+        return joinSimpleTags(tokens);
     }
 
-    function simpleTagSerializer(token) {
-        var res = [
-            startTagSerializer(token)
-        ];
-        if (token.content) {
-            res.push(token.content);
+    function splitIntoOpenCloseTags(input) {
+        var multiRe = utils.multiRegex(TAG_MULTI_RE, "ig"),
+            match,
+            parsedMatch,
+            tokens = [],
+            lastMatchEnd = 0;
+        while (match = multiRe.regex.exec(input)) {
+            addOtherIfNeeded(match.index, match[0].length);
+            parsedMatch = multiRe.parseMatch(match);
+            parsedMatch.spec.parse(parsedMatch.match, tokens);
         }
-        res.push(endTagSerializer(token));
-        return res.join('');
+        addOtherIfNeeded(input.length, 0);
+        return tokens;
+
+        function addOtherIfNeeded(matchStart, matchLen) {
+            if (matchStart > lastMatchEnd) {
+                tokens.push(input.substring(lastMatchEnd, matchStart));
+            }
+            lastMatchEnd = matchStart + matchLen;
+        }
+    }
+
+    function joinSimpleTags(tokens) {
+        var i = 0,
+            token,
+            resultTokens = [];
+        while (token = readToken()) {
+            if (token.type === 'start' && simpleTags[token.name.toLowerCase()]) {
+                resultTokens.push(readSimpleTag(token));
+            } else {
+                resultTokens.push(token);
+            }
+        }
+        return resultTokens;
+
+        function readToken() {
+            return tokens[i++];
+        }
+
+        function readSimpleTag(startTagToken) {
+            var name = startTagToken.name,
+                content = [],
+                nextToken;
+            startTagToken.type = 'simple';
+            nextToken = readToken();
+            if (typeof nextToken === 'string') {
+                startTagToken.content = nextToken;
+                nextToken = readToken();
+            }
+            if (nextToken.type !== 'end' || nextToken.name !== name) {
+                throw new Error("expected end tag " + name + " but got " + nextToken);
+            }
+            return startTagToken;
+        }
+    }
+
+    function serialize(tokens) {
+        var i,
+            token,
+            result = [];
+        for (i = 0; i < tokens.length; i++) {
+            token = tokens[i];
+            if (typeof token === 'string') {
+                result.push(token);
+            } else if (token.type === 'start') {
+                serializeStartTag(token);
+            } else if (token.type === 'simple') {
+                serializeSimpleTag(token);
+            } else if (token.type === 'end') {
+                serializeEndTag(token);
+            }
+        }
+        return result.join('');
+
+        function serializeStartTag(token) {
+            var attrName, attrValue;
+            result.push('<', token.name);
+            for (attrName in token.attrs) {
+                attrValue = token.attrs[attrName];
+                result.push(' ', attrName);
+                if (attrValue) {
+                    result.push('="', attrValue, '"');
+                }
+            }
+            result.push('>');
+        }
+
+        function serializeEndTag(token) {
+            result.push('</', token.name, '>');
+        }
+
+        function serializeSimpleTag(token) {
+            serializeStartTag(token);
+            if (token.content) {
+                result.push(token.content);
+            }
+            serializeEndTag(token);
+        }
+
     }
 });
 
-uitest.define('jsParserFactory', ['regexParserFactory'], function(regexParserFactory) {
-    var lexemeSpecs = [
-        // needs to be before quote/dquote/slash to be recognized first!
-        {type:"escape", re:'\\\\["\'/]', groupCount: 0},
-        {type:"quote", re:"'", groupCount: 0},
-        {type:"dquote", re:'"', groupCount: 0},
-        {type:"commentStart", re:'/\\*', groupCount: 0},
-        {type:"commentEnd", re:'\\*/', groupCount: 0},
-        {type:"lineCommentStart", re:'//', groupCount: 0},
-        {type:"newline", re:'\n', groupCount: 0},
-        {type:"namedFunctionStart", re: "\\bfunction\\s*(\\w+)[^\\{]*\\{", groupCount:1},
-        // Special marker for:
-        //   var location
-        //   var x, location
-        //   location = 
-        {type:"location", re:'((var)\\s+|(\\,)\\s*|[\\s\\.]|^)location(\\s*(=)|[\\s\\.\\[;]|$)', groupCount:5},
-        // needs to be after commentStart, commentEnd so that they are recognized first.
-        {type:"slash", re:"/", groupCount: 0}
-    ];
-
-    var lexemeStartParsers = {
-        lineCommentStart: parseLineComment,
-        commentStart:parseBlockComment,
-        slash:parseRegex,
-        quote:parseString,
-        dquote:parseString,
-        doubleQuote:parseString,
-        location: parseLocation,
-        namedFunctionStart:parseNamedFunctionStart
-    };
-
-    var parser = regexParserFactory(lexemeSpecs, lexemeStartParsers, {}, false);
-
-    // TODO refactor to a non factory method!
-    return function() {
-        return parser;
-    };
-
-    function parseLineComment(lexerIter, output) {
-        output.addMergedToken('newline', 'comment');
-    }
-
-    function parseBlockComment(lexerIter, output) {
-        output.addMergedToken('commentEnd', 'comment');
-    }
-
-    function parseString(lexerIter, output) {
-        var quoteType = lexerIter.current.type;
-        output.addMergedToken(quoteType, 'string');
-    }
-
-    function parseRegex(lexerIter, output) {
-        output.addMergedToken("slash", 're');
-    }
-
-    function parseLocation(lexerIter, output) {
-        var match = lexerIter.current.match;
-        if (match[2] || match[3] || match[5]) {
-            // Matched here:
-            //   var location
-            //   , location
-            //   location = 
-            output.addOtherToken();
-        } else {
-            if (match[1]) {
-                output.addToken({
-                    type: 'other',
-                    match: match[1]
-                });
-            }
-            output.addToken({
-                type: 'location',
-                match: 'location'
-            });
-            if (match[4]) {
-                output.addToken({
-                    type: 'other',
-                    match: match[4]
-                });
-            }
+uitest.define('jsParser', ['utils'], function (utils) {
+    var TOKENS_MULTI_RE = [
+        {
+            type: "location",
+            re: "([\\s,;]|^)location\\.((href|hash)\\s*=|replace|assign|reload)",
+            callback: onLocationMatch,
+            groupCount: 3
+        },
+        {
+            type: "location",
+            re: "[=|return]\\s*window\\.location([;,]|$)",
+            callback: onLocationMatch,
+            groupCount: 1
+        },
+        {
+            type: "namedFunctionStart",
+            re: "\\bfunction\\s*(\\w+)[^\\{]*\\{",
+            callback: onNamedFunctionStartMatch,
+            groupCount: 1
         }
+    ];
+    return transform;
+
+    function transform(data, done) {
+        var input = data.input,
+            eventSource = data.eventSource,
+            state = data.state,
+            multiRe = utils.multiRegex(TOKENS_MULTI_RE, "gm");
+        var result = data.input.replace(multiRe.regex, function () {
+            var match = Array.prototype.slice.call(arguments),
+                parsedMatch = multiRe.parseMatch(match),
+                reSpec = parsedMatch.spec,
+                localMatch = parsedMatch.match;
+            var baseEvent = {
+                type: 'js:' + reSpec.type,
+                state: state
+            };
+            return reSpec.callback(eventSource, baseEvent, localMatch);
+        });
+        done(null, result);
     }
 
-    function parseNamedFunctionStart(lexerIter, output) {
-        var match = lexerIter.current.match;
-        output.addToken({
-            type: 'namedFunctionStart',
-            name: match[1],
-            match:match[0]
-        });
+    function onLocationMatch(eventSource, baseEvent, match) {
+        eventSource.emitSync(baseEvent);
+        if (baseEvent.replace) {
+            return match[0].replace("location", baseEvent.replace);
+        }
+        return match[0];
+    }
+
+    function onNamedFunctionStartMatch(eventSource, baseEvent, match) {
+        baseEvent.name = match[1];
+        eventSource.emitSync(baseEvent);
+        if (baseEvent.append) {
+            return match[0] + baseEvent.append;
+        }
+        return match[0];
     }
 });
 
@@ -891,235 +965,6 @@ uitest.define('proxyFactory', ['global'], function(global) {
                 name: propName,
                 value: value
             });
-        }
-    }
-});
-uitest.define('regexParserFactory', ['utils'], function(utils) {
-
-    return createParser;
-
-    function createParser(lexemeSpecs, lexemeStartParsers, tokenSerializers, ignoreCase) {
-        var compiledLexer = compileLexer(lexemeSpecs);
-        return {
-            parse: parse,
-            serialize: serialize,
-            transform: transform
-        };
-
-        function serialize(tokens) {
-            var parts = new Array(tokens.length),
-                i, token, serializer, tokenStr;
-            for (i = 0; i < tokens.length; i++) {
-                token = tokens[i];
-                serializer = tokenSerializers[token.type];
-                if (serializer) {
-                    tokenStr = serializer(token);
-                } else {
-                    tokenStr = tokens[i].match;
-                }
-                parts.push(tokenStr);
-            }
-            return parts.join('');
-        }
-
-        function parse(input) {
-            var lexemes = compiledLexer(input);
-            return parseLexemes(lexemes, lexemeStartParsers);
-        }
-
-        function transform(data, transformDone) {
-            var input = data.input,
-                state = data.state || {},
-                eventSource = data.eventSource,
-                eventPrefix = data.eventPrefix || '',
-                tokens = parse(input),
-                resultTokens = [];
-
-            utils.asyncLoop(tokens, loopHandler, loopDone);
-
-            function loopDone(error) {
-                transformDone(error, serialize(resultTokens));
-            }
-
-            function loopHandler(entry, loopHandlerDone) {
-                var token = entry.item,
-                    tokenIndex = entry.index,
-                    pushTokenInsertPos = tokenIndex + 1;
-                eventSource.emit({
-                    type: eventPrefix + token.type,
-                    token: token,
-                    state: state,
-                    pushToken: pushToken
-                }, eventDone);
-
-                function eventDone(error, event) {
-                    if (!event.stopped && !error) {
-                        resultTokens.push(token);
-                    }
-                    loopHandlerDone(error);
-                }
-
-                function pushToken(token) {
-                    tokens.splice(pushTokenInsertPos++, 0, token);
-                }
-            }
-        }
-    }
-
-    function parseLexemes(lexemes, lexemeStartParsers) {
-        var lexerIter = iterator(lexemes),
-            lexeme,
-            output = [],
-            lexemParser,
-            outputAdder = {
-                addToken: addToken,
-                addMergedToken: addMergedToken,
-                addOtherToken: addOtherToken,
-                tokens: output
-            };
-        while (lexeme = lexerIter.next()) {
-            lexemParser = lexemeStartParsers[lexeme.type];
-            if (lexemParser) {
-                lexemParser(lexerIter, outputAdder);
-            } else {
-                outputAdder.addOtherToken();
-            }
-        }
-        return concatOtherTokens(output);
-
-        function addMergedToken(lexemeType, outputType) {
-            var parts = [];
-            do {
-                parts.push(lexerIter.current.match[0]);
-                lexerIter.next();
-            } while (lexerIter.current && lexerIter.current.type !== lexemeType);
-            if (lexerIter.current) {
-                parts.push(lexerIter.current.match[0]);
-            }
-            output.push({
-                type: outputType,
-                match: parts.join('')
-            });
-        }
-
-        function addOtherToken() {
-            if (lexerIter.current) {
-                output.push({
-                    type: 'other',
-                    match: lexerIter.current.match[0]
-                });
-            }
-        }
-
-        function addToken(token) {
-            output.push(token);
-        }
-    }
-
-    function concatOtherTokens(tokens) {
-        var i, otherMatches, token, result = [];
-        for (i = 0; i < tokens.length; i++) {
-            token = tokens[i];
-            if (token.type === 'other') {
-                if (!otherMatches) {
-                    otherMatches = [];
-                }
-                otherMatches.push(token.match);
-            } else {
-                flushOtherTokensIfNeeded();
-                result.push(token);
-            }
-        }
-        flushOtherTokensIfNeeded();
-        return result;
-
-        function flushOtherTokensIfNeeded() {
-            if (otherMatches) {
-                result.push({
-                    type: 'other',
-                    match: otherMatches.join('')
-                });
-                otherMatches = null;
-            }
-        }
-    }
-
-
-    function compileLexer(lexemeSpecs, ignoreCase) {
-        var re = buildRegex(ignoreCase, lexemeSpecs);
-        return function(input) {
-            return lex(input, re, lexemeSpecs);
-        };
-
-        function buildRegex() {
-            var re = [],
-                i;
-            for (i = 0; i < lexemeSpecs.length; i++) {
-                re.push(lexemeSpecs[i].re);
-            }
-            return new RegExp('(' + re.join(')|(') + ')', ignoreCase ? 'gmi' : 'gm');
-        }
-    }
-
-    function lex(input, re, lexemeSpecs) {
-        var match,
-        result = [],
-            lastMatchEnd = 0;
-        while (match = re.exec(input)) {
-            addOtherlexemeIfNeeded(match.index);
-            result.push(createlexeme(match));
-            lastMatchEnd = match.index + match[0].length;
-        }
-        addOtherlexemeIfNeeded(input.length);
-
-        return result;
-
-        function addOtherlexemeIfNeeded(nextMatchStart) {
-            if (nextMatchStart > lastMatchEnd) {
-                result.push({
-                    type: 'other',
-                    match: [input.substring(lastMatchEnd, nextMatchStart)]
-                });
-            }
-        }
-
-        function createlexeme(match) {
-            var i, groupIndex = 1,
-                lexerSpec;
-            for (i = 0; i < lexemeSpecs.length; i++) {
-                lexerSpec = lexemeSpecs[i];
-                if (match[groupIndex]) {
-                    return {
-                        type: lexerSpec.type,
-                        match: match.slice(groupIndex, groupIndex + lexerSpec.groupCount + 1)
-                    };
-                }
-                groupIndex += lexerSpec.groupCount + 1;
-            }
-            throw new Error("Internal error: could not find a matching lexerSpec for match " + match);
-        }
-    }
-
-    function iterator(array) {
-        var index = -1,
-            result = {
-                next: next,
-                prev: prev
-            };
-        return result;
-
-        function updateCurrent() {
-            return result.current = array[index];
-        }
-
-        function next() {
-            index++;
-            return updateCurrent();
-        }
-
-        function prev() {
-            index--;
-            return updateCurrent();
         }
     }
 });
@@ -1463,10 +1308,7 @@ uitest.define('run/feature/locationProxy', ['proxyFactory', 'run/scriptInstrumen
         done();
     });
     eventSource.on('js:location', function (event, done) {
-        event.pushToken({
-            type: 'other',
-            match: '[locationProxy.test()]()'
-        });
+        event.replace = 'location[locationProxy.test()]()';
         done();
     });
 
@@ -1894,20 +1736,18 @@ uitest.define('run/feature/xhrSensor', ['run/eventSource', 'run/ready'], functio
         };
     }
 });
-uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'htmlParserFactory', 'run/eventSource', 'run/testframe', 'urlParser', 'utils', 'run/injector'], function(fileLoader, logger, global, htmlParserFactory, eventSource, testframe, urlParser, utils, injector) {
+uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'htmlParser', 'run/eventSource', 'run/testframe', 'urlParser', 'utils', 'run/injector'], function (fileLoader, logger, global, htmlParser, eventSource, testframe, urlParser, utils, injector) {
 
-    var exports,
-        htmlParser = htmlParserFactory();
+    var exports;
 
     exports = {
         htmlParser: htmlParser,
         processHtml: processHtml
     };
-    eventSource.on('html:startTag', emitAddPrepends);
-    eventSource.on('html:simpleTag', emitAddPrepends);
-    eventSource.on('html:endTag', emitAddAppends);
-    eventSource.on('html:startTag', emitInstrumentScript);
-    eventSource.on('html:simpleTag', emitInstrumentScript);
+    eventSource.on('html:head:start', emitAddPrepends);
+    eventSource.on('html:body:start', emitAddPrepends);
+    eventSource.on('html:body:end', emitAddAppends);
+    eventSource.on('html:script:simple', emitInstrumentScript);
 
     return exports;
 
@@ -1917,12 +1757,8 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             htmlEventDone();
             return;
         }
-        if (htmlEvent.token.name!=='head' && htmlEvent.token.name!=='body') {
-            htmlEventDone();
-            return;
-        }
         state.addedPrepends = true;
-        emitAddPrependsAndAppends(htmlEvent, 'addPrepends', htmlEventDone);
+        emitAddPrependsAndAppends(htmlEvent, 'addPrepends', htmlEvent.append, htmlEventDone);
     }
 
     function emitAddAppends(htmlEvent, htmlEventDone) {
@@ -1930,24 +1766,12 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             htmlEventDone();
             return;
         }
-        if (htmlEvent.token.name!=='body') {
-            htmlEventDone();
-            return;
-        }
         htmlEvent.token.addedAppends = true;
-        htmlEvent.stop();
-        emitAddPrependsAndAppends(htmlEvent, 'addAppends', function(error) {
-            if (error) {
-                htmlEventDone(error);
-                return;
-            }
-            htmlEvent.pushToken(htmlEvent.token);
-            htmlEventDone();
-        });
+        emitAddPrependsAndAppends(htmlEvent, 'addAppends', htmlEvent.prepend, htmlEventDone);
     }
 
-    function emitAddPrependsAndAppends(htmlEvent, type, htmlEventDone) {
-        logger.log(type+" after "+htmlEvent.type);
+    function emitAddPrependsAndAppends(htmlEvent, type, addArray, htmlEventDone) {
+        logger.log(type + " after " + htmlEvent.type);
         eventSource.emit({
             type: type,
             handlers: [],
@@ -1960,33 +1784,33 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
                 htmlEventDone(error);
                 return;
             }
-            createScriptTokensForPrependsOrAppends(htmlEvent.pushToken, addPrependsOrAppendsEvent.handlers);
+            createScriptTokensForPrependsOrAppends(addArray, addPrependsOrAppendsEvent.handlers);
             htmlEventDone();
         }
     }
 
-    function createScriptTokensForPrependsOrAppends(pushToken, prependsOrAppends) {
+    function createScriptTokensForPrependsOrAppends(addArray, prependsOrAppends) {
         var i, prependOrAppend, lastCallbackArr;
-        for(i = 0; i < prependsOrAppends.length; i++) {
+        for (i = 0; i < prependsOrAppends.length; i++) {
             prependOrAppend = prependsOrAppends[i];
-            if(utils.isString(prependOrAppend)) {
-                pushToken({
-                    type: 'simpleTag',
+            if (utils.isString(prependOrAppend)) {
+                addArray.push({
+                    type: 'simple',
                     name: 'script',
-                    attrs:{
-                        src:{value: prependOrAppend}
+                    attrs: {
+                        src: prependOrAppend
                     },
                     content: ''
                 });
                 lastCallbackArr = null;
             } else {
-                if(!lastCallbackArr) {
+                if (!lastCallbackArr) {
                     lastCallbackArr = [];
-                    pushToken({
-                        type: 'simpleTag',
+                    addArray.push({
+                        type: 'simple',
                         name: 'script',
-                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr)),
-                        attrs: []
+                        attrs: {},
+                        content: testframe.createRemoteCallExpression(injectedCallbacks(lastCallbackArr))
                     });
                 }
                 lastCallbackArr.push(prependOrAppend);
@@ -1995,22 +1819,22 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
     }
 
     function injectedCallbacks(callbacks) {
-        return function() {
+        return function () {
             var i;
-            for(i = 0; i < callbacks.length; i++) {
+            for (i = 0; i < callbacks.length; i++) {
                 injector.inject(callbacks[i]);
             }
         };
     }
 
     function emitInstrumentScript(htmlEvent, htmlEventDone) {
-        if (htmlEvent.token.name!=='script') {
+        if (htmlEvent.token.name !== 'script') {
             htmlEventDone();
             return;
         }
         var absUrl;
         if (htmlEvent.token.attrs.src) {
-            absUrl = urlParser.makeAbsoluteUrl(htmlEvent.token.attrs.src.value, htmlEvent.state.htmlUrl);
+            absUrl = urlParser.makeAbsoluteUrl(htmlEvent.token.attrs.src, htmlEvent.state.htmlUrl);
         }
         eventSource.emit({
             type: 'instrumentScript',
@@ -2030,7 +1854,7 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
             } else {
                 // Still allow event listeners to change the src of the script
                 if (htmlEvent.token.attrs.src) {
-                    htmlEvent.token.attrs.src.value = instrumentScriptEvent.src;
+                    htmlEvent.token.attrs.src = instrumentScriptEvent.src;
                 }
             }
             htmlEventDone();
@@ -2042,20 +1866,20 @@ uitest.define('run/htmlInstrumentor', ['fileLoader', 'run/logger', 'global', 'ht
     }
 
     function processHtml(url, finishedCallback) {
-        fileLoader(url, function(error, html) {
+        fileLoader(url, function (error, html) {
             if (error) {
                 finishedCallback(error);
                 return;
             }
 
-            htmlParser.transform({
+            htmlParser({
                 input: html,
                 state: {
                     htmlUrl: url
                 },
                 eventPrefix: 'html:',
                 eventSource: eventSource
-            },finishedCallback);
+            }, finishedCallback);
         });
     }
 });
@@ -2237,17 +2061,13 @@ uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector
     return onFunctionStart;
 
     function onFunctionStart(event, done) {
-        var token = event.token,
-            state = event.state;
-        var intercept = findMatchingInterceptByName(token.name, state.scriptUrl);
+        var state = event.state;
+        var intercept = findMatchingInterceptByName(event.name, state.scriptUrl);
         if (!intercept) {
             done();
             return;
         }
-        event.pushToken({
-            type: 'other',
-            match: 'if (!' + token.name + '.delegate)return ' + testframe.createRemoteCallExpression(fnCallback, "window", token.name, "this", "arguments")
-        });
+        event.append = 'if (!' + event.name + '.delegate)return ' + testframe.createRemoteCallExpression(fnCallback, "window", event.name, "this", "arguments");
         done();
         return;
 
@@ -2256,7 +2076,7 @@ uitest.define('run/namedFunctionInstrumentor', ['run/eventSource', 'run/injector
                 originalArgsByName = {},
                 $delegate = {
                     fn: fn,
-                    name: token.name,
+                    name: event.name,
                     self: self,
                     args: args
                 },
@@ -2359,7 +2179,7 @@ uitest.define('run/ready', ['run/injector', 'global', 'run/logger'], function(in
 		ready: ready
 	};
 });
-uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', 'run/logger', 'utils', 'run/testframe', 'urlParser'], function(eventSource, injector, logger, utils, testframe, urlParser) {
+uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', 'run/logger', 'utils', 'run/testframe', 'urlParser'], function (eventSource, injector, logger, utils, testframe, urlParser) {
     var REQUIRE_JS_RE = /require[\W]/,
         eventHandlers = [];
 
@@ -2368,7 +2188,7 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
     addAppendsSuppressor.priority = 99999;
     eventSource.on('addAppends', addAppendsSuppressor);
 
-    eventSource.on('html:simpleTag', checkAndHandleRequireJsScriptToken);
+    eventSource.on('html:script:simple', checkAndHandleRequireJsScriptToken);
 
     return;
 
@@ -2383,24 +2203,24 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
         var token = htmlEvent.token,
             state = htmlEvent.state;
 
-        if (token.name!=='script' || !token.attrs.src || !token.attrs.src.value.match(REQUIRE_JS_RE)) {
+        if (!token.attrs.src || !token.attrs.src.match(REQUIRE_JS_RE)) {
             htmlEventDone();
             return;
         }
-        logger.log("detected requirejs with script url " + token.attrs.src.value);
+        logger.log("detected requirejs with script url " + token.attrs.src);
 
-        var content = testframe.createRemoteCallExpression(function(win) {
+        var content = testframe.createRemoteCallExpression(function (win) {
             afterRequireJsScript(win);
         }, "window");
 
         // Used by addAppendsSuppressor to see if
         // requirejs is used.
         state.requirejs = true;
-        htmlEvent.pushToken({
-            type: 'simpleTag',
+        htmlEvent.append.push({
+            type: 'simple',
             name: 'script',
-            content: content,
-            attrs:[]
+            attrs: {},
+            content: content
         });
         htmlEventDone();
     }
@@ -2416,11 +2236,11 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
 
     function patchRequire(win) {
         var _require = win.require;
-        win.require = function(deps, originalCallback) {
+        win.require = function (deps, originalCallback) {
             _require.onResourceLoad = win.require.onResourceLoad;
-            _require(deps, function() {
+            _require(deps, function () {
                 var depsValues = arguments;
-                collectAndExecuteAppends(_require, win, function(error) {
+                collectAndExecuteAppends(_require, win, function (error) {
                     if (error) {
                         throw error;
                     }
@@ -2468,7 +2288,7 @@ uitest.define('run/requirejsInstrumentor', ['run/eventSource', 'run/injector', '
 
     function patchLoad(_require) {
         var _load = _require.load;
-        _require.load = function(context, moduleName, url) {
+        _require.load = function (context, moduleName, url) {
             var self = this;
             var absUrl = urlParser.makeAbsoluteUrl(url, testframe.win().location.href);
             eventSource.emit({
@@ -2526,9 +2346,7 @@ uitest.define('run/scriptAdder', ['run/config', 'run/eventSource'], function(run
         done();
     }
 });
-uitest.define('run/scriptInstrumentor', ['run/eventSource', 'fileLoader', 'run/logger', 'jsParserFactory'], function(eventSource, fileLoader, logger, jsParserFactory) {
-    var jsParser = jsParserFactory();
-
+uitest.define('run/scriptInstrumentor', ['run/eventSource', 'fileLoader', 'run/logger', 'jsParser'], function(eventSource, fileLoader, logger, jsParser) {
     eventSource.on('instrumentScript', instrumentScript);
 
     return {
@@ -2549,7 +2367,7 @@ uitest.define('run/scriptInstrumentor', ['run/eventSource', 'fileLoader', 'run/l
         }
 
         function scriptContentLoaded(scriptContent) {
-            jsParser.transform({
+            jsParser({
                 input: scriptContent,
                 eventSource: eventSource,
                 eventPrefix: 'js:',
@@ -2993,6 +2811,7 @@ uitest.define('urlParser', ['global'], function (global) {
             addEventListener: addEventListener,
             removeEventListener: removeEventListener,
             textContent: textContent,
+            multiRegex: multiRegex,
             noop: noop
         };
 
@@ -3121,6 +2940,38 @@ uitest.define('urlParser', ['global'], function (global) {
                 } else {
                     el.textContent = val;
                 }
+            }
+        }
+
+        function multiRegex(specs, flags) {
+            return {
+                regex: createRegex(),
+                parseMatch: parseMatch
+            };
+
+            function createRegex() {
+                var reParts = [],
+                    i;
+                for (i = 0; i < specs.length; i++) {
+                    reParts.push(specs[i].re);
+                }
+                return new RegExp("(" + reParts.join(')|(') + ")", flags);
+            }
+
+            function parseMatch(match) {
+                var reParts = [],
+                    i, groupIndex = 1;
+                for (i = 0; i < specs.length; i++) {
+                    if (match[groupIndex]) {
+                        return {
+                            spec: specs[i],
+                            match: match.slice(groupIndex)
+                        };
+                    }
+                    groupIndex += specs[i].groupCount + 1;
+                }
+                throw new Error("Internal Error: Could not find the spec for the match " + match);
+
             }
         }
 
