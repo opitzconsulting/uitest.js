@@ -1166,11 +1166,14 @@ uitest.define('run/feature/fakeHistory', ['run/eventSource', 'run/main', 'run/fe
     }
 
     function createEvent(win, eventObjName, eventName) {
-        if (!(eventObjName in win)) {
+        var evt;
+        try {
+            evt = win.document.createEvent(eventObjName);
+        } catch (e) {
             // For IE: creating "HashChangeEvent" needs a normal "Event"
             eventObjName = 'Event';
+            evt = win.document.createEvent(eventObjName);
         }
-        var evt = win.document.createEvent(eventObjName);
         evt.initEvent(eventName, true, false);
         return evt;
     }
