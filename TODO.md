@@ -5,7 +5,7 @@ TODO
   * QUnit
 
 * Performance if the browser-tab is in the background:
-  - In chrome, executing ui tests via testacular is slow if
+  - In chrome, executing ui tests via karma is slow if
     the browser-tab is in the background (i.e. another tab is open and focused).
 
 * Better error handling:

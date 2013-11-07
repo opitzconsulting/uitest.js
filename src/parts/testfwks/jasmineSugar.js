@@ -12,6 +12,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         // Note for the check of spec.queue.running:
         // Jasmine leaves env.currentSpec filled even if outside
         // of any spec from the last run!
+
         if (spec && spec.queue.running) {
             ids.unshift("sp"+spec.id);
             suite = spec.suite;

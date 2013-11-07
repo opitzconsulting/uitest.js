@@ -10,6 +10,6 @@
         ".travis.yml",
         "Gruntfile.js",
         "package.json",
-        "testacular.conf.js"
+        "karma.conf.js"
     ]
 }
