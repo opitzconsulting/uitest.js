@@ -1,5 +1,5 @@
-/*! uitest.js - v0.9.2-SNAPSHOT - 2013-04-05
-* https://github.com/tigbro/uitest.js
+/*! uitest.js - v0.9.2-SNAPSHOT - 2013-11-07
+* https://github.com/opitzconsulting/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**
  * Simple implementation of AMD require/define assuming all
@@ -1844,6 +1844,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         // Note for the check of spec.queue.running:
         // Jasmine leaves env.currentSpec filled even if outside
         // of any spec from the last run!
+
         if (spec && spec.queue.running) {
             ids.unshift("sp"+spec.id);
             suite = spec.suite;
@@ -1902,6 +1903,7 @@ uitest.define('jasmineSugar', ['facade', 'global'], function(facade, global) {
         }
     };
 });
+
 uitest.define('top', ['global'], function(global) {
     try {
         var res = global.top;

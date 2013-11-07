@@ -18,7 +18,7 @@ module.exports = function(grunt) {
     },
     watch: {
       files: '<%= jshint.files %>',
-      tasks: ['jshint', 'concat', 'karmaRun:dev']
+      tasks: ['jshint', 'concat', 'karma:unit:run']
     },
     jshint: {
       files: ['src/**/*.js', 'test/**/*Spec.js'],
@@ -65,7 +65,7 @@ module.exports = function(grunt) {
         options: {
           port: 9000,
           base: './',
-          hostname: ''
+          hostname: 'localhost'
         }
       }
     },
@@ -76,6 +76,11 @@ module.exports = function(grunt) {
           singleRun: false,
           browsers: ['PhantomJS'],
           keepalive: false
+        }
+      },
+      unit: {
+        options: {
+          background: false || true
         }
       },
       travis: {
@@ -92,13 +97,6 @@ module.exports = function(grunt) {
           singleRun: true,
           browsers: ['PhantomJS'],
           keepalive: true
-        }
-      }
-    },
-    karmaRun: {
-      dev: {
-        options: {
-          runnerPort: 9100
         }
       }
     }
