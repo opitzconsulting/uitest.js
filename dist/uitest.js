@@ -1,4 +1,4 @@
-/*! uitest.js - v0.9.2-SNAPSHOT - 2013-11-07
+/*! uitest.js - v0.9.2-SNAPSHOT - 2013-11-08
 * https://github.com/opitzconsulting/uitest.js
 * Copyright (c) 2013 Tobias Bosch; Licensed MIT */
 /**

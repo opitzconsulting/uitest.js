@@ -20,6 +20,7 @@ module.exports = function(config) {
     // CLI --reporters progress
     reporters: ['progress'],
 
+    preprocessors : [{'scripts/**/*.html' : ''}],
     // web server port
     // CLI --port 9876
     port: 9876,
