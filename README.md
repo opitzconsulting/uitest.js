@@ -38,7 +38,7 @@ test frameworks.
     * No additional JS libs required
     * Does not need any additional test server, only a browser to execute the tests
 * Supports xhtml on many browsers. 
-    * Not on FF (as FF does uses `javascript:` urls in 
+    * Not on Fx (as Fx does uses `javascript:` urls in 
   a special way :-( )
     * Not on IE<=8, as IE<=8 is not able to load xhtml in an iframe
       (error XML5632: only one root element is allowed).
