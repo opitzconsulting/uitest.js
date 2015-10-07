@@ -7,7 +7,7 @@ uitest.js is able to load a webpage into a frame,
 instrument that page and the javascript in that page (e.g. add additional scripts at the end
 of the document, ...) and execute actions on that page.
 
-uitest.js can be used standalone or with any testframework.
+uitest.js can be used standalone or with any test framework.
 However, there is also some syntactic sugar so that it integrates more easily into
 test frameworks.
 
