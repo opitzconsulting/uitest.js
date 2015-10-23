@@ -13,7 +13,7 @@ The predecessor of uitest was the project [Jasmine-Ui](https://github.com/tigbro
 - stepping from the test to the application was easy, as there was no iframe that separated both.
 
 However, Jasmine-Ui had the following disadvantages:
-- if Jasmine-Ui tests were run with a testrunner like testacular or JsTestDriver, it used a popup, which lead to problems with popup blockers, epscially on mobile devices
+- if Jasmine-Ui tests were run with a testrunner like karma or JsTestDriver, it used a popup, which lead to problems with popup blockers, epscially on mobile devices
 - Jasmine-Ui required a very tight integration with the test framework Jasmine-BDD, as it needed to stop test execution, execute only one test, ...
 - The code base of Jasmine-Ui was very complex, which was caused by it's architecture.
 

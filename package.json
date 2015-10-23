@@ -15,7 +15,7 @@
         "grunt-contrib-connect": "latest",
         "grunt-contrib-watch": "latest",
         "grunt-contrib-jshint": "latest",
-        "grunt-testacular": "latest",
+        "grunt-karma": "latest",
         "mocha": "latest",
         "qunit": "latest",
         "phantomjs": "latest"
