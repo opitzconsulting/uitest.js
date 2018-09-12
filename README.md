@@ -170,9 +170,9 @@ The following additional functions exist for Jasmine-BDD:
 - `uitest.current`: This returns a singleton uitest instance,
   whose functions delegate to the current uitest instance of the spec/suite.  
 - `uitest.current.runs(callback[,timeout])`: First, this executes a `waitsFor` call using `uitest.current.ready`.
-Then it executes the the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
+Then it executes the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
 - `uitest.current.runsAfterReload(callback[,timeout])`: First, this executes a `waitsFor` call using `uitest.current.reloaded`.
-Then it executes the the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
+Then it executes the given callback using a `runs` call from jasmine and does dependency injection for the arguments of the callback using `uitest.current.inject`.
 
 
 ## Angular-Js Support
